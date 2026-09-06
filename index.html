@@ -430,8 +430,10 @@ tr:hover td{background:#fafaf5}
   #tab-conciliacion, #tab-presupuestos, #tab-anios, #tab-archivos{
     padding-left:10px; padding-right:10px;
   }
-  .topbar{padding:8px 12px}
+  .topbar{padding:8px 12px;row-gap:8px}
   .topbar h1{font-size:13px}
+  .global-search-wrap{order:3;flex-basis:100%;max-width:100%;margin-top:2px}
+  #topbar-actions{order:2;flex-wrap:wrap;justify-content:flex-end;row-gap:6px}
   .stats-row{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
   .stat{padding:9px 10px}
   .stat-value{font-size:18px}
@@ -453,22 +455,6 @@ tr:hover td{background:#fafaf5}
   .dash-kpi-grid{grid-template-columns:repeat(2,1fr)}
   .cierre-resumen-grid{grid-template-columns:repeat(2,1fr)}
   .tab-group-btn{font-size:12px;padding:7px 12px}
-  /* Menús de pestañas en móvil: desplegable debajo del botón, tocable y sin recorte.
-     JS fija top/left con position:fixed; acá solo tamaño y estilo. */
-  .tab-dropdown.open{
-    display:block!important;
-    min-width:180px;
-    max-width:calc(100vw - 16px);
-    max-height:60vh;
-    overflow-y:auto;
-    z-index:99999!important;
-    box-shadow:0 8px 28px rgba(0,0,0,.28);
-  }
-  .tab-dropdown.open .dd-item{
-    padding:13px 16px;
-    font-size:14px;
-    white-space:normal;
-  }
   .controls{flex-direction:column;align-items:stretch}
   .controls input,.controls select,.controls .btn{width:100%;min-width:0}
   .modal-actions{flex-wrap:wrap}
@@ -476,6 +462,10 @@ tr:hover td{background:#fafaf5}
   .overlay [style*="grid-template-columns"]{grid-template-columns:1fr!important}
   .stats-row-secondary{gap:10px 16px;padding:8px 12px}
   .stats-secondary-caption{padding-right:0;border-right:none;width:100%}
+  .btn-label-text{display:none}
+  #topbar-actions button{padding:0 9px!important;gap:0!important}
+  #topbar-actions button i{font-size:15px!important}
+  .global-search-wrap{min-width:0}
 }
 
 .main, .topbar{max-width:100vw}
@@ -484,7 +474,10 @@ img, svg{max-width:100%}
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-  import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+  import {
+    getFirestore, doc, getDoc, setDoc, onSnapshot,
+    collection, getDocs, deleteDoc, query, orderBy, limit, startAfter, addDoc, writeBatch
+  } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
   import {
     getAuth, onAuthStateChanged, setPersistence, browserSessionPersistence,
     signInWithEmailAndPassword, signOut, updatePassword,
@@ -515,6 +508,272 @@ img, svg{max-width:100%}
   const functions = getFunctions(app);
 
   setPersistence(auth, browserSessionPersistence).catch(e => console.warn("setPersistence error", e));
+
+  // ══════════════════════════════════════════════════════════════════════
+  // ── AUDITORÍA DE CAMBIOS ─────────────────────────────────────────────────
+  // Cada vez que se guarda algo en "datos" (o sea, casi cualquier acción de
+  // guardar en toda la app), queda un registro de quién, cuándo y qué cambió
+  // en la colección "auditoria". No modifica ni pisa nada existente: es
+  // "append-only" (las reglas de Firestore bloquean update/delete sobre ella).
+  // ══════════════════════════════════════════════════════════════════════
+
+  function _auditEtiqueta(obj) {
+    if (!obj || typeof obj !== 'object') return String(obj);
+    const campos = ['nombre', 'alumno', 'alumnoNombre', 'docente', 'name', 'titular', 'concepto', 'descripcion', 'proveedor'];
+    for (const c of campos) { if (obj[c]) return String(obj[c]); }
+    return obj.id ? ('id ' + obj.id) : '(sin nombre)';
+  }
+
+  function _auditListaCorta(etiquetas, maximo) {
+    maximo = maximo || 5;
+    if (etiquetas.length <= maximo) return etiquetas.join(', ');
+    return etiquetas.slice(0, maximo).join(', ') + ` (+${etiquetas.length - maximo} más)`;
+  }
+
+  // Compara el valor anterior contra el nuevo y arma una descripción legible
+  // de qué cambió. Detecta especialmente el caso más importante: elementos
+  // de un array (becas, alumnos, bonos, etc.) que se agregaron, borraron o
+  // modificaron, identificándolos por nombre cuando es posible.
+  function _auditResumenCambio(anterior, nuevo) {
+    if (anterior === null && nuevo !== null) {
+      return 'Creado por primera vez' + (Array.isArray(nuevo) ? ` (${nuevo.length} elementos)` : '');
+    }
+    if (anterior !== null && nuevo === null) return 'Vaciado por completo';
+    if (Array.isArray(anterior) && Array.isArray(nuevo)) {
+      const primerConId = anterior.find(x => x && typeof x === 'object' && 'id' in x) || nuevo.find(x => x && typeof x === 'object' && 'id' in x);
+      if (primerConId) {
+        const mapAnt = new Map(anterior.filter(x => x && x.id != null).map(x => [x.id, x]));
+        const mapNuevo = new Map(nuevo.filter(x => x && x.id != null).map(x => [x.id, x]));
+        const eliminados = [...mapAnt.keys()].filter(id => !mapNuevo.has(id)).map(id => _auditEtiqueta(mapAnt.get(id)));
+        const agregados = [...mapNuevo.keys()].filter(id => !mapAnt.has(id)).map(id => _auditEtiqueta(mapNuevo.get(id)));
+        const modificados = [...mapNuevo.keys()].filter(id => mapAnt.has(id) && JSON.stringify(mapAnt.get(id)) !== JSON.stringify(mapNuevo.get(id))).map(id => _auditEtiqueta(mapNuevo.get(id)));
+        const partes = [];
+        if (eliminados.length) partes.push('🗑 eliminado: ' + _auditListaCorta(eliminados));
+        if (agregados.length) partes.push('➕ agregado: ' + _auditListaCorta(agregados));
+        if (modificados.length) partes.push('✏️ modificado: ' + _auditListaCorta(modificados));
+        return partes.length ? partes.join(' · ') : 'Guardado sin cambios detectables';
+      }
+      if (anterior.length !== nuevo.length) {
+        return anterior.length > nuevo.length
+          ? `${anterior.length - nuevo.length} elemento(s) eliminado(s) (${anterior.length} → ${nuevo.length})`
+          : `${nuevo.length - anterior.length} elemento(s) agregado(s) (${anterior.length} → ${nuevo.length})`;
+      }
+      return JSON.stringify(anterior) === JSON.stringify(nuevo) ? 'Guardado sin cambios' : 'Modificado (mismo tamaño)';
+    }
+    if (JSON.stringify(anterior) === JSON.stringify(nuevo)) return 'Guardado sin cambios';
+    return 'Modificado';
+  }
+
+  // Registra una entrada de auditoría. Nunca debe frenar ni hacer fallar
+  // el guardado real: se llama después de que setDoc ya tuvo éxito.
+  async function auditRegistrar(clave, anteriorStr, nuevoStr) {
+    let anterior = null, nuevo = null;
+    try { anterior = anteriorStr ? JSON.parse(anteriorStr) : null; } catch (e) { /* valor no-JSON, se ignora en el diff */ }
+    try { nuevo = nuevoStr ? JSON.parse(nuevoStr) : null; } catch (e) { /* ídem */ }
+    const entrada = {
+      ts: Date.now(),
+      clave,
+      usuario: (window.sesionActual && window.sesionActual.user) || auth.currentUser?.email || 'desconocido',
+      rol: (window.sesionActual && window.sesionActual.rol) || null,
+      resumen: _auditResumenCambio(anterior, nuevo)
+    };
+    try {
+      await addDoc(collection(db, "auditoria"), entrada);
+    } catch (e) {
+      // Igual que con el backup automático: permission-denied es esperable
+      // si el rol conectado no puede escribir en /auditoria.
+      if (e && e.code !== 'permission-denied') console.error("auditRegistrar error", clave, e);
+    }
+  }
+
+  // Trae las últimas entradas de auditoría, más nuevas primero. Si se pasa
+  // "desde" (el último doc de la página anterior), sigue paginando hacia atrás.
+  async function auditListar(desde) {
+    const partes = [collection(db, "auditoria"), orderBy("ts", "desc")];
+    if (desde) partes.push(startAfter(desde));
+    partes.push(limit(100));
+    const snap = await getDocs(query(...partes));
+    return { entradas: snap.docs.map(d => d.data()), ultimoDoc: snap.docs[snap.docs.length - 1] || null, hayMas: snap.docs.length === 100 };
+  }
+
+  window._fbAuditoria = { registrar: auditRegistrar, listar: auditListar };
+
+
+  // Respalda TODA la colección "datos" (todo lo que usa fbGet/fbSet en el
+  // resto de la app) a un documento diario en la colección "backups".
+  // No depende de conocer las claves de antemano: lee la colección entera,
+  // así que cualquier módulo nuevo que use _fb.set/_fb.get queda cubierto
+  // automáticamente sin tener que tocar este código.
+  // ══════════════════════════════════════════════════════════════════════
+  const BACKUPS_RETENCION = 30; // cuántas copias diarias conservar
+  const BK_LOTE = 400; // escrituras por writeBatch (límite real de Firestore: 500)
+
+  function _bkFechaHoy() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  // Toast visible si existe (definido en el script principal, no-module).
+  // Si no está disponible todavía, no rompe nada: solo queda en consola.
+  function _bkAviso(msg, tipo) {
+    try {
+      if (typeof window.showToast === 'function') window.showToast(msg, tipo);
+    } catch (e) { /* no bloquear el backup por un error de UI */ }
+  }
+
+  // Lee todos los documentos de la colección "datos" tal cual están guardados
+  // (cadenas JSON crudas), para poder restaurarlos exactamente igual.
+  async function bkLeerColeccionDatos() {
+    const snap = await getDocs(collection(db, "datos"));
+    const mapa = {};
+    snap.forEach(d => { mapa[d.id] = d.data().v; });
+    return mapa;
+  }
+
+  // Crea (o sobreescribe) el backup del día de hoy. Para no toparse con el
+  // límite de 1 MiB por documento de Firestore, el doc "backups/{fecha}"
+  // sólo guarda metadatos livianos, y cada clave de "datos" se guarda como
+  // un documento aparte en la subcolección "backups/{fecha}/claves".
+  async function bkCrear(motivo) {
+    const datos = await bkLeerColeccionDatos();
+    const claves = Object.keys(datos);
+    if (!claves.length) throw new Error('La colección "datos" está vacía, no se genera backup.');
+    const fecha = _bkFechaHoy();
+    const meta = {
+      fecha,
+      ts: Date.now(),
+      usuario: (window.sesionActual && window.sesionActual.user) || auth.currentUser?.email || 'desconocido',
+      motivo: motivo || 'automático',
+      cantidadClaves: claves.length
+    };
+    await setDoc(doc(db, "backups", fecha), meta);
+    for (let i = 0; i < claves.length; i += BK_LOTE) {
+      const lote = writeBatch(db);
+      claves.slice(i, i + BK_LOTE).forEach(key => {
+        lote.set(doc(db, "backups", fecha, "claves", key), { v: datos[key] });
+      });
+      await lote.commit();
+    }
+    await bkAplicarRetencion();
+    return meta;
+  }
+
+  // Borra backups más viejos que los últimos N (por fecha, ordenado ascendente),
+  // incluyendo los documentos de su subcolección "claves" (borrar el doc de
+  // arriba NO borra solo la subcolección en Firestore, hay que hacerlo aparte).
+  async function bkAplicarRetencion() {
+    try {
+      const snap = await getDocs(query(collection(db, "backups"), orderBy("fecha", "asc")));
+      const ids = snap.docs.map(d => d.id);
+      const sobran = ids.length - BACKUPS_RETENCION;
+      if (sobran <= 0) return;
+      const aBorrar = ids.slice(0, sobran);
+      for (const id of aBorrar) {
+        try {
+          const clavesSnap = await getDocs(collection(db, "backups", id, "claves"));
+          const idsClaves = clavesSnap.docs.map(d => d.id);
+          for (let i = 0; i < idsClaves.length; i += BK_LOTE) {
+            const lote = writeBatch(db);
+            idsClaves.slice(i, i + BK_LOTE).forEach(k => lote.delete(doc(db, "backups", id, "claves", k)));
+            await lote.commit();
+          }
+          await deleteDoc(doc(db, "backups", id));
+        } catch (e) {
+          console.warn("bkAplicarRetencion: no se pudo borrar", id, e);
+        }
+      }
+    } catch (e) {
+      console.warn("bkAplicarRetencion error", e);
+    }
+  }
+
+  // Se llama una vez por sesión, después del login. Si hoy todavía no hay
+  // backup, lo crea. Pensado para que "el que primero abre la app en el día"
+  // dispare el respaldo, sin que nadie tenga que acordarse de nada.
+  async function bkEjecutarSiCorresponde() {
+    const fecha = _bkFechaHoy();
+    try {
+      const existente = await getDoc(doc(db, "backups", fecha));
+      if (existente.exists()) return; // ya se hizo hoy
+      await bkCrear('automático (diario)');
+      console.info("Backup automático creado:", fecha);
+    } catch (e) {
+      // "permission-denied" es esperable si el rol conectado no tiene permiso
+      // de escritura en /backups (ver reglas de Firestore) — no es un error
+      // real de la app, así que no molestamos al usuario con un toast.
+      if (e && e.code === 'permission-denied') {
+        console.warn("Backup automático: sin permiso para este usuario/rol.", e);
+      } else {
+        console.error("Backup automático falló:", e);
+        _bkAviso('⚠️ No se pudo generar el backup automático de hoy. Avisá a un administrador.', 'error');
+      }
+    }
+  }
+
+  // Lista los backups existentes, más nuevo primero.
+  async function bkListar() {
+    const snap = await getDocs(query(collection(db, "backups"), orderBy("fecha", "desc")));
+    return snap.docs.map(d => {
+      const v = d.data();
+      return { fecha: v.fecha, ts: v.ts, usuario: v.usuario, motivo: v.motivo, cantidadClaves: v.cantidadClaves };
+    });
+  }
+
+  // Lee las claves de un backup puntual. Soporta el formato nuevo (un doc
+  // por clave en la subcolección "claves") y, por compatibilidad, el
+  // formato viejo (todo embebido en el propio doc "backups/{fecha}"), para
+  // que los backups generados antes de este cambio se sigan pudiendo usar.
+  async function bkLeerClaves(fecha) {
+    const clavesSnap = await getDocs(collection(db, "backups", fecha, "claves"));
+    if (!clavesSnap.empty) {
+      const mapa = {};
+      clavesSnap.forEach(d => { mapa[d.id] = d.data().v; });
+      return mapa;
+    }
+    const snap = await getDoc(doc(db, "backups", fecha));
+    if (!snap.exists()) throw new Error('No existe un backup con esa fecha.');
+    return (snap.data() || {}).datos || {};
+  }
+
+  // Restaura un backup puntual: sobreescribe cada clave en "datos" con el
+  // valor guardado en ese backup. No borra claves nuevas creadas después
+  // del backup (evita perder datos de módulos agregados con posterioridad).
+  async function bkRestaurar(fecha) {
+    const datos = await bkLeerClaves(fecha);
+    const claves = Object.keys(datos);
+    if (!claves.length) throw new Error('No existe un backup con esa fecha.');
+    for (const key of claves) {
+      await setDoc(doc(db, "datos", key), { v: datos[key] });
+    }
+    // Backup de seguridad ANTES de que el usuario siga trabajando, por si
+    // la restauración fue un error y hay que volver al estado previo.
+    await bkCrear('automático (previo a restauración de ' + fecha + ')').catch(e => console.warn(e));
+    return claves.length;
+  }
+
+  // Descarga un backup puntual como archivo .json, igual que "Descargar copia".
+  async function bkDescargar(fecha) {
+    const datos = await bkLeerClaves(fecha);
+    const metaSnap = await getDoc(doc(db, "backups", fecha));
+    const raw = metaSnap.exists() ? metaSnap.data() : {};
+    const legible = { fecha, usuario: raw.usuario, motivo: raw.motivo, datos: {} };
+    Object.keys(datos).forEach(k => {
+      try { legible.datos[k] = JSON.parse(datos[k]); } catch (e) { legible.datos[k] = datos[k]; }
+    });
+    const blob = new Blob([JSON.stringify(legible, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'backup-iscm-' + fecha + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  window._fbBackup = {
+    crearAhora: () => bkCrear('manual'),
+    ejecutarSiCorresponde: bkEjecutarSiCorresponde,
+    listar: bkListar,
+    restaurar: bkRestaurar,
+    descargar: bkDescargar
+  };
 
   const DOMINIO_EMAIL_USUARIOS = "iscm-gestion.local";
 
@@ -612,12 +871,25 @@ img, svg{max-width:100%}
     if (window._fbReady) return; // evitar reconfigurar si el callback se dispara de nuevo
 
     async function fbSet(key, value) {
+      // Leemos el valor anterior para poder auditar qué cambió. Este paso
+      // extra agrega una lectura antes de cada guardado, pero es lo que
+      // permite saber "quién borró qué" sin tener que tocar los ~560
+      // lugares del código que llaman a _fb.set.
+      let anteriorStr = null;
       try {
-        await setDoc(doc(db, "datos", key), { v: JSON.stringify(value) });
+        const prev = await getDoc(doc(db, "datos", key));
+        if (prev.exists()) anteriorStr = prev.data().v;
+      } catch (e) {
+        console.warn("fbSet: no se pudo leer el valor anterior (auditoría incompleta para esta escritura)", key, e);
+      }
+      const nuevoStr = JSON.stringify(value);
+      try {
+        await setDoc(doc(db, "datos", key), { v: nuevoStr });
       } catch(e) {
         console.error("fbSet error", key, e);
         throw e; // re-lanzar: quien llama (save()) tiene que enterarse del fallo
       }
+      auditRegistrar(key, anteriorStr, nuevoStr); // no bloquea el guardado si falla
     }
 
     // Lee un valor JSON desde Firestore
@@ -645,6 +917,10 @@ img, svg{max-width:100%}
     window._fb = { set: fbSet, get: fbGet, listen: fbListen };
     window._fbReady = true;
     window.dispatchEvent(new Event('fbReady'));
+
+    // Backup automático: si hoy todavía no se hizo, se genera solo.
+    // Se dispara una vez por sesión (ver guarda window._fbReady más arriba).
+    bkEjecutarSiCorresponde();
   });
 </script>
 
@@ -744,37 +1020,36 @@ img, svg{max-width:100%}
   </div>
 
   <!-- Right: actions -->
-  <div style="display:flex;gap:6px;align-items:center">
+  <div id="topbar-actions" style="display:flex;gap:6px;align-items:center">
     <!-- Cierre de mes -->
-    <button onclick="openCierreMes()"
+    <button onclick="openCierreMes()" title="Cierre de mes"
       style="height:30px;padding:0 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:#fff;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap;transition:background .15s;display:flex;align-items:center;gap:5px"
       onmouseenter="this.style.background='rgba(255,255,255,0.18)'"
       onmouseleave="this.style.background='rgba(255,255,255,0.1)'">
-      <i class="ti ti-calendar-month" style="font-size:14px"></i> Cierre de mes</button>
+      <i class="ti ti-calendar-month" style="font-size:14px"></i> <span class="btn-label-text">Cierre de mes</span></button>
 
     <!-- Cierre de año -->
-    <button onclick="openCierreAnio()"
+    <button onclick="openCierreAnio()" title="Cierre de año"
       style="height:30px;padding:0 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:#fff;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap;transition:background .15s;display:flex;align-items:center;gap:5px"
       onmouseenter="this.style.background='rgba(255,255,255,0.18)'"
       onmouseleave="this.style.background='rgba(255,255,255,0.1)'">
-      <i class="ti ti-school" style="font-size:14px"></i> Cierre de año</button>
+      <i class="ti ti-school" style="font-size:14px"></i> <span class="btn-label-text">Cierre de año</span></button>
 
     <!-- Agregar alumno -->
-    <button onclick="openNuevoAlumno()"
+    <button onclick="openNuevoAlumno()" title="Agregar alumno"
       style="height:30px;padding:0 12px;background:#fff;border:none;color:#0f0f14;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:opacity .15s;display:flex;align-items:center;gap:5px"
       onmouseenter="this.style.opacity='.85'"
       onmouseleave="this.style.opacity='1'">
-      <i class="ti ti-user-plus" style="font-size:14px"></i> Agregar alumno</button>
+      <i class="ti ti-user-plus" style="font-size:14px"></i> <span class="btn-label-text">Agregar alumno</span></button>
 
     <!-- Más acciones: Importar/Exportar contactos -->
-    <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-mas-acciones')" onmouseleave="_ddCerrarTodos()">
+    <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-mas-acciones')" onmouseleave="ddHide('dd-mas-acciones')">
       <button style="height:30px;padding:0 10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:#fff;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap;transition:background .15s;display:flex;align-items:center;gap:5px"
         onmouseenter="this.style.background='rgba(255,255,255,0.18)'"
         onmouseleave="this.style.background='rgba(255,255,255,0.1)'"
-        onclick="ddToggle('dd-mas-acciones',event)"
-        title="Más acciones">⋮ Más acciones</button>
+        title="Más acciones">⋮ <span class="btn-label-text">Más acciones</span></button>
       <div class="tab-dropdown" id="dd-mas-acciones">
-        <button class="dd-item" onclick="exportarContactosWpp(this);_ddCerrarTodos()" title="Exportar teléfonos de activos e inactivos para WhatsApp"><i class="ti ti-brand-whatsapp"></i>Exportar contactos</button>
+        <button class="dd-item" onclick="exportarContactosWpp(this);ddHide('dd-mas-acciones')" title="Exportar teléfonos de activos e inactivos para WhatsApp"><i class="ti ti-brand-whatsapp"></i>Exportar contactos</button>
       </div>
     </div>
 
@@ -787,6 +1062,20 @@ img, svg{max-width:100%}
       onmouseenter="this.style.color='#fff';this.style.background='rgba(255,255,255,0.1)'"
       onmouseleave="this.style.color='rgba(255,255,255,0.55)';this.style.background='none'">
       <i class="ti ti-users" style="font-size:17px"></i></button>
+
+    <!-- Icono: Copias de seguridad -->
+    <button id="btn-backups" onclick="openBackups()" title="Copias de seguridad"
+      style="display:none;background:none;border:none;color:rgba(255,255,255,0.55);cursor:pointer;padding:6px;border-radius:6px;line-height:1;transition:color .15s,background .15s"
+      onmouseenter="this.style.color='#fff';this.style.background='rgba(255,255,255,0.1)'"
+      onmouseleave="this.style.color='rgba(255,255,255,0.55)';this.style.background='none'">
+      <i class="ti ti-shield-lock" style="font-size:17px"></i></button>
+
+    <!-- Icono: Auditoría -->
+    <button id="btn-auditoria" onclick="openAuditoria()" title="Auditoría de cambios"
+      style="display:none;background:none;border:none;color:rgba(255,255,255,0.55);cursor:pointer;padding:6px;border-radius:6px;line-height:1;transition:color .15s,background .15s"
+      onmouseenter="this.style.color='#fff';this.style.background='rgba(255,255,255,0.1)'"
+      onmouseleave="this.style.color='rgba(255,255,255,0.55)';this.style.background='none'">
+      <i class="ti ti-list-search" style="font-size:17px"></i></button>
 
     <!-- Icono: Mi cuenta -->
     <button onclick="openMiCuenta()" id="btn-mi-cuenta" title="Mi cuenta"
@@ -905,13 +1194,13 @@ img, svg{max-width:100%}
       <button class="btn" onclick="clearFilters()"><i class="ti ti-x"></i>Limpiar</button>
       <button class="btn" id="btn-mas-filtros" onclick="toggleMoreFilters()"><i class="ti ti-filter"></i>Más filtros ▾</button>
 
-      <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-impexp')" onmouseleave="_ddCerrarTodos()">
-        <button class="btn" onclick="ddToggle('dd-impexp',event)"><i class="ti ti-folder"></i>Importación / Exportación ▾</button>
+      <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-impexp')" onmouseleave="ddHide('dd-impexp')">
+        <button class="btn"><i class="ti ti-folder"></i>Importación / Exportación ▾</button>
         <div class="tab-dropdown" id="dd-impexp">
-          <button class="dd-item" onclick="abrirRestaurarDeudas();_ddCerrarTodos()" title="Restaurar deudas desde el Excel exportado previamente"><i class="ti ti-refresh"></i>Restaurar deudas</button>
-          <button class="dd-item" onclick="abrirImportarCaja();_ddCerrarTodos()" title="Marcar cuotas como pagadas desde el Reporte de Caja"><i class="ti ti-file-import"></i>Importar caja</button>
-          <button class="dd-item" onclick="abrirImportCBUs();_ddCerrarTodos()" title="Asignar CBUs masivamente desde una lista de alumnos"><i class="ti ti-building-bank"></i>Importar CBUs</button>
-          <button class="dd-item" onclick="exportarDeudaXLSX();_ddCerrarTodos()" title="Exportar tabla para pegar en Alumnos con deuda ISCM"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
+          <button class="dd-item" onclick="abrirRestaurarDeudas();ddHide('dd-impexp')" title="Restaurar deudas desde el Excel exportado previamente"><i class="ti ti-refresh"></i>Restaurar deudas</button>
+          <button class="dd-item" onclick="abrirImportarCaja();ddHide('dd-impexp')" title="Marcar cuotas como pagadas desde el Reporte de Caja"><i class="ti ti-file-import"></i>Importar caja</button>
+          <button class="dd-item" onclick="abrirImportCBUs();ddHide('dd-impexp')" title="Asignar CBUs masivamente desde una lista de alumnos"><i class="ti ti-building-bank"></i>Importar CBUs</button>
+          <button class="dd-item" onclick="exportarDeudaXLSX();ddHide('dd-impexp')" title="Exportar tabla para pegar en Alumnos con deuda ISCM"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
         </div>
       </div>
     </div>
@@ -1484,7 +1773,10 @@ img, svg{max-width:100%}
 <div id="tab-becas" style="display:none">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
     <h2 style="margin:0;font-size:17px;color:#1a1a2e"><i class="ti ti-award"></i>Gestión de Becas</h2>
-    <button onclick="abrirModalBeca()" style="background:#1a1a2e;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;font-weight:600">Agregar alumno becado</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="abrirModalBecaReset()" class="btn" style="height:36px;font-size:13px;background:#fef3f2;border-color:#fecdca;color:#b42318;font-weight:600"><i class="ti ti-refresh"></i>Reiniciar becas socioeconómicas (ciclo nuevo)</button>
+      <button onclick="abrirModalBeca()" style="background:#1a1a2e;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;font-weight:600">Agregar alumno becado</button>
+    </div>
   </div>
 
   <!-- Resumen por tipo -->
@@ -1768,6 +2060,40 @@ img, svg{max-width:100%}
     <div class="modal-actions" style="margin-top:18px">
       <button class="btn" onclick="document.getElementById('modal-beca-bulk').style.display='none'">Cancelar</button>
       <button class="btn primary" onclick="aplicarBecaBulkEdit()"><i class="ti ti-device-floppy"></i>Aplicar a seleccionadas</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REINICIO DE BECAS (fin de ciclo lectivo) -->
+<div class="overlay" id="modal-beca-reset" style="display:none;align-items:center;justify-content:center">
+  <div class="modal" style="max-width:480px">
+    <h2><i class="ti ti-refresh"></i> Reiniciar becas socioeconómicas para el próximo ciclo</h2>
+    <p style="font-size:13px;color:#555;margin-bottom:16px">
+      Esto borra <strong>todas</strong> las becas socioeconómicas cargadas (<span id="beca-reset-total">0</span> en total), para que cada familia tenga que volver a pedirla en el ciclo lectivo nuevo. No afecta a los hijos/as de profesores/as, ni aranceles, bonos o el resto de la información de los alumnos.
+    </p>
+
+    <div id="beca-reset-programado-box" style="display:none;background:#eef3fc;border:1px solid #a8c3ed;border-radius:6px;padding:10px 14px;font-size:12px;color:#1a3a6e;margin-bottom:16px">
+      Ya hay un reinicio programado para el <strong id="beca-reset-fecha-actual"></strong>. Se va a ejecutar solo apenas alguien abra el sistema en esta computadora en o después de esa fecha.
+      <div style="margin-top:8px">
+        <button class="btn sm" onclick="becaCancelarProgramacion()">Cancelar programación</button>
+      </div>
+    </div>
+
+    <div class="section-divider"><span>Opción 1: programar para una fecha</span></div>
+    <div class="field" style="margin-bottom:8px">
+      <label>Fecha de reinicio</label>
+      <input type="date" id="beca-reset-fecha">
+    </div>
+    <p style="font-size:11px;color:#888;margin:0 0 10px">
+      Importante: como el sistema no tiene un servidor propio corriendo todo el tiempo, el reinicio se dispara cuando alguien <strong>abre el sistema</strong> en o después de esa fecha (no exactamente a la medianoche). Si nadie lo abre ese día, se ejecuta la próxima vez que se entre.
+    </p>
+    <button class="btn" onclick="becaProgramarReset()" style="width:100%;background:#eef3fc;border-color:#a8c3ed;color:#1a3a6e;font-weight:600"><i class="ti ti-calendar-event"></i>Programar reinicio</button>
+
+    <div class="section-divider" style="margin-top:20px"><span>Opción 2: borrar ahora mismo</span></div>
+    <button class="btn" onclick="becaResetearAhora()" style="width:100%;background:#fef3f2;border-color:#fecdca;color:#b42318;font-weight:600"><i class="ti ti-trash"></i>Borrar todas las becas ahora</button>
+
+    <div class="modal-actions" style="margin-top:18px">
+      <button class="btn" onclick="document.getElementById('modal-beca-reset').style.display='none'">Cerrar</button>
     </div>
   </div>
 </div>
@@ -3787,7 +4113,10 @@ function dashRefrescarSiVisible(){
 function switchTab(tab, el){
   tabActual = tab;
   // Cerrar cualquier dropdown abierto (necesario en móvil / touch)
-  if(typeof _ddCerrarTodos==='function') _ddCerrarTodos();
+  document.querySelectorAll('.tab-dropdown.open').forEach(dd=>{
+    if(_ddHideTimers[dd.id]){ clearTimeout(_ddHideTimers[dd.id]); delete _ddHideTimers[dd.id]; }
+    dd.classList.remove('open');
+  });
   // Quitar activo de todos los items del dropdown
   document.querySelectorAll('.dd-item').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.tab-group-btn').forEach(t=>t.classList.remove('active'));
@@ -3845,42 +4174,27 @@ function switchTab(tab, el){
 }
 
 const _ddHideTimers = {};
-function _ddEsMovil(){ return window.matchMedia('(max-width: 640px)').matches; }
-function _ddCerrarTodos(){
-  document.querySelectorAll('.tab-dropdown.open').forEach(el=>{
-    if(_ddHideTimers[el.id]){ clearTimeout(_ddHideTimers[el.id]); delete _ddHideTimers[el.id]; }
-    el.classList.remove('open');
-    el.style.position=''; el.style.top=''; el.style.left=''; el.style.right=''; el.style.marginTop='';
-  });
-}
 function ddShow(id){
   if(_ddHideTimers[id]){ clearTimeout(_ddHideTimers[id]); delete _ddHideTimers[id]; }
   const d=document.getElementById(id); if(!d) return;
   const group=d.parentElement;
   const r=group.getBoundingClientRect();
-  // Mostrar (fuera de pantalla) para poder medir su ancho real
   d.style.position='fixed';
   d.style.top=r.bottom+'px';
   d.style.marginTop='2px';
-  d.style.left='-9999px';
-  d.style.right='auto';
-  d.classList.add('open');
-  const w = d.offsetWidth || 200;
-  const margen = 8;
-  let left = r.left;
-  // Si se sale por la derecha, lo pegamos al borde derecho de la pantalla
-  if(left + w > window.innerWidth - margen){
-    left = window.innerWidth - w - margen;
+  const estimatedWidth = d.offsetWidth || 200;
+  if(r.left + estimatedWidth > window.innerWidth - 8){
+    d.style.right=(window.innerWidth - r.right)+'px';
+    d.style.left='auto';
+  } else {
+    d.style.left=r.left+'px';
+    d.style.right='auto';
   }
-  if(left < margen) left = margen;
-  d.style.left = left + 'px';
-  d.style.right = 'auto';
+  d.classList.add('open');
 }
 function ddHide(id){
-  // En móvil no cerramos por "salir con el mouse" (no aplica al touch)
-  if(_ddEsMovil()) return;
   _ddHideTimers[id] = setTimeout(()=>{
-    const d=document.getElementById(id); if(d){ d.classList.remove('open'); d.style.left=''; d.style.right=''; d.style.top=''; d.style.position=''; }
+    const d=document.getElementById(id); if(d) d.classList.remove('open');
     delete _ddHideTimers[id];
   }, 250);
 }
@@ -3889,14 +4203,19 @@ function ddToggle(id, ev){
   if(ev){ ev.preventDefault(); ev.stopPropagation(); }
   const d=document.getElementById(id); if(!d) return;
   const yaAbierto = d.classList.contains('open');
-  _ddCerrarTodos();
+  document.querySelectorAll('.tab-dropdown.open').forEach(el=>{
+    if(_ddHideTimers[el.id]){ clearTimeout(_ddHideTimers[el.id]); delete _ddHideTimers[el.id]; }
+    el.classList.remove('open');
+  });
   if(!yaAbierto){ ddShow(id); }
 }
-// Cerrar dropdowns al tocar/clic fuera de la barra de pestañas o del panel
+// Cerrar dropdowns al tocar/clic fuera de la barra de pestañas
 document.addEventListener('click', function(e){
   if(e.target.closest('.tab-group')) return;
-  if(e.target.closest('.tab-dropdown')) return;
-  _ddCerrarTodos();
+  document.querySelectorAll('.tab-dropdown.open').forEach(el=>{
+    if(_ddHideTimers[el.id]){ clearTimeout(_ddHideTimers[el.id]); delete _ddHideTimers[el.id]; }
+    el.classList.remove('open');
+  });
 });
 function sidenavToggle(){}
 function changePage(d){page+=d;renderTable();}
@@ -8431,12 +8750,19 @@ function limpiarComasBecas(arr){
   } catch(e){}
   limpiarComasBecas(BECAS_SOCIO);
   limpiarComasBecas(HIJOS_PROF);
+  if(typeof becaVerificarResetProgramado === 'function') becaVerificarResetProgramado();
 })();
 (async ()=>{
   await new Promise(r=>{ if(window._fbReady)return r(); window.addEventListener('fbReady',r,{once:true}); setTimeout(r,3000); });
   if(!window._fb) return;
+  try{
+    const remoteFecha = await window._fb.get('iscm_becas_reset_fecha');
+    if(remoteFecha) localStorage.setItem('iscm_becas_reset_fecha', remoteFecha);
+    else if(remoteFecha === null) localStorage.removeItem('iscm_becas_reset_fecha');
+  } catch(e){}
   const remote = await window._fb.get('iscm_becas_v1');
   if(remote){ if(remote.socio) BECAS_SOCIO.splice(0,BECAS_SOCIO.length,...remote.socio); if(remote.hijos) HIJOS_PROF.splice(0,HIJOS_PROF.length,...remote.hijos); limpiarComasBecas(BECAS_SOCIO); limpiarComasBecas(HIJOS_PROF); renderBecas(); }
+  if(typeof becaVerificarResetProgramado === 'function') becaVerificarResetProgramado();
   window._fb.listen('iscm_becas_v1', data=>{ if(data.socio) BECAS_SOCIO.splice(0,BECAS_SOCIO.length,...data.socio); if(data.hijos) HIJOS_PROF.splice(0,HIJOS_PROF.length,...data.hijos); limpiarComasBecas(BECAS_SOCIO); limpiarComasBecas(HIJOS_PROF); renderBecas(); });
 })();
 
@@ -8907,6 +9233,78 @@ function becaSave(){
   if(document.getElementById('tab-aranceles')?.style.display !== 'none'){
     previewAranceles();
   }
+}
+
+// ── REINICIO DE BECAS (fin de ciclo lectivo) ──────────────────────
+
+function becaFormatearFecha(iso){
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function abrirModalBecaReset(){
+  document.getElementById('beca-reset-total').textContent = BECAS_SOCIO.length;
+  const fechaProgramada = localStorage.getItem('iscm_becas_reset_fecha');
+  const box = document.getElementById('beca-reset-programado-box');
+  if(fechaProgramada){
+    box.style.display = 'block';
+    document.getElementById('beca-reset-fecha-actual').textContent = becaFormatearFecha(fechaProgramada);
+  } else {
+    box.style.display = 'none';
+  }
+  document.getElementById('beca-reset-fecha').value = '';
+  document.getElementById('modal-beca-reset').style.display = 'flex';
+}
+
+function becaProgramarReset(){
+  const fecha = document.getElementById('beca-reset-fecha').value;
+  if(!fecha){ showToast('Elegí una fecha primero','error'); return; }
+  localStorage.setItem('iscm_becas_reset_fecha', fecha);
+  if(window._fb) window._fb.set('iscm_becas_reset_fecha', fecha).catch(()=>{});
+  showToast(`📅 Reinicio de becas programado para el ${becaFormatearFecha(fecha)}`);
+  document.getElementById('modal-beca-reset').style.display = 'none';
+}
+
+function becaCancelarProgramacion(){
+  localStorage.removeItem('iscm_becas_reset_fecha');
+  if(window._fb) window._fb.set('iscm_becas_reset_fecha', null).catch(()=>{});
+  showToast('Programación de reinicio cancelada');
+  document.getElementById('beca-reset-programado-box').style.display = 'none';
+}
+
+function becaResetearAhora(){
+  const total = BECAS_SOCIO.length;
+  if(total === 0){ showToast('No hay becas socioeconómicas cargadas para borrar','error'); document.getElementById('modal-beca-reset').style.display='none'; return; }
+  const conf = confirm(`⚠️ Esto va a borrar TODAS las becas socioeconómicas cargadas (${total} en total), para que se vuelvan a pedir en el ciclo nuevo. Los hijos/as de profesores/as NO se tocan.\n\nEsta acción no se puede deshacer. ¿Confirmás?`);
+  if(!conf) return;
+  BECAS_SOCIO.length = 0;
+  localStorage.removeItem('iscm_becas_reset_fecha');
+  becaSave();
+  if(window._fb) window._fb.set('iscm_becas_reset_fecha', null).catch(()=>{});
+  renderBecas();
+  document.getElementById('modal-beca-reset').style.display = 'none';
+  showToast(`🗑 Se borraron ${total} beca(s) socioeconómica(s). Listo para el ciclo nuevo.`);
+}
+
+// Se fija si hay un reinicio programado y si ya se cumplió la fecha; si es así, lo ejecuta.
+// Se llama al cargar la página (dato local) y de nuevo cuando llega el dato remoto de Firebase,
+// porque el sistema no tiene un servidor propio corriendo: el chequeo solo pasa cuando alguien abre el sistema.
+// Solo afecta becas socioeconómicas — hijos/as de profesores/as no se tocan.
+function becaVerificarResetProgramado(){
+  try{
+    const fecha = localStorage.getItem('iscm_becas_reset_fecha');
+    if(!fecha) return;
+    const hoy = new Date();
+    const hoyISO = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0') + '-' + String(hoy.getDate()).padStart(2,'0');
+    if(hoyISO < fecha) return;
+    const total = BECAS_SOCIO.length;
+    BECAS_SOCIO.length = 0;
+    localStorage.removeItem('iscm_becas_reset_fecha');
+    becaSave();
+    if(window._fb) window._fb.set('iscm_becas_reset_fecha', null).catch(()=>{});
+    if(typeof renderBecas === 'function' && document.getElementById('tab-becas')) renderBecas();
+    setTimeout(()=>{ showToast(`📅 Reinicio automático de becas: se borraron ${total} beca(s) socioeconómica(s) (programado para el ${becaFormatearFecha(fecha)})`); }, 1000);
+  } catch(e){ console.warn('becaVerificarResetProgramado error', e); }
 }
 
 function editarBecaSocio(idx){
@@ -13036,6 +13434,40 @@ function mostrarPPError(msg){
   </div>
 </div>
 
+<!-- Modal Copias de seguridad -->
+<div class="overlay" id="modal-backups">
+  <div class="modal" style="max-width:640px">
+    <h2><i class="ti ti-shield-lock"></i>Copias de seguridad</h2>
+    <div style="font-size:12px;color:#888;margin-bottom:14px">
+      Se genera sola una vez por día, la primera vez que alguien abre el sistema. Se conservan las últimas
+      <b id="bk-retencion">30</b> copias diarias. Podés restaurar cualquiera de estas fechas si algo se borró
+      por error, o descargarla como archivo si preferís guardarla vos.
+    </div>
+    <div id="bk-lista" style="max-height:360px;overflow:auto"></div>
+    <div class="modal-actions">
+      <button class="btn" style="margin-right:auto" onclick="backupCrearAhoraUI()"><i class="ti ti-device-floppy"></i>Generar backup ahora</button>
+      <button class="btn" onclick="closeModal('modal-backups')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Auditoría de cambios -->
+<div class="overlay" id="modal-auditoria">
+  <div class="modal" style="max-width:680px">
+    <h2><i class="ti ti-list-search"></i>Auditoría de cambios</h2>
+    <div style="font-size:12px;color:#888;margin-bottom:10px">
+      Cada guardado en el sistema queda registrado acá: quién, cuándo y qué cambió. No se puede editar ni borrar.
+    </div>
+    <input id="audit-filtro" placeholder="Filtrar por usuario, módulo o texto..." oninput="renderAuditoriaFiltrado()"
+      style="width:100%;height:36px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px;margin-bottom:10px">
+    <div id="audit-lista" style="max-height:400px;overflow:auto"></div>
+    <div class="modal-actions">
+      <button class="btn" style="margin-right:auto" onclick="auditoriaCargarMas()"><i class="ti ti-chevron-down"></i>Cargar más antiguas</button>
+      <button class="btn" onclick="closeModal('modal-auditoria')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── LOGIN ──────────────────────────────────────────────────────────────
 (function(){
@@ -13125,6 +13557,10 @@ function loginOk(silent=false){
   setTimeout(()=>{ ls.style.display='none'; document.body.style.overflow=''; }, 420);
   const btnU = document.getElementById('btn-usuarios');
   if(btnU) btnU.style.display = (sesionActual.rol==='superadmin') ? '' : 'none';
+  const btnBk = document.getElementById('btn-backups');
+  if(btnBk) btnBk.style.display = (sesionActual.rol==='superadmin'||sesionActual.rol==='admin') ? '' : 'none';
+  const btnAud = document.getElementById('btn-auditoria');
+  if(btnAud) btnAud.style.display = (sesionActual.rol==='superadmin') ? '' : 'none';
   const btnMC = document.getElementById('btn-mi-cuenta');
   if(btnMC) btnMC.style.display = '';
   const mesLabel = document.getElementById('mes-label');
@@ -13262,6 +13698,155 @@ async function openUsuarios(){
   if(!sesionActual || sesionActual.rol !== 'superadmin') return;
   await renderUsuarios();
   document.getElementById('modal-usuarios').classList.add('open');
+}
+
+// ── Copias de seguridad (admin y superadmin) ─────────────────────────────
+function _bkEsAdmin(){
+  return !!(sesionActual && (sesionActual.rol === 'admin' || sesionActual.rol === 'superadmin'));
+}
+
+function _bkFechaLegible(fecha){
+  const [y,m,d] = fecha.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+async function openBackups(){
+  if(!_bkEsAdmin() || !window._fbBackup) return;
+  await renderBackupsLista();
+  document.getElementById('modal-backups').classList.add('open');
+}
+
+async function renderBackupsLista(){
+  const el = document.getElementById('bk-lista');
+  el.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:12px">Cargando...</div>';
+  let lista;
+  try{
+    lista = await window._fbBackup.listar();
+  }catch(e){
+    console.error('renderBackupsLista', e);
+    el.innerHTML = '<div style="color:#c0392b;font-size:13px;text-align:center;padding:12px">No se pudo cargar el historial de backups.</div>';
+    return;
+  }
+  if(!lista.length){
+    el.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:12px">Todavía no hay ningún backup registrado.</div>';
+    return;
+  }
+  el.innerHTML = lista.map(b => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid #f0f0e8">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:13px">${_bkFechaLegible(b.fecha)}</div>
+        <div style="font-size:11px;color:#888">
+          ${new Date(b.ts).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})} ·
+          ${b.usuario||'—'} · ${b.motivo||'automático'} · ${b.cantidadClaves} claves
+        </div>
+      </div>
+      <button class="btn sm" onclick="backupDescargarUI('${b.fecha}')" title="Descargar como .json"><i class="ti ti-download"></i></button>
+      <button class="btn sm" style="color:#c0392b" onclick="backupRestaurarUI('${b.fecha}')" title="Restaurar este backup"><i class="ti ti-history"></i>Restaurar</button>
+    </div>
+  `).join('');
+}
+
+async function backupCrearAhoraUI(){
+  if(!_bkEsAdmin() || !window._fbBackup) return;
+  try{
+    await window._fbBackup.crearAhora();
+    showToast('Backup generado');
+    await renderBackupsLista();
+  }catch(e){
+    console.error('backupCrearAhoraUI', e);
+    showToast('No se pudo generar el backup', 'error');
+  }
+}
+
+async function backupDescargarUI(fecha){
+  try{
+    await window._fbBackup.descargar(fecha);
+  }catch(e){
+    console.error('backupDescargarUI', e);
+    showToast('No se pudo descargar ese backup', 'error');
+  }
+}
+
+// Restaurar pisa TODOS los datos actuales del sistema. Es irreversible para
+// lo cargado desde el backup hasta hoy, así que pedimos escribir una palabra
+// en vez de un simple Aceptar/Cancelar (fácil de clickear sin leer).
+async function backupRestaurarUI(fecha){
+  if(!_bkEsAdmin()) return;
+  const fechaLegible = _bkFechaLegible(fecha);
+  const escrito = prompt(
+    `Vas a RESTAURAR el backup del ${fechaLegible}.\n\n` +
+    `Esto reemplaza los datos actuales del sistema (aranceles, becas, bonos, caja, etc.) por los que estaban guardados ese día.\n` +
+    `Se genera automáticamente un backup del estado actual antes de restaurar, por las dudas.\n\n` +
+    `Para confirmar, escribí la palabra RESTAURAR (en mayúsculas):`
+  );
+  if(escrito !== 'RESTAURAR'){
+    if(escrito !== null) showToast('No se escribió la palabra exacta, no se restauró nada.', 'info');
+    return;
+  }
+  try{
+    const cantidad = await window._fbBackup.restaurar(fecha);
+    showToast(`Restaurado: ${cantidad} claves del ${fechaLegible}. Recargá la página para ver los datos.`, 'success', 6000);
+    await renderBackupsLista();
+  }catch(e){
+    console.error('backupRestaurarUI', e);
+    showToast('No se pudo restaurar ese backup', 'error');
+  }
+}
+
+// ── Auditoría de cambios (solo superadmin) ───────────────────────────────
+let _auditEntradas = [];
+let _auditUltimoDoc = null;
+let _auditHayMas = true;
+
+async function openAuditoria(){
+  if(!sesionActual || sesionActual.rol !== 'superadmin' || !window._fbAuditoria) return;
+  _auditEntradas = []; _auditUltimoDoc = null; _auditHayMas = true;
+  document.getElementById('audit-filtro').value = '';
+  document.getElementById('modal-auditoria').classList.add('open');
+  await auditoriaCargarMas();
+}
+
+function _auditFechaHora(ts){
+  const d = new Date(ts);
+  return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'}) + ' ' +
+         d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+}
+
+async function auditoriaCargarMas(){
+  if(!_auditHayMas) return;
+  const el = document.getElementById('audit-lista');
+  if(!_auditEntradas.length) el.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:12px">Cargando...</div>';
+  try{
+    const { entradas, ultimoDoc, hayMas } = await window._fbAuditoria.listar(_auditUltimoDoc);
+    _auditEntradas = _auditEntradas.concat(entradas);
+    _auditUltimoDoc = ultimoDoc;
+    _auditHayMas = hayMas;
+    renderAuditoriaFiltrado();
+  }catch(e){
+    console.error('auditoriaCargarMas', e);
+    el.innerHTML = '<div style="color:#c0392b;font-size:13px;text-align:center;padding:12px">No se pudo cargar la auditoría.</div>';
+  }
+}
+
+function renderAuditoriaFiltrado(){
+  const el = document.getElementById('audit-lista');
+  const q = (document.getElementById('audit-filtro').value||'').toLowerCase().trim();
+  const filtradas = q
+    ? _auditEntradas.filter(e => (e.usuario+' '+e.clave+' '+e.resumen).toLowerCase().includes(q))
+    : _auditEntradas;
+  if(!filtradas.length){
+    el.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:12px">Sin resultados.</div>';
+    return;
+  }
+  el.innerHTML = filtradas.map(e => `
+    <div style="padding:9px 4px;border-bottom:1px solid #f0f0e8">
+      <div style="display:flex;justify-content:space-between;gap:10px;font-size:11px;color:#888;margin-bottom:2px">
+        <span>${_auditFechaHora(e.ts)}</span>
+        <span><b>${e.usuario||'—'}</b>${e.rol?' · '+e.rol:''} · <code>${e.clave}</code></span>
+      </div>
+      <div style="font-size:13px">${e.resumen}</div>
+    </div>
+  `).join('');
 }
 
 async function renderUsuarios(){
