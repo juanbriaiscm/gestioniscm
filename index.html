@@ -4174,10 +4174,26 @@ function switchTab(tab, el){
 }
 
 const _ddHideTimers = {};
+// Los dropdowns de tabs viven dentro de un contenedor con scroll horizontal
+// (overflow-x:auto + -webkit-overflow-scrolling:touch). En iOS Safari eso hace
+// que los elementos position:fixed dentro de ese contenedor se recorten/achiquen
+// en vez de flotar sobre toda la pantalla. Solución: sacarlos del contenedor con
+// scroll y colgarlos directo de <body>, guardando la referencia a su botón/grupo
+// original para poder seguir calculando la posición correctamente.
+const _ddGroupMap = {};
+document.querySelectorAll('.tab-dropdown').forEach(function(d){
+  _ddGroupMap[d.id] = d.parentElement;
+  // Al sacar el dropdown de su grupo, hay que re-engancharle el hover: si el
+  // mouse pasa del botón al menú (que ahora ya no es descendiente del grupo)
+  // debe seguir contando como "adentro" para no cerrarlo solo.
+  d.addEventListener('mouseenter', function(){ ddShow(d.id); });
+  d.addEventListener('mouseleave', function(){ ddHide(d.id); });
+  document.body.appendChild(d);
+});
 function ddShow(id){
   if(_ddHideTimers[id]){ clearTimeout(_ddHideTimers[id]); delete _ddHideTimers[id]; }
   const d=document.getElementById(id); if(!d) return;
-  const group=d.parentElement;
+  const group=_ddGroupMap[id] || d.parentElement;
   const r=group.getBoundingClientRect();
   d.style.position='fixed';
   d.style.top=r.bottom+'px';
