@@ -3245,7 +3245,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
   <div class="modal" style="max-width:600px">
     <h2><i class="ti ti-refresh"></i> Restaurar deudas desde Excel</h2>
     <p style="font-size:13px;color:#666;margin-bottom:14px">
-      Subí el Excel exportado previamente (<strong>Alumnos con deuda ISCM</strong>). El sistema buscará cada alumno por nombre, carrera y año, y restaurará su monto de deuda y cuotas adeudadas.
+      Subí el Excel exportado previamente (<strong>Alumnos con deuda ISCM</strong>). El sistema buscará cada alumno por nombre, carrera y año, y restaurará su monto de deuda y cuotas adeudadas. Si el archivo trae Teléfono, Observaciones o Correo electrónico cargados, también se actualizan esos datos de contacto.
     </p>
     <div id="rest-dropzone" style="background:#f8f8f4;border:2px dashed #d0d0c8;border-radius:8px;padding:28px;text-align:center;cursor:pointer;margin-bottom:12px;transition:border-color .2s"
       onclick="document.getElementById('rest-file-input').click()"
@@ -4613,9 +4613,12 @@ function restaurarDeudaFile(file){
         const anio    = r[1] ? String(r[1]).trim() : '';
         const carrera = r[2] ? String(r[2]).trim() : '';
         const cuotas  = parseFloat(r[3])||0;
+        const tel     = r[4]!=null ? String(r[4]).trim() : '';
+        const obs     = r[5]!=null ? String(r[5]).trim() : '';
         const monto   = parseFloat(r[7])||0;
-        if(!nombre || monto<=0) continue;
-        parsed.push({ nombre, anio, carrera, cuotas, monto });
+        const correo  = r[8]!=null ? String(r[8]).trim() : '';
+        if(!nombre) continue;
+        parsed.push({ nombre, anio, carrera, cuotas, monto, tel, obs, correo });
       }
 
       if(!parsed.length){ showToast('No encontré alumnos con deuda en el archivo','error'); return; }
@@ -4632,7 +4635,7 @@ function restaurarDeudaFile(file){
         );
         if(!alumno) alumno = alumnos.find(a=> normalizar(a.nombre)===nNorm);
         if(alumno){
-          matches.push({ alumno, monto: p.monto, cuotas: p.cuotas });
+          matches.push({ alumno, monto: p.monto, cuotas: p.cuotas, tel: p.tel, obs: p.obs, correo: p.correo });
         } else {
           sinMatch.push(p.nombre);
         }
@@ -4640,16 +4643,24 @@ function restaurarDeudaFile(file){
 
       _restData = matches;
 
+      function tieneCambioContacto(m){
+        return (m.tel && m.tel!==(m.alumno.tel||'')) ||
+               (m.obs && m.obs!==(m.alumno.observaciones||'')) ||
+               (m.correo && m.correo!==(m.alumno.email||''));
+      }
+
       const totalMonto = matches.reduce((s,m)=>s+m.monto,0);
+      const conContacto = matches.filter(tieneCambioContacto).length;
       document.getElementById('rest-preview-info').innerHTML =
-        `<strong style="color:#27ae60">✅ ${matches.length} alumnos encontrados</strong> · Total: <strong>$${totalMonto.toLocaleString('es-AR',{minimumFractionDigits:2})}</strong>`+
+        `<strong style="color:#27ae60">✅ ${matches.length} alumnos encontrados</strong> · Total deuda: <strong>$${totalMonto.toLocaleString('es-AR',{minimumFractionDigits:2})}</strong>`+
+        (conContacto ? `<br><span style="color:#2980b9">📇 ${conContacto} con datos de contacto para actualizar (tel./obs./email)</span>` : '')+
         (sinMatch.length ? `<br><span style="color:#e67e22">⚠️ ${sinMatch.length} no encontrados en el sistema</span>` : '');
 
       document.getElementById('rest-preview-list').innerHTML =
         matches.slice(0,50).map(m=>
-          `<div style="padding:3px 0;border-bottom:1px solid #f0f0e8;display:flex;justify-content:space-between">
-            <span>${m.alumno.nombre}</span>
-            <span style="color:#e65100;font-weight:500">$${m.monto.toLocaleString('es-AR',{minimumFractionDigits:2})}</span>
+          `<div style="padding:3px 0;border-bottom:1px solid #f0f0e8;display:flex;justify-content:space-between;gap:8px">
+            <span>${m.alumno.nombre}${tieneCambioContacto(m)?' <span style="color:#2980b9" title="Actualiza datos de contacto">📇</span>':''}</span>
+            <span style="color:#e65100;font-weight:500;white-space:nowrap">$${m.monto.toLocaleString('es-AR',{minimumFractionDigits:2})}</span>
           </div>`
         ).join('') +
         (matches.length>50?`<div style="color:#aaa;padding:4px 0">...y ${matches.length-50} más</div>`:'') +
@@ -4679,8 +4690,16 @@ async function restaurarDeudaAplicar(){
 
   try {
     const total = _restData.length;
+    let contactosActualizados = 0;
 
-    _restData.forEach(({alumno, monto, cuotas})=>{
+    _restData.forEach(({alumno, monto, cuotas, tel, obs, correo})=>{
+      // Sincronizar datos de contacto si el Excel trae algo cargado (no pisa con vacío)
+      let tocoContacto = false;
+      if(tel    && tel!==(alumno.tel||''))            { alumno.tel = tel; tocoContacto = true; }
+      if(obs    && obs!==(alumno.observaciones||''))  { alumno.observaciones = obs; tocoContacto = true; }
+      if(correo && correo!==(alumno.email||''))       { alumno.email = correo; tocoContacto = true; }
+      if(tocoContacto) contactosActualizados++;
+
       // Buscar conceptos de cuota no pagados
       const conceptosCuota = (alumno.conceptos||[]).filter(c=>c.tipo==='Cuota' && !c.pagado);
       const otrosConceptos  = (alumno.conceptos||[]).filter(c=>c.tipo!=='Cuota' || c.pagado);
@@ -4725,7 +4744,7 @@ async function restaurarDeudaAplicar(){
     closeModal('modal-restaurar-deudas');
     _restData = null;
     btn.disabled = false; btn.textContent = '🔄 Restaurar deudas';
-    showToast(`✅ Deudas restauradas y guardadas: ${total} alumnos`);
+    showToast(`✅ Deudas restauradas: ${total} alumnos`+(contactosActualizados?` · ${contactosActualizados} con datos de contacto actualizados`:''));
 
   } catch(err) {
     console.error('Error restaurando deudas:', err);
