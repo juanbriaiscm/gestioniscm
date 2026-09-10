@@ -8061,7 +8061,7 @@ function renderCobranza(){
   // Botón editar en el encabezado de la tabla
   const tableHeader = document.getElementById('cob-table-header');
   if(tableHeader) tableHeader.innerHTML = `
-    <span style="font-size:13px;font-weight:600"><i class="ti ti-calendar-stats"></i>Facturación mensual 2025</span>
+    <span style="font-size:13px;font-weight:600"><i class="ti ti-calendar-stats"></i>Facturación mensual</span>
     <button id="btn-cob-edit" class="${cobEditMode?'btn success':'btn'}" onclick="toggleCobEdit()">
       ${cobEditMode?'<i class="ti ti-check"></i>Guardar':'<i class="ti ti-edit"></i>Editar datos'}
     </button>`;
