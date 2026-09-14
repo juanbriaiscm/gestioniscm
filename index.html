@@ -2577,6 +2577,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
           <button class="dd-item" onclick="concAbrirImport();ddHide('dd-conc-mas')" title="Importar historial desde Excel (.xlsx)"><i class="ti ti-file-import"></i>Importar Excel</button>
           <button class="dd-item" onclick="concAbrirExtracto();ddHide('dd-conc-mas')" title="Subir extracto bancario y conciliar automáticamente"><i class="ti ti-building-bank"></i>Extracto Banco</button>
           <button class="dd-item" onclick="concAbrirMailsPP();ddHide('dd-conc-mas')" title="Pegar mails de Pronto Pago para cargar importes"><i class="ti ti-mail"></i>Mails Pronto Pago</button>
+          <button class="dd-item" onclick="concEliminarMes();ddHide('dd-conc-mas')" title="Eliminar el mes seleccionado y todas sus filas" style="color:#c0392b"><i class="ti ti-trash"></i>Eliminar mes</button>
         </div>
       </div>
       <input type="file" id="import-xlsx-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="concProcesarImport(this)">
@@ -11720,6 +11721,34 @@ function concCrearMes(){
   concRefrescarSelector();
   document.getElementById('modal-conc-mes').classList.remove('open');
   concRender();
+}
+
+function concEliminarMes(){
+  if(!concMesActual || !concData[concMesActual]){ showToast('⚠ No hay un mes seleccionado.', 'error'); return; }
+  const ym = concMesActual;
+  const nFilas = (concData[ym]||[]).length;
+  const msg = nFilas>0
+    ? `¿Eliminar el mes ${nombreMes(ym)} completo?\n\nSe borrarán sus ${nFilas} fila${nFilas!==1?'s':''}. Esta acción no se puede deshacer.`
+    : `¿Eliminar el mes ${nombreMes(ym)}? Esta acción no se puede deshacer.`;
+  if(!confirm(msg)) return;
+
+  delete concData[ym];
+  concGuardar();
+
+  const restantes = Object.keys(concData).sort().reverse();
+  if(restantes.length>0){
+    concMesActual = restantes[0];
+  } else {
+    // Si no queda ningún mes, recrear el mes actual vacío para no dejar la tabla sin selector
+    const hoy = new Date().toISOString().slice(0,7);
+    concData[hoy] = [];
+    concMesActual = hoy;
+    concGuardar();
+  }
+
+  concRefrescarSelector();
+  concRender();
+  showToast(`🗑️ Mes ${nombreMes(ym)} eliminado`, 'success');
 }
 
 // ── TASAS ─────────────────────────────────────────────────────
