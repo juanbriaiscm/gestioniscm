@@ -11944,9 +11944,33 @@ function parsearFilasImport(rows){
     obs:        headers.findIndex(h=>h.includes('obs'))
   };
 
+  // Nombres de meses en español, para detectar filas de título de sección
+  // (ej: "Enero 2026", "Febrero 2026") que muchas planillas usan para separar meses.
+  const MESES_NOMBRE_IMPORT = {
+    enero:1, febrero:2, marzo:3, abril:4, mayo:5, junio:6,
+    julio:7, agosto:8, septiembre:9, setiembre:9, octubre:10, noviembre:11, diciembre:12
+  };
+  function detectarTituloMesImport(row){
+    if(!row) return null;
+    const c0 = String(row[0]||'').trim();
+    if(!c0) return null;
+    const resto = row.slice(1).some(c=>c!==null && c!==undefined && String(c).trim()!=='');
+    if(resto) return null; // una fila de título no debería tener más celdas con datos
+    const m = c0.toLowerCase().match(/^([a-záéíóúñ]+)\s+(\d{4})$/i);
+    if(!m) return null;
+    const mesNum = MESES_NOMBRE_IMPORT[m[1]];
+    if(!mesNum) return null;
+    return `${m[2]}-${String(mesNum).padStart(2,'0')}`;
+  }
+
   const parsed = [];
+  let seccionActual = null; // mes de la última fila-título vista (ej: '2026-01')
   for(let i=headerRow+1; i<rows.length; i++){
     const row = rows[i];
+
+    const tituloDetectado = detectarTituloMesImport(row);
+    if(tituloDetectado){ seccionActual = tituloDetectado; continue; }
+
     if(!row || row.filter(c=>c!==null&&c!=='').length < 2) continue;
 
     const fechaRaw  = colIdx.fecha>=0  ? String(row[colIdx.fecha]||'')  : '';
@@ -11976,7 +12000,11 @@ function parsearFilasImport(rows){
       // Calcular fecha de acreditación real según método
       fechaDestino = fechaAcreditacion(fechaStr, metodo);
     }
-    const mesDestino = fechaDestino.slice(0,7);
+    // El mes de destino se toma preferentemente de la sección/título visual del Excel
+    // (ej. "Enero 2026"), que refleja la decisión real de a qué mes se imputó el
+    // movimiento. Si no hay título detectado (por ejemplo, un CSV sin secciones),
+    // se recurre al cálculo por días hábiles como antes.
+    const mesDestino = seccionActual || fechaDestino.slice(0,7);
 
     const comisionAuto  = calcComision(bruto||0, metodo);
     // Solo guardar comisión manual si difiere más del 2% del auto (tolerar redondeos del Excel)
