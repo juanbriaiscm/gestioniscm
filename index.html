@@ -4008,7 +4008,7 @@ function renderTable(){
     const newCarrera = !prev || prev.carrera !== a.carrera;
     const newAnio    = !newCarrera && prev && prev.anio !== a.anio;
 
-    const sepCarrera = newCarrera ? `<tr><td colspan="9" style="padding:0;border:none"><div style="background:#1a1a2e;color:#fff;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:7px 14px;margin-top:${globalIdx===0?'0':'8px'}">📚 ${a.carrera}</div></td></tr>` : '';
+    const sepCarrera = newCarrera ? `<tr><td colspan="9" style="padding:0;border:none"><div style="background:#1a1a2e;color:#fff;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:7px 14px;margin-top:${globalIdx===0?'0':'8px'}"> ${a.carrera}</div></td></tr>` : '';
     const sepAnio    = newAnio    ? `<tr><td colspan="9" style="padding:0;border:none"><div style="background:#f0f4f8;color:#555;font-size:11px;font-weight:600;padding:4px 16px;border-left:3px solid #1a1a2e">${a.anio} año</div></td></tr>` : '';
 
     const row = `<tr>
