@@ -3664,7 +3664,23 @@ function cicloDefaultIngreso(){ const d=new Date(); return d.getMonth()>=7 ? d.g
 function esFuturo(a){ return esVacMat(a) && Number(a.cicloIngreso) > cicloCalendario(); }
 function migrarCicloIngreso(){
   let n=0;
-  alumnos.forEach(a=>{ if(esVacMat(a) && !a.cicloIngreso){ a.cicloIngreso = cicloDefaultIngreso(); n++; } });
+  alumnos.forEach(a=>{ if(esVacMat(a) && !a.cicloIngreso){ a.cicloIngreso = cicloDefaultIngreso(); a.cicloCargado = cicloCalendario(); n++; }
+    else if(esVacMat(a) && !a.cicloCargado){ a.cicloCargado = cicloCalendario(); n++; } });
+  return n;
+}
+// Ingresante: Vacante/Matrícula cuyo ciclo de ingreso es el año en curso o posterior (no se promueve en el cierre de año)
+function esIngresante(a){ return esVacMat(a) && Number(a.cicloIngreso) >= cicloCalendario(); }
+// Al llegar el año de ingreso, Vacante/Matrícula pasan a alumno regular ("Al día", o "Debe" si les quedó
+// deuda de reserva/matrícula) para que se les generen cuotas y se promuevan en el cierre de año.
+// Solo se activan si se cargaron en un año anterior al actual (no toca los cargados este mismo año).
+function activarIngresantes(){
+  const y = cicloCalendario(); let n=0;
+  alumnos.forEach(a=>{
+    if(esVacMat(a) && a.cicloIngreso && Number(a.cicloIngreso)<=y && a.cicloCargado && Number(a.cicloCargado)<y){
+      a.estado='Al día'; a.cicloIngreso=null; a.cicloCargado=null;
+      recalcDeuda(a); n++;
+    }
+  });
   return n;
 }
 function toggleFuturos(){ verFuturos=!verFuturos; page=1; renderStats(); renderTable(); }
@@ -3785,7 +3801,7 @@ async function load(){
     recalcDeuda(a);
   });
   // Vacante/Matrícula sin ciclo de ingreso (datos anteriores): se asigna el ciclo por defecto
-  if(migrarCicloIngreso()>0){ save(); }
+  { const m=migrarCicloIngreso(), act=activarIngresantes(); if(m>0||act>0){ save(); } }
   // Fusionar inactivos del Excel con los datos de Firebase
   let agregados = 0;
   SEED_INACTIVOS.forEach(seed=>{
@@ -3822,6 +3838,7 @@ async function load(){
       alumnos = data;
       alumnos.forEach(a => { recalcDeuda(a); });
       migrarCicloIngreso();
+      if(activarIngresantes()>0) save();
       limpiarObservacionesFalta();
       sortAlumnos();
       buildCarreraFilter();
@@ -6047,6 +6064,12 @@ function saveAlumno(){
   data.cicloIngreso = (nuevoEstado==='Vacante'||nuevoEstado==='Matrícula')
     ? (parseInt(document.getElementById('ed-ciclo').value)||cicloDefaultIngreso())
     : null;
+  {
+    const prev = editingId!==-1 ? alumnos.find(x=>x.id===editingId) : null;
+    data.cicloCargado = data.cicloIngreso
+      ? ((prev && esVacMat(prev) && prev.cicloCargado && Number(prev.cicloIngreso)===data.cicloIngreso) ? prev.cicloCargado : cicloCalendario())
+      : null;
+  }
   // Guardar acuerdo de pago si corresponde
   if(nuevoEstado==='Acuerdo'){
     data.acuerdo = {
@@ -6940,7 +6963,7 @@ const ANIO_SIGUIENTE = {'1°':'2°','2°':'3°','3°':'4°','4°':'4°'};
 
 function openCierreAnio(){
   // Vacante/Matrícula de ciclos futuros todavía no cursan: no se promueven
-  const activos = alumnos.filter(a=>a.estado!=='Baja'&&!esFuturo(a));
+  const activos = alumnos.filter(a=>a.estado!=='Baja'&&!esIngresante(a));
   const porAnio = {'1°':0,'2°':0,'3°':0,'4°':0};
   activos.forEach(a=>{ if(porAnio[a.anio]!==undefined) porAnio[a.anio]++; });
   const totalPromueven = porAnio['1°']+porAnio['2°']+porAnio['3°'];
@@ -6977,7 +7000,7 @@ function ejecutarCierreAnio(){
   let promovidos = 0;
   alumnos.forEach(a=>{
     if(a.estado==='Baja') return;
-    if(esFuturo(a)) return; // ingresantes (Vacante/Matrícula de ciclo futuro): conservan su año de ingreso
+    if(esIngresante(a)) return; // ingresantes (Vacante/Matrícula de ciclo futuro): conservan su año de ingreso
     const nuevo = ANIO_SIGUIENTE[a.anio];
     if(nuevo && nuevo!==a.anio){
       a.anio = nuevo;
