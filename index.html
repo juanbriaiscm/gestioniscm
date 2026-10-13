@@ -3430,6 +3430,12 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
         </select>
       </div>
     </div>
+    <div id="ed-ciclo-box" style="display:none;background:#e8f4fd;border:1px solid #b6d9f2;border-radius:6px;padding:10px 12px;margin-bottom:8px">
+      <div class="field" style="margin:0"><label>Ciclo lectivo en el que cursa</label>
+        <select id="ed-ciclo" onchange="this._tocado=true"></select>
+      </div>
+      <div style="font-size:11.5px;color:#1f5f8b;margin-top:4px">No aparece en listados ni estadísticas hasta ese año.</div>
+    </div>
     <!-- Campos extra para Acuerdo de pago -->
     <div id="ed-acuerdo-fields" style="display:none;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:10px 12px;margin-bottom:4px">
       <div style="font-size:12px;font-weight:700;color:#856404;margin-bottom:8px">📋 Detalle del acuerdo de pago</div>
@@ -3646,6 +3652,22 @@ let mes = '';
 let filtered = [];
 let page = 1;
 const PER_PAGE = 50;
+
+// ── Ciclo lectivo de ingreso (Vacante / Matrícula) ───────────────────────────
+// Un alumno en estado Vacante o Matrícula tiene un "ciclo lectivo de ingreso" (año en el que
+// va a cursar). Hasta que ese año llegue, no aparece en listados, estadísticas ni dashboard.
+let verFuturos = false;
+function esVacMat(a){ return a.estado==='Vacante' || a.estado==='Matrícula'; }
+function cicloCalendario(){ return new Date().getFullYear(); }
+// Desde agosto se cargan vacantes/matrículas para el año siguiente; antes de agosto, para el año en curso.
+function cicloDefaultIngreso(){ const d=new Date(); return d.getMonth()>=7 ? d.getFullYear()+1 : d.getFullYear(); }
+function esFuturo(a){ return esVacMat(a) && Number(a.cicloIngreso) > cicloCalendario(); }
+function migrarCicloIngreso(){
+  let n=0;
+  alumnos.forEach(a=>{ if(esVacMat(a) && !a.cicloIngreso){ a.cicloIngreso = cicloDefaultIngreso(); n++; } });
+  return n;
+}
+function toggleFuturos(){ verFuturos=!verFuturos; page=1; renderStats(); renderTable(); }
 let selected = new Set();
 let editingId = null;
 let pagoId = null;
@@ -3762,6 +3784,8 @@ async function load(){
     });
     recalcDeuda(a);
   });
+  // Vacante/Matrícula sin ciclo de ingreso (datos anteriores): se asigna el ciclo por defecto
+  if(migrarCicloIngreso()>0){ save(); }
   // Fusionar inactivos del Excel con los datos de Firebase
   let agregados = 0;
   SEED_INACTIVOS.forEach(seed=>{
@@ -3797,6 +3821,7 @@ async function load(){
     window._fb.listen(STORAGE_KEY, data => {
       alumnos = data;
       alumnos.forEach(a => { recalcDeuda(a); });
+      migrarCicloIngreso();
       limpiarObservacionesFalta();
       sortAlumnos();
       buildCarreraFilter();
@@ -3926,6 +3951,7 @@ function getFiltered(){
   const cuotasFil = document.getElementById('fil-cuotas') ? document.getElementById('fil-cuotas').value : '';
   return alumnos.filter(a=>{
     if(a.estado==='Baja') return false; // los de baja van al tab inactivos
+    if(verFuturos ? !esFuturo(a) : esFuturo(a)) return false; // Vacante/Matrícula de ciclos futuros: ocultos
     if(q && !normalizar(a.nombre).includes(normalizar(q))) return false;
     if(car && a.carrera!==car) return false;
     if(anio && a.anio!==anio) return false;
@@ -3949,7 +3975,9 @@ function renderAlumnosActual(){
 function getInactivosReales(){ return alumnos.filter(a=>a.estado==='Baja'); }
 
 function renderStats(){
-  const activos = alumnos.filter(a=>a.estado!=='Baja');
+  const futuros = alumnos.filter(a=>a.estado!=='Baja'&&esFuturo(a));
+  const cicloFut = futuros.length ? Math.min(...futuros.map(a=>Number(a.cicloIngreso))) : null;
+  const activos = alumnos.filter(a=>a.estado!=='Baja'&&!esFuturo(a));
   const deben = activos.filter(a=>a.estado==='Debe');
   const acuerdos = activos.filter(a=>a.estado==='Acuerdo');
   const totalDeuda = activos.reduce((s,a)=>s+a.deuda,0);
@@ -3971,6 +3999,7 @@ function renderStats(){
       <div class="stats-secondary-item"><span class="lbl">Vacantes</span><span class="val">${activos.filter(a=>a.estado==='Vacante').length}</span></div>
       <div class="stats-secondary-item"><span class="lbl">Matriculados</span><span class="val">${activos.filter(a=>a.estado==='Matrícula').length}</span></div>
       <div class="stats-secondary-item" style="cursor:pointer" onclick="document.querySelector('[onclick*=inactivos]').click()"><span class="lbl">Inactivos (bajas)</span><span class="val" style="color:#e67e22">${inactivos.length}</span></div>
+      ${futuros.length>0||verFuturos?`<div class="stats-secondary-item" style="cursor:pointer" onclick="toggleFuturos()" title="Vacantes y matrículas de ciclos futuros"><span class="lbl">${verFuturos?'← Volver al ciclo actual':'Ciclo '+(cicloFut||cicloCalendario()+1)+' (ocultos)'}</span><span class="val" style="color:#2980b9">${futuros.length}</span></div>`:''}
       ${acuerdos.length>0?`<div class="stats-secondary-item"><span class="lbl">Acuerdos activos</span><span class="val" style="color:#856404">${acuerdos.length}</span></div>`:''}
     `;
   }
@@ -5963,6 +5992,7 @@ function openEdit(id){
   // en Becas Socioeconómicas o Hijos de Profesores desde la última edición.
   document.getElementById('ed-carrera')._becaPct = a ? getBecaPctAlumno(a) : 0;
   document.getElementById('ed-estado').value=a?a.estado:'Al día';
+  { const sc=document.getElementById('ed-ciclo'); if(sc) sc._tocado=false; }
   document.getElementById('ed-cuotas-n').value=a?a.cuotasAdeudadas:0;
   document.getElementById('ed-deuda').value=a?a.deuda:0;
   document.getElementById('ed-obs').value=a?a.observaciones:'';
@@ -5991,8 +6021,10 @@ function openNuevoAlumno(){
   document.getElementById('ed-anio').value='1°';
   document.getElementById('ed-cuota').value='';
   document.getElementById('ed-estado').value='Al día';
+  { const sc=document.getElementById('ed-ciclo'); if(sc) sc._tocado=false; }
   document.getElementById('ed-cuotas-n').value=0;
   document.getElementById('ed-deuda').value=0;
+  edEstadoChange();
   document.getElementById('modal-alumno').classList.add('open');
 }
 function saveAlumno(){
@@ -6011,6 +6043,10 @@ function saveAlumno(){
     deuda:parseFloat(document.getElementById('ed-deuda').value)||0,
     observaciones:document.getElementById('ed-obs').value
   };
+  // Ciclo lectivo de ingreso: solo aplica a Vacante / Matrícula
+  data.cicloIngreso = (nuevoEstado==='Vacante'||nuevoEstado==='Matrícula')
+    ? (parseInt(document.getElementById('ed-ciclo').value)||cicloDefaultIngreso())
+    : null;
   // Guardar acuerdo de pago si corresponde
   if(nuevoEstado==='Acuerdo'){
     data.acuerdo = {
@@ -6441,7 +6477,7 @@ function dashIrAlumnosCarrera(carrera){
 }
 
 function renderDashboard(){
-  const activos = alumnos.filter(a=>a.estado!=='Baja');
+  const activos = alumnos.filter(a=>a.estado!=='Baja'&&!esFuturo(a));
   const deben   = activos.filter(a=>a.estado==='Debe');
   const alDia   = activos.filter(a=>a.estado==='Al día');
   const vacantes = activos.filter(a=>a.estado==='Vacante');
@@ -6575,7 +6611,7 @@ function dashSeleccionarMesCobranza(mesNombre){
 }
 
 function renderIndicadores(){
-  const activos = alumnos.filter(a=>a.estado!=='Baja');
+  const activos = alumnos.filter(a=>a.estado!=='Baja'&&!esFuturo(a));
   const deben   = activos.filter(a=>a.estado==='Debe');
   const alDia   = activos.filter(a=>a.estado==='Al día');
   const totalDeuda = activos.reduce((s,a)=>s+a.deuda,0);
@@ -6592,7 +6628,7 @@ function renderIndicadores(){
   // Carreras
   const carreras = [...new Set(alumnos.map(a=>a.carrera).filter(c=>c && c.trim()))].sort();
   const carreraStats = carreras.map(c=>{
-    const grupo = alumnos.filter(a=>a.carrera===c&&a.estado!=='Baja');
+    const grupo = alumnos.filter(a=>a.carrera===c&&a.estado!=='Baja'&&!esFuturo(a));
     const deuda = grupo.reduce((s,a)=>s+a.deuda,0);
     return {c, total:grupo.length, deben:grupo.filter(a=>a.estado==='Debe').length, deuda};
   }).sort((a,b)=>b.total-a.total);
@@ -6761,7 +6797,7 @@ function renderIndicadores(){
 }
 
 function openCierreMes(){
-  const activos = alumnos.filter(a=>a.estado!=='Baja');
+  const activos = alumnos.filter(a=>a.estado!=='Baja'&&!esFuturo(a));
   const deben   = activos.filter(a=>a.estado==='Debe');
   const alDia   = activos.filter(a=>a.estado==='Al día');
   const inactivos = alumnos.filter(a=>a.estado==='Baja');
@@ -6903,7 +6939,8 @@ function ejecutarCierre(){
 const ANIO_SIGUIENTE = {'1°':'2°','2°':'3°','3°':'4°','4°':'4°'};
 
 function openCierreAnio(){
-  const activos = alumnos.filter(a=>a.estado!=='Baja');
+  // Vacante/Matrícula de ciclos futuros todavía no cursan: no se promueven
+  const activos = alumnos.filter(a=>a.estado!=='Baja'&&!esFuturo(a));
   const porAnio = {'1°':0,'2°':0,'3°':0,'4°':0};
   activos.forEach(a=>{ if(porAnio[a.anio]!==undefined) porAnio[a.anio]++; });
   const totalPromueven = porAnio['1°']+porAnio['2°']+porAnio['3°'];
@@ -6940,6 +6977,7 @@ function ejecutarCierreAnio(){
   let promovidos = 0;
   alumnos.forEach(a=>{
     if(a.estado==='Baja') return;
+    if(esFuturo(a)) return; // ingresantes (Vacante/Matrícula de ciclo futuro): conservan su año de ingreso
     const nuevo = ANIO_SIGUIENTE[a.anio];
     if(nuevo && nuevo!==a.anio){
       a.anio = nuevo;
@@ -8761,6 +8799,19 @@ function edEstadoChange(){
   const v = document.getElementById('ed-estado').value;
   const box = document.getElementById('ed-acuerdo-fields');
   if(box) box.style.display = v==='Acuerdo'?'':'none';
+  const cBox = document.getElementById('ed-ciclo-box');
+  if(cBox){
+    cBox.style.display = (v==='Vacante'||v==='Matrícula') ? '' : 'none';
+    const sel = document.getElementById('ed-ciclo');
+    if(sel && !sel.options.length){
+      const y = cicloCalendario();
+      [y, y+1, y+2].forEach(yy=>{ const o=document.createElement('option'); o.value=yy; o.textContent=yy; sel.appendChild(o); });
+    }
+    if(sel && !sel._tocado && (v==='Vacante'||v==='Matrícula')){
+      const ed = editingId!==-1 && editingId!==null ? alumnos.find(x=>x.id===editingId) : null;
+      sel.value = String((ed && ed.cicloIngreso) || cicloDefaultIngreso());
+    }
+  }
   if(v==='Vacante' || v==='Matrícula'){
     aplicarCuotaVacanteMatricula(v);
   }
@@ -14420,7 +14471,7 @@ function anioSnapshot(){
     concData: JSON.parse(JSON.stringify(concData||{})),
     cobranza: JSON.parse(JSON.stringify(COBRANZA_DATA||[])),
     stats: {
-      totalActivos: alumnos.filter(a=>a.estado!=='Baja').length,
+      totalActivos: alumnos.filter(a=>a.estado!=='Baja'&&!esFuturo(a)).length,
       alDia: alumnos.filter(a=>a.estado==='Al día').length,
       deben: alumnos.filter(a=>a.estado==='Debe').length,
       acuerdos: alumnos.filter(a=>a.estado==='Acuerdo').length,
@@ -14461,7 +14512,7 @@ function anioEliminar(){
 function renderAnios(){
   // Header: año activo
   document.getElementById('anio-activo-label').textContent = mes||'—';
-  const activos = alumnos.filter(a=>a.estado!=='Baja');
+  const activos = alumnos.filter(a=>a.estado!=='Baja'&&!esFuturo(a));
   const deuda = activos.reduce((s,a)=>s+(a.deuda||0),0);
   document.getElementById('anio-activo-sub').textContent =
     `${activos.length} alumnos activos · ${alumnos.filter(a=>a.estado==='Al día').length} al día · ${alumnos.filter(a=>a.estado==='Debe').length} con deuda · Deuda total: ${fmt(deuda)}`;
