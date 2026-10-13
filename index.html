@@ -3968,7 +3968,8 @@ function getFiltered(){
   const cuotasFil = document.getElementById('fil-cuotas') ? document.getElementById('fil-cuotas').value : '';
   return alumnos.filter(a=>{
     if(a.estado==='Baja') return false; // los de baja van al tab inactivos
-    if(verFuturos ? !esFuturo(a) : esFuturo(a)) return false; // Vacante/Matrícula de ciclos futuros: ocultos
+    // Vacante/Matrícula de ciclos futuros: ocultos, salvo que se filtre por ese estado o se abra la vista de ciclo futuro
+    if(verFuturos ? !esFuturo(a) : (esFuturo(a) && est!=='Vacante' && est!=='Matrícula')) return false;
     if(q && !normalizar(a.nombre).includes(normalizar(q))) return false;
     if(car && a.carrera!==car) return false;
     if(anio && a.anio!==anio) return false;
@@ -4013,8 +4014,8 @@ function renderStats(){
   if(secEl){
     secEl.innerHTML = `
       <span class="stats-secondary-caption">Otros datos</span>
-      <div class="stats-secondary-item"><span class="lbl">Vacantes</span><span class="val">${activos.filter(a=>a.estado==='Vacante').length}</span></div>
-      <div class="stats-secondary-item"><span class="lbl">Matriculados</span><span class="val">${activos.filter(a=>a.estado==='Matrícula').length}</span></div>
+      <div class="stats-secondary-item"><span class="lbl">Vacantes</span><span class="val">${alumnos.filter(a=>a.estado==='Vacante').length}</span></div>
+      <div class="stats-secondary-item"><span class="lbl">Matriculados</span><span class="val">${alumnos.filter(a=>a.estado==='Matrícula').length}</span></div>
       <div class="stats-secondary-item" style="cursor:pointer" onclick="document.querySelector('[onclick*=inactivos]').click()"><span class="lbl">Inactivos (bajas)</span><span class="val" style="color:#e67e22">${inactivos.length}</span></div>
       ${futuros.length>0||verFuturos?`<div class="stats-secondary-item" style="cursor:pointer" onclick="toggleFuturos()" title="Vacantes y matrículas de ciclos futuros"><span class="lbl">${verFuturos?'← Volver al ciclo actual':'Ciclo '+(cicloFut||cicloCalendario()+1)+' (ocultos)'}</span><span class="val" style="color:#2980b9">${futuros.length}</span></div>`:''}
       ${acuerdos.length>0?`<div class="stats-secondary-item"><span class="lbl">Acuerdos activos</span><span class="val" style="color:#856404">${acuerdos.length}</span></div>`:''}
@@ -6503,8 +6504,10 @@ function renderDashboard(){
   const activos = alumnos.filter(a=>a.estado!=='Baja'&&!esFuturo(a));
   const deben   = activos.filter(a=>a.estado==='Debe');
   const alDia   = activos.filter(a=>a.estado==='Al día');
-  const vacantes = activos.filter(a=>a.estado==='Vacante');
-  const matriculados = activos.filter(a=>a.estado==='Matrícula');
+  // Vacantes y matriculados se cuentan aunque estén cargados para un ciclo futuro
+  const vacantes = alumnos.filter(a=>a.estado==='Vacante');
+  const matriculados = alumnos.filter(a=>a.estado==='Matrícula');
+  const vacFut = vacantes.filter(esFuturo).length, matFut = matriculados.filter(esFuturo).length;
   const inactivos = getInactivosReales();
   const totalDeuda = activos.reduce((s,a)=>s+a.deuda,0);
   const inacDeuda  = inactivos.reduce((s,a)=>s+a.deuda,0);
@@ -6582,8 +6585,8 @@ function renderDashboard(){
       <div class="dash-kpi green clickable" onclick="dashIrAlumnos('Al día')" title="Ver alumnos al día"><div class="dash-kpi-label">Al día</div><div class="dash-kpi-val">${alDia.length}</div><div class="dash-kpi-sub">${activos.length>0?(alDia.length/activos.length*100).toFixed(1):0}% del total activo</div></div>
       <div class="dash-kpi red clickable" onclick="dashIrAlumnos('Debe')" title="Ver alumnos con deuda"><div class="dash-kpi-label">Con deuda</div><div class="dash-kpi-val">${deben.length}</div><div class="dash-kpi-sub">Deuda: ${fmt(totalDeuda)}</div></div>
       <div class="dash-kpi orange clickable" onclick="dashIrTab('inactivos')" title="Ver alumnos inactivos"><div class="dash-kpi-label">Inactivos (bajas)</div><div class="dash-kpi-val">${inactivos.length}</div><div class="dash-kpi-sub">${inacDeuda>0?'Deuda: '+fmt(inacDeuda):'Sin deuda pendiente'}</div></div>
-      <div class="dash-kpi purple clickable" onclick="dashIrAlumnos('Vacante')" title="Ver vacantes"><div class="dash-kpi-label">Vacantes</div><div class="dash-kpi-val">${vacantes.length}</div><div class="dash-kpi-sub">Lugares disponibles</div></div>
-      <div class="dash-kpi teal clickable" onclick="dashIrAlumnos('Matrícula')" title="Ver alumnos en condición Matrícula"><div class="dash-kpi-label">Matriculados</div><div class="dash-kpi-val">${matriculados.length}</div><div class="dash-kpi-sub">Pendientes de matrícula</div></div>
+      <div class="dash-kpi purple clickable" onclick="dashIrAlumnos('Vacante')" title="Ver vacantes"><div class="dash-kpi-label">Vacantes</div><div class="dash-kpi-val">${vacantes.length}</div><div class="dash-kpi-sub">${vacFut>0?vacFut+' para el próximo ciclo':'Lugares disponibles'}</div></div>
+      <div class="dash-kpi teal clickable" onclick="dashIrAlumnos('Matrícula')" title="Ver alumnos en condición Matrícula"><div class="dash-kpi-label">Matriculados</div><div class="dash-kpi-val">${matriculados.length}</div><div class="dash-kpi-sub">${matFut>0?matFut+' para el próximo ciclo':'Pendientes de matrícula'}</div></div>
     </div>
 
     <div class="dash-section-title"><i class="ti ti-cash"></i>Finanzas del período</div>
