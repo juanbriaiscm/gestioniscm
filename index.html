@@ -4017,7 +4017,7 @@ function renderStats(){
       <div class="stats-secondary-item"><span class="lbl">Vacantes</span><span class="val">${alumnos.filter(a=>a.estado==='Vacante').length}</span></div>
       <div class="stats-secondary-item"><span class="lbl">Matriculados</span><span class="val">${alumnos.filter(a=>a.estado==='Matrícula').length}</span></div>
       <div class="stats-secondary-item" style="cursor:pointer" onclick="document.querySelector('[onclick*=inactivos]').click()"><span class="lbl">Inactivos (bajas)</span><span class="val" style="color:#e67e22">${inactivos.length}</span></div>
-      ${futuros.length>0||verFuturos?`<div class="stats-secondary-item" style="cursor:pointer" onclick="toggleFuturos()" title="Vacantes y matrículas de ciclos futuros"><span class="lbl">${verFuturos?'← Volver al ciclo actual':'Ciclo '+(cicloFut||cicloCalendario()+1)+' (ocultos)'}</span><span class="val" style="color:#2980b9">${futuros.length}</span></div>`:''}
+      ${futuros.length>0||verFuturos?`<div class="stats-secondary-item" style="cursor:pointer" onclick="toggleFuturos()" title="Vacantes y matrículas de ciclos futuros"><span class="lbl">${verFuturos?'← Volver al ciclo actual':'Ciclo '+(cicloFut||cicloCalendario()+1)}</span><span class="val" style="color:#2980b9">${futuros.length}</span></div>`:''}
       ${acuerdos.length>0?`<div class="stats-secondary-item"><span class="lbl">Acuerdos activos</span><span class="val" style="color:#856404">${acuerdos.length}</span></div>`:''}
     `;
   }
