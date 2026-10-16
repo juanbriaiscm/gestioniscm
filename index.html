@@ -3539,6 +3539,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
       Al cerrar el año, todos los alumnos <strong>activos</strong> pasan automáticamente de año: 1° → 2°, 2° → 3°, 3° → 4°. Los alumnos de <strong>4°</strong> se mantienen en 4° y los alumnos en <strong>Baja</strong> no se modifican. Después del cierre podés corregir manualmente el año de un alumno puntual (por ejemplo si repitió) desde su ficha de edición.
     </div>
     <div style="font-size:13px;color:#555;margin-top:8px" id="cierre-anio-preview"></div>
+    <div id="cierre-anio-caja" style="margin-top:12px;border:1px solid #d0d0c8;border-radius:8px;padding:10px 12px;font-size:13px"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('modal-cierre-anio')">Cancelar</button>
       <button class="btn warn" onclick="ejecutarCierreAnio()">Ejecutar cierre de año</button>
@@ -7007,11 +7008,23 @@ function openCierreAnio(){
       <div class="dash-alert info">Antes de promover, se guarda automáticamente un archivo del ciclo actual en la sección <strong>Años</strong>, para que puedas consultarlo cuando quieras.</div>
     </div>
   `;
+  // Casilla: cerrar también Control de Caja
+  const _pc = cajaPeriodoActual(), _sc = cajaPeriodoSig(_pc), _esDic = _pc.endsWith('-12');
+  document.getElementById('cierre-anio-caja').innerHTML =
+    '<label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">'
+    +'<input type="checkbox" id="cierre-anio-caja-chk" '+(_esDic?'checked':'')+' style="margin-top:3px">'
+    +'<span><strong>Cerrar también Control de Caja</strong> ('+cajaPeriodoLabel(_pc)+') y comenzar '+cajaPeriodoLabel(_sc)
+    +' con el saldo final de '+cajaFmt(cajaSaldoActual())+'.</span></label>'
+    +(_esDic ? '' : '<div style="margin-top:8px;color:#b45309;font-size:12px">⚠️ Control de Caja está en <strong>'+cajaPeriodoLabel(_pc)+'</strong>, no en diciembre. Por eso la casilla está sin tildar: si la tildás, se cerrará ese mes y no diciembre.</div>');
   document.getElementById('modal-cierre-anio').classList.add('open');
 }
 
 function ejecutarCierreAnio(){
-  if(!confirm('¿Confirmar cierre de año? Todos los alumnos activos de 1°, 2° y 3° pasarán al año siguiente (los de 4° se mantienen). Se guardará automáticamente un archivo del ciclo actual en la sección "Años" antes de promoverlos. Esta acción no se puede deshacer automáticamente, pero podés corregir el año de cada alumno manualmente después.')) return;
+  const _chk = document.getElementById('cierre-anio-caja-chk');
+  const cierraCaja = !!(_chk && _chk.checked);
+  const _pc = cajaPeriodoActual(), _sc = cajaPeriodoSig(_pc);
+  if(!confirm('¿Confirmar cierre de año? Todos los alumnos activos de 1°, 2° y 3° pasarán al año siguiente (los de 4° se mantienen). Se guardará automáticamente un archivo del ciclo actual en la sección "Años" antes de promoverlos. Esta acción no se puede deshacer automáticamente, pero podés corregir el año de cada alumno manualmente después.'
+    +(cierraCaja ? '\n\nAdemás se cerrará Control de Caja ('+cajaPeriodoLabel(_pc)+') y comenzará '+cajaPeriodoLabel(_sc)+' con el saldo final.' : ''))) return;
 
   // Archivar SIEMPRE el ciclo actual antes de promover, para conservar el estado "pre-cierre" en Años
   const yearLabel = (mes||'').match(/\d{4}/)?.[0] || new Date().getFullYear().toString();
@@ -7034,7 +7047,12 @@ function ejecutarCierreAnio(){
   });
 
   save();renderStats();renderAlumnosActual();renderAnios();closeModal('modal-cierre-anio');
-  showToast(`✅ Cierre de año ejecutado: ${promovidos} alumnos promovidos · Ciclo ${yearLabel} archivado en "Años"`);
+  let cajaMsg = '';
+  if(cierraCaja){
+    const r = cajaCerrarMes(true);
+    if(r) cajaMsg = ` · Caja: ${cajaPeriodoLabel(r.cerrado)} cerrado, comenzó ${cajaPeriodoLabel(r.nuevo)}`;
+  }
+  showToast(`✅ Cierre de año ejecutado: ${promovidos} alumnos promovidos · Ciclo ${yearLabel} archivado en "Años"${cajaMsg}`);
 }
 
 // ── Aranceles ─────────────────────────────────────────────────────────────────
@@ -8616,15 +8634,17 @@ function cajaRecalcCadena(){
   aplicar(cajaMovimientos);
 }
 
-function cajaCerrarMes(){
+function cajaCerrarMes(auto){
+  // auto=true: lo llama el Cierre de año (ya confirmó el usuario): sin aviso propio ni toast
+  auto = (auto===true);
   const p = cajaPeriodoActual(), sig = cajaPeriodoSig(p);
   const saldo = cajaSaldoActual();
   const msg = '¿Cerrar '+cajaPeriodoLabel(p)+' y comenzar '+cajaPeriodoLabel(sig)+'?\n\n'
     +'• Se archivan todos los movimientos y el conteo de billetes de '+cajaPeriodoLabel(p)+' (los podés ver en Historial).\n'
     +'• El saldo final ('+cajaFmt(saldo)+') pasa como saldo inicial de '+cajaPeriodoLabel(sig)+'.';
-  if(!confirm(msg)) return;
+  if(!auto && !confirm(msg)) return null;
   const idxExist = cajaHist.meses.findIndex(m=>m.periodo===p);
-  if(idxExist>=0 && !confirm('Ya existe un cierre archivado de '+cajaPeriodoLabel(p)+'. ¿Reemplazarlo con lo que hay ahora?')) return;
+  if(idxExist>=0 && !confirm('Ya existe un cierre archivado de '+cajaPeriodoLabel(p)+'. ¿Reemplazarlo con lo que hay ahora?')) return null;
   const snap = { periodo:p, movimientos: JSON.parse(JSON.stringify(cajaMovimientos)), billetes:[...billetesQty], cerradoEn:new Date().toISOString() };
   if(idxExist>=0) cajaHist.meses[idxExist]=snap; else cajaHist.meses.push(snap);
   cajaHist.meses.sort((a,b)=>a.periodo<b.periodo?-1:a.periodo>b.periodo?1:0);
@@ -8634,11 +8654,58 @@ function cajaCerrarMes(){
   cajaSave();
   renderCaja();
   try{ dashRefrescarSiVisible(); }catch(e){}
-  showToast('✓ '+cajaCap(cajaPeriodoLabel(p))+' cerrado. Comenzó '+cajaPeriodoLabel(sig), 'success');
+  if(!auto) showToast('✓ '+cajaCap(cajaPeriodoLabel(p))+' cerrado. Comenzó '+cajaPeriodoLabel(sig), 'success');
+  return { cerrado:p, nuevo:sig };
 }
 
 // ── Historial (vista por año) ──
 let _cajaHistAnio = null;
+let _cajaHistRango = 6; // meses que muestra el gráfico (6 o 12)
+
+function cajaCompacto(n){
+  const a=Math.abs(n);
+  if(a>=1e6) return (n/1e6).toFixed(a>=1e7?0:1).replace('.0','')+'M';
+  if(a>=1e3) return Math.round(n/1e3)+'k';
+  return String(Math.round(n));
+}
+function cajaHistRango(n){ _cajaHistRango=n; cajaHistRender(); }
+
+// Gráfico de barras: ingresos vs egresos de los últimos N meses cerrados
+function cajaGraficoHtml(){
+  const todos = cajaHist.meses;
+  const meses = todos.slice(-_cajaHistRango);
+  const botones = [6,12].map(n=>'<button class="btn sm'+(n===_cajaHistRango?' primary':'')+'" onclick="cajaHistRango('+n+')">'+n+' meses</button>').join(' ');
+  const datos = meses.map(m=>{ const t=cajaTotales(m.movimientos);
+    return { label: cajaCap(cajaPeriodoLabel(m.periodo,false)).slice(0,3)+' '+m.periodo.slice(2,4), ing:t.ing, egr:t.egr, saldo:t.saldo, nombre:cajaCap(cajaPeriodoLabel(m.periodo)) }; });
+  const W=760, H=230, ml=46, mr=10, mt=12, mb=34;
+  const maxV = Math.max(1, ...datos.map(d=>Math.max(d.ing,d.egr)));
+  const paso = Math.pow(10, Math.floor(Math.log10(maxV)));
+  const tope = Math.ceil(maxV/paso*2)/2*paso || maxV; // techo "redondo"
+  const iw = W-ml-mr, ih = H-mt-mb;
+  const gw = iw/datos.length, bw = Math.min(26, gw*0.32);
+  let svg = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;max-height:260px" role="img" aria-label="Ingresos y egresos por mes">';
+  for(let i=0;i<=4;i++){
+    const v = tope*i/4, y = mt+ih-(v/tope)*ih;
+    svg += '<line x1="'+ml+'" x2="'+(W-mr)+'" y1="'+y+'" y2="'+y+'" stroke="#e8e8e0"/>'
+         + '<text x="'+(ml-6)+'" y="'+(y+3)+'" font-size="10" fill="#888" text-anchor="end">'+cajaCompacto(v)+'</text>';
+  }
+  datos.forEach((d,i)=>{
+    const cx = ml+gw*i+gw/2;
+    const hi = (d.ing/tope)*ih, he = (d.egr/tope)*ih;
+    svg += '<g><title>'+cajaEsc(d.nombre)+'\nIngresos: '+cajaFmt(d.ing)+'\nEgresos: '+cajaFmt(d.egr)+'\nSaldo final: '+cajaFmt(d.saldo)+'</title>'
+         + '<rect x="'+(cx-bw-1)+'" y="'+(mt+ih-hi)+'" width="'+bw+'" height="'+Math.max(hi,0)+'" fill="#27ae60" rx="2"/>'
+         + '<rect x="'+(cx+1)+'" y="'+(mt+ih-he)+'" width="'+bw+'" height="'+Math.max(he,0)+'" fill="#c0392b" rx="2"/>'
+         + '<text x="'+cx+'" y="'+(H-14)+'" font-size="10" fill="#555" text-anchor="middle">'+cajaEsc(d.label)+'</text></g>';
+  });
+  svg += '</svg>';
+  return '<div style="border:1px solid #e8e8e0;border-radius:8px;padding:12px;margin-bottom:16px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">'
+    +'<div style="font-weight:700;font-size:13px"><i class="ti ti-chart-bar"></i> Ingresos vs egresos — últimos '+_cajaHistRango+' meses cerrados</div>'
+    +'<div>'+botones+'</div></div>'
+    + svg
+    +'<div style="display:flex;gap:14px;font-size:11px;color:#666;margin-top:4px"><span><span style="display:inline-block;width:10px;height:10px;background:#27ae60;border-radius:2px"></span> Ingresos</span><span><span style="display:inline-block;width:10px;height:10px;background:#c0392b;border-radius:2px"></span> Egresos</span><span style="color:#aaa">Pasá el mouse por una barra para ver el detalle</span></div>'
+    +'</div>';
+}
 let _cajaMesAbierto = null;
 
 function cajaHistRefrescarSiAbierto(){
@@ -8676,8 +8743,8 @@ function cajaHistRender(){
       +'</td></tr>';
   }).join('');
   const saldoFinalAnio = meses.length ? cajaTotales(meses[meses.length-1].movimientos).saldo : 0;
-  body.innerHTML =
-    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'
+  body.innerHTML = cajaGraficoHtml()
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'
     + anios.map(a=>'<button class="btn sm'+(a===_cajaHistAnio?' primary':'')+'" onclick="cajaHistAnio(\''+a+'\')">'+a+'</button>').join('')
     + '</div>'
     + '<div class="table-wrap"><table><thead><tr><th>Mes</th><th style="text-align:right">Ingresos</th><th style="text-align:right">Egresos</th><th style="text-align:right">Saldo final</th><th></th></tr></thead><tbody>'
