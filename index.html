@@ -1681,7 +1681,11 @@ img, svg{max-width:100%}
         <div class="resumen-card">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
             <h3><i class="ti ti-clipboard-list"></i>Movimientos</h3>
-            <button class="btn sm danger" onclick="cajaLimpiar()"><i class="ti ti-trash"></i>Limpiar todo</button>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+              <button class="btn sm" id="caja-btn-cerrar" onclick="cajaCerrarMes()" style="background:#1a4d2e;color:#fff;border-color:#1a4d2e" title="Archiva el mes actual y arranca el siguiente"><i class="ti ti-calendar-check"></i>Cerrar mes actual</button>
+              <button class="btn sm" onclick="cajaHistAbrir()" title="Ver meses y años cerrados"><i class="ti ti-history"></i>Historial</button>
+              <button class="btn sm danger" onclick="cajaLimpiar()"><i class="ti ti-trash"></i>Limpiar todo</button>
+            </div>
           </div>
           <div class="table-wrap">
             <table>
@@ -3210,6 +3214,24 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
       <button onclick="closeBecaModal()" style="background:#f0f0e8;border:none;border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer">Cancelar</button>
       <button onclick="guardarBeca()" style="background:#1a1a2e;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;font-weight:600"><i class="ti ti-device-floppy"></i>Guardar</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL HISTORIAL CONTROL DE CAJA -->
+<div class="overlay" id="modal-caja-hist">
+  <div class="modal" style="max-width:820px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h2 style="margin:0"><i class="ti ti-history"></i> Historial de Control de Caja</h2>
+      <button class="btn sm" onclick="closeModal('modal-caja-hist')">Cerrar</button>
+    </div>
+    <div id="caja-hist-body"></div>
+  </div>
+</div>
+
+<!-- MODAL DETALLE DE UN MES CERRADO -->
+<div class="overlay" id="modal-caja-mes">
+  <div class="modal" style="max-width:1050px">
+    <div id="caja-mes-body"></div>
   </div>
 </div>
 
@@ -8239,7 +8261,8 @@ function renderCobranza(){
 // ── FIN COBRANZA ───────────────────────────────────────────────
 
 function cajaSave(){
-  const data = { movimientos: cajaMovimientos, billetes: billetesQty };
+  if(!cajaPeriodo) cajaPeriodo = cajaPeriodoActual();
+  const data = { movimientos: cajaMovimientos, billetes: billetesQty, periodo: cajaPeriodo };
   localStorage.setItem('iscm_caja_v1', JSON.stringify(data));
   if(window._fb) window._fb.set('iscm_caja_v1', data).catch(()=>{});
 }
@@ -8266,14 +8289,23 @@ let _cajaLocal = null;
 try{ _cajaLocal = JSON.parse(localStorage.getItem('iscm_caja_v1')); }catch(e){}
 let cajaMovimientos = _cajaLocal ? _cajaLocal.movimientos : JSON.parse(JSON.stringify(CAJA_INITIAL_MOV));
 let billetesQty = _cajaLocal ? _cajaLocal.billetes : [...CAJA_INITIAL_BILL];
+let cajaPeriodo = (_cajaLocal && _cajaLocal.periodo) || null; // 'AAAA-MM' del mes en curso
+
+// Historial de meses cerrados
+let _cajaHistLocal = null;
+try{ _cajaHistLocal = JSON.parse(localStorage.getItem('iscm_caja_hist_v1')); }catch(e){}
+let cajaHist = (_cajaHistLocal && Array.isArray(_cajaHistLocal.meses)) ? _cajaHistLocal : {meses:[]};
 
 // Sincronizar con Firebase al cargar
 (async ()=>{
   await new Promise(r=>{ if(window._fbReady)return r(); window.addEventListener('fbReady',r,{once:true}); setTimeout(r,3000); });
   if(!window._fb) return;
   const remote = await window._fb.get('iscm_caja_v1');
-  if(remote){ cajaMovimientos=remote.movimientos; billetesQty=remote.billetes; renderCaja(); }
-  window._fb.listen('iscm_caja_v1', data=>{ cajaMovimientos=data.movimientos; billetesQty=data.billetes; renderCaja(); dashRefrescarSiVisible(); });
+  if(remote){ cajaMovimientos=remote.movimientos; billetesQty=remote.billetes; cajaPeriodo=remote.periodo||cajaPeriodo; renderCaja(); }
+  const remoteHist = await window._fb.get('iscm_caja_hist_v1');
+  if(remoteHist && Array.isArray(remoteHist.meses)){ cajaHist=remoteHist; try{ localStorage.setItem('iscm_caja_hist_v1', JSON.stringify(cajaHist)); }catch(e){} renderCaja(); }
+  window._fb.listen('iscm_caja_v1', data=>{ cajaMovimientos=data.movimientos; billetesQty=data.billetes; cajaPeriodo=data.periodo||cajaPeriodo; renderCaja(); dashRefrescarSiVisible(); });
+  window._fb.listen('iscm_caja_hist_v1', data=>{ if(data && Array.isArray(data.meses)){ cajaHist=data; try{ localStorage.setItem('iscm_caja_hist_v1', JSON.stringify(cajaHist)); }catch(e){} cajaHistRefrescarSiAbierto(); } });
 })();
 
 function cajaFmt(n){ const p=(parseFloat(n)||0).toFixed(2).split('.'); p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.'); return '$'+p[0]+','+p[1]; }
@@ -8293,6 +8325,11 @@ function cajaOrdenar(){
 
 function renderCaja(){
   cajaOrdenar();
+  const _btnCerrar = document.getElementById('caja-btn-cerrar');
+  if(_btnCerrar){
+    const _p = cajaPeriodoActual(), _sig = cajaPeriodoSig(_p);
+    _btnCerrar.innerHTML = '<i class="ti ti-calendar-check"></i>Cerrar '+cajaPeriodoLabel(_p,false)+' y comenzar '+cajaPeriodoLabel(_sig, _sig.slice(0,4)!==_p.slice(0,4));
+  }
   // Stats cards
   const totalIng = cajaMovimientos.reduce((s,m)=>s+m.ingreso,0);
   const totalEgr = cajaMovimientos.reduce((s,m)=>s+m.egreso,0);
@@ -8529,6 +8566,341 @@ function cajaLimpiar(){
   cajaMovimientos=[];
   cajaSave();
   renderCaja();
+}
+
+// ── CIERRE MENSUAL + HISTORIAL ─────────────────────────────────
+const CAJA_MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function cajaCap(t){ return t.charAt(0).toUpperCase()+t.slice(1); }
+function cajaEsc(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function cajaFechaFmt(f){ return f ? f.split('-').reverse().join('/') : ''; }
+function cajaPeriodoLabel(p, conAnio=true){
+  const [y,m]=p.split('-').map(Number);
+  return CAJA_MESES[m-1]+(conAnio?' '+y:'');
+}
+function cajaPeriodoSig(p){
+  let [y,m]=p.split('-').map(Number);
+  m++; if(m>12){ m=1; y++; }
+  return y+'-'+String(m).padStart(2,'0');
+}
+function cajaPeriodoPrev(p){
+  let [y,m]=p.split('-').map(Number);
+  m--; if(m<1){ m=12; y--; }
+  return y+'-'+String(m).padStart(2,'0');
+}
+function cajaPeriodoActual(){
+  if(cajaPeriodo) return cajaPeriodo;
+  let max=''; cajaMovimientos.forEach(m=>{ if(m.fecha && m.fecha>max) max=m.fecha; });
+  return (max||new Date().toISOString().slice(0,10)).slice(0,7);
+}
+function cajaTotales(movs){
+  const ing=movs.reduce((s,m)=>s+(m.ingreso||0),0), egr=movs.reduce((s,m)=>s+(m.egreso||0),0);
+  return {ing, egr, saldo:ing-egr};
+}
+function cajaHistSave(){
+  try{ localStorage.setItem('iscm_caja_hist_v1', JSON.stringify(cajaHist)); }catch(e){}
+  if(window._fb) window._fb.set('iscm_caja_hist_v1', cajaHist).catch(()=>{});
+}
+function cajaMovSaldoInicial(periodo, saldo){
+  return { fecha: periodo+'-01', desc:'Saldo inicial', ingreso: saldo>=0?saldo:0, egreso: saldo<0?-saldo:0, obs:'Saldo final del mes anterior', saldoInicial:true };
+}
+
+// Recalcula la cadena de saldos iniciales (mes cerrado -> siguiente -> ... -> mes actual)
+function cajaRecalcCadena(){
+  let prev=null;
+  const aplicar = movs=>{
+    if(prev===null) return;
+    const m = movs.find(x=>x.saldoInicial);
+    if(m){ m.ingreso = prev>=0?prev:0; m.egreso = prev<0?-prev:0; }
+  };
+  cajaHist.meses.forEach(mes=>{ aplicar(mes.movimientos); prev = cajaTotales(mes.movimientos).saldo; });
+  aplicar(cajaMovimientos);
+}
+
+function cajaCerrarMes(){
+  const p = cajaPeriodoActual(), sig = cajaPeriodoSig(p);
+  const saldo = cajaSaldoActual();
+  const msg = '¿Cerrar '+cajaPeriodoLabel(p)+' y comenzar '+cajaPeriodoLabel(sig)+'?\n\n'
+    +'• Se archivan todos los movimientos y el conteo de billetes de '+cajaPeriodoLabel(p)+' (los podés ver en Historial).\n'
+    +'• El saldo final ('+cajaFmt(saldo)+') pasa como saldo inicial de '+cajaPeriodoLabel(sig)+'.';
+  if(!confirm(msg)) return;
+  const idxExist = cajaHist.meses.findIndex(m=>m.periodo===p);
+  if(idxExist>=0 && !confirm('Ya existe un cierre archivado de '+cajaPeriodoLabel(p)+'. ¿Reemplazarlo con lo que hay ahora?')) return;
+  const snap = { periodo:p, movimientos: JSON.parse(JSON.stringify(cajaMovimientos)), billetes:[...billetesQty], cerradoEn:new Date().toISOString() };
+  if(idxExist>=0) cajaHist.meses[idxExist]=snap; else cajaHist.meses.push(snap);
+  cajaHist.meses.sort((a,b)=>a.periodo<b.periodo?-1:a.periodo>b.periodo?1:0);
+  cajaMovimientos = [ cajaMovSaldoInicial(sig, saldo) ];
+  cajaPeriodo = sig;
+  cajaHistSave();
+  cajaSave();
+  renderCaja();
+  try{ dashRefrescarSiVisible(); }catch(e){}
+  showToast('✓ '+cajaCap(cajaPeriodoLabel(p))+' cerrado. Comenzó '+cajaPeriodoLabel(sig), 'success');
+}
+
+// ── Historial (vista por año) ──
+let _cajaHistAnio = null;
+let _cajaMesAbierto = null;
+
+function cajaHistRefrescarSiAbierto(){
+  if(document.getElementById('modal-caja-mes').classList.contains('open')) cajaMesRender();
+  if(document.getElementById('modal-caja-hist').classList.contains('open')) cajaHistRender();
+}
+function cajaHistAbrir(){
+  document.getElementById('modal-caja-mes').classList.remove('open');
+  cajaHistRender();
+  document.getElementById('modal-caja-hist').classList.add('open');
+}
+function cajaHistAnio(a){ _cajaHistAnio=a; cajaHistRender(); }
+
+function cajaHistRender(){
+  const body = document.getElementById('caja-hist-body');
+  const anios = [...new Set(cajaHist.meses.map(m=>m.periodo.slice(0,4)))].sort();
+  if(!anios.length){
+    body.innerHTML = '<div style="text-align:center;color:#888;padding:30px;font-size:13px">Todavía no hay meses cerrados.<br>Cuando uses <strong>Cerrar mes actual</strong>, el mes queda guardado acá.</div>';
+    return;
+  }
+  if(!_cajaHistAnio || !anios.includes(_cajaHistAnio)) _cajaHistAnio = anios[anios.length-1];
+  const meses = cajaHist.meses.filter(m=>m.periodo.startsWith(_cajaHistAnio+'-'));
+  let ingA=0, egrA=0;
+  const filas = meses.map(m=>{
+    const t = cajaTotales(m.movimientos); ingA+=t.ing; egrA+=t.egr;
+    return '<tr>'
+      +'<td style="font-weight:600">'+cajaCap(cajaPeriodoLabel(m.periodo,false))+'</td>'
+      +'<td style="text-align:right;color:#27ae60">'+cajaFmt(t.ing)+'</td>'
+      +'<td style="text-align:right;color:#c0392b">'+cajaFmt(t.egr)+'</td>'
+      +'<td style="text-align:right;font-weight:600">'+cajaFmt(t.saldo)+'</td>'
+      +'<td style="white-space:nowrap;text-align:right">'
+      +'<button class="btn sm" onclick="cajaMesAbrir(\''+m.periodo+'\')"><i class="ti ti-eye"></i>Ver / editar</button> '
+      +'<button class="btn sm" onclick="cajaExportarMes(\''+m.periodo+'\')" title="Exportar a Excel"><i class="ti ti-file-spreadsheet"></i></button> '
+      +'<button class="btn sm" onclick="cajaImprimirMes(\''+m.periodo+'\')" title="Imprimir"><i class="ti ti-printer"></i></button>'
+      +'</td></tr>';
+  }).join('');
+  const saldoFinalAnio = meses.length ? cajaTotales(meses[meses.length-1].movimientos).saldo : 0;
+  body.innerHTML =
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'
+    + anios.map(a=>'<button class="btn sm'+(a===_cajaHistAnio?' primary':'')+'" onclick="cajaHistAnio(\''+a+'\')">'+a+'</button>').join('')
+    + '</div>'
+    + '<div class="table-wrap"><table><thead><tr><th>Mes</th><th style="text-align:right">Ingresos</th><th style="text-align:right">Egresos</th><th style="text-align:right">Saldo final</th><th></th></tr></thead><tbody>'
+    + filas
+    + '<tr style="background:#f8f8f4;font-weight:700"><td>Total '+_cajaHistAnio+'</td><td style="text-align:right;color:#27ae60">'+cajaFmt(ingA)+'</td><td style="text-align:right;color:#c0392b">'+cajaFmt(egrA)+'</td><td style="text-align:right">'+cajaFmt(saldoFinalAnio)+'</td><td></td></tr>'
+    + '</tbody></table></div>'
+    + '<div style="font-size:11px;color:#888;margin-top:8px">El saldo final de la fila "Total" es el del último mes cerrado de ese año. El mes en curso ('+cajaPeriodoLabel(cajaPeriodoActual())+') no aparece hasta que lo cierres.</div>'
+    + '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">'
+    + '<button class="btn" onclick="cajaExportarAnio(\''+_cajaHistAnio+'\')"><i class="ti ti-file-spreadsheet"></i>Exportar '+_cajaHistAnio+' a Excel</button>'
+    + '<button class="btn" onclick="cajaImprimirAnio(\''+_cajaHistAnio+'\')"><i class="ti ti-printer"></i>Imprimir '+_cajaHistAnio+'</button>'
+    + '</div>';
+}
+
+// ── Detalle / edición de un mes cerrado ──
+function cajaMesObj(){ return cajaHist.meses.find(m=>m.periodo===_cajaMesAbierto); }
+function cajaMesAbrir(p){
+  _cajaMesAbierto = p;
+  document.getElementById('modal-caja-hist').classList.remove('open');
+  cajaMesRender();
+  document.getElementById('modal-caja-mes').classList.add('open');
+}
+function cajaMesVolver(){
+  document.getElementById('modal-caja-mes').classList.remove('open');
+  cajaHistAbrir();
+}
+function cajaMesOrdenar(mes){
+  mes.movimientos.sort((a,b)=>{
+    if(a.saldoInicial && !b.saldoInicial) return -1;
+    if(b.saldoInicial && !a.saldoInicial) return 1;
+    const fa=a.fecha||'', fb=b.fecha||'';
+    return fa<fb?-1:fa>fb?1:0;
+  });
+}
+function cajaMesRender(){
+  const mes = cajaMesObj();
+  const body = document.getElementById('caja-mes-body');
+  if(!mes){ body.innerHTML=''; return; }
+  cajaMesOrdenar(mes);
+  const idxMes = cajaHist.meses.indexOf(mes);
+  const t = cajaTotales(mes.movimientos);
+  const inp = 'height:30px;padding:0 6px;border-radius:5px;border:1px solid #d0d0c8;font-size:12px;width:100%';
+  let acum=0;
+  const filas = mes.movimientos.map((m,i)=>{
+    acum += (m.ingreso||0)-(m.egreso||0);
+    const auto = m.saldoInicial && idxMes>0;
+    const al = (m.alumnoId!=null) ? alumnos.find(a=>a.id===m.alumnoId) : null;
+    const alTxt = al ? '<span style="font-size:11px;color:#1a1a2e">'+cajaEsc(al.nombre)+'</span>' : '<span style="color:#aaa">—</span>';
+    return '<tr>'
+      +'<td style="width:130px"><input type="date" value="'+cajaEsc(m.fecha||'')+'" style="'+inp+'" onchange="cajaMesCampo('+i+',\'fecha\',this.value)"></td>'
+      +'<td><input type="text" value="'+cajaEsc(m.desc||'')+'" style="'+inp+'" onchange="cajaMesCampo('+i+',\'desc\',this.value)"></td>'
+      +'<td>'+alTxt+'</td>'
+      +'<td style="width:110px"><input type="number" value="'+(m.ingreso||0)+'" '+(auto?'disabled title="Se calcula solo con el saldo final del mes anterior" ':'')+'style="'+inp+';text-align:right" onchange="cajaMesCampo('+i+',\'ingreso\',this.value)"></td>'
+      +'<td style="width:110px"><input type="number" value="'+(m.egreso||0)+'" '+(auto?'disabled ':'')+'style="'+inp+';text-align:right" onchange="cajaMesCampo('+i+',\'egreso\',this.value)"></td>'
+      +'<td style="text-align:right;font-weight:600;white-space:nowrap">'+cajaFmt(acum)+'</td>'
+      +'<td><input type="text" value="'+cajaEsc(m.obs||'')+'" style="'+inp+'" onchange="cajaMesCampo('+i+',\'obs\',this.value)"></td>'
+      +'<td>'+(auto?'<span title="Automático" style="color:#aaa;font-size:11px">auto</span>':'<button class="btn sm danger" onclick="cajaMesEliminar('+i+')" title="Eliminar"><i class="ti ti-x" style="margin-right:0"></i></button>')+'</td>'
+      +'</tr>';
+  }).join('') || '<tr><td colspan="8" style="text-align:center;color:#888;padding:16px">Sin movimientos</td></tr>';
+
+  const bil = mes.billetes||[];
+  const bilTotal = bil.reduce((s,q,i)=>s+(q||0)*BILLETES_DENOM[i],0);
+  const bilHtml = BILLETES_DENOM.map((d,i)=>
+    '<tr><td style="padding:3px 6px">'+BILLETES_LABEL[i]+'</td>'
+    +'<td style="padding:3px 6px;text-align:center"><input type="number" min="0" value="'+(bil[i]||0)+'" style="width:60px;text-align:center;height:26px;border-radius:4px;border:1px solid #d0d0c8;font-size:12px" onchange="cajaMesBillete('+i+',this.value)"></td>'
+    +'<td style="padding:3px 6px;text-align:right">'+cajaFmt((bil[i]||0)*d)+'</td></tr>').join('');
+
+  body.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
+    +'<h2 style="margin:0"><i class="ti ti-calendar"></i> '+cajaCap(cajaPeriodoLabel(mes.periodo))+'</h2>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+    +'<button class="btn sm" onclick="cajaExportarMes(\''+mes.periodo+'\')"><i class="ti ti-file-spreadsheet"></i>Excel</button>'
+    +'<button class="btn sm" onclick="cajaImprimirMes(\''+mes.periodo+'\')"><i class="ti ti-printer"></i>Imprimir</button>'
+    +'<button class="btn sm" onclick="cajaMesVolver()"><i class="ti ti-arrow-left"></i>Volver al historial</button>'
+    +'<button class="btn sm" onclick="closeModal(\'modal-caja-mes\')">Cerrar</button>'
+    +'</div></div>'
+    +'<div style="font-size:12px;color:#666;margin-bottom:10px">Mes cerrado el '+(mes.cerradoEn?new Date(mes.cerradoEn).toLocaleDateString('es-AR'):'—')+'. Si editás algo, el saldo inicial de los meses siguientes se recalcula solo.</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px">'
+    +'<div class="stat"><div class="stat-label">Total Ingresos</div><div class="stat-value success">'+cajaFmt(t.ing)+'</div></div>'
+    +'<div class="stat"><div class="stat-label">Total Egresos</div><div class="stat-value danger">'+cajaFmt(t.egr)+'</div></div>'
+    +'<div class="stat"><div class="stat-label">Saldo final</div><div class="stat-value info">'+cajaFmt(t.saldo)+'</div></div>'
+    +'<div class="stat"><div class="stat-label">Contado (billetes)</div><div class="stat-value">'+cajaFmt(bilTotal)+'</div></div>'
+    +'</div>'
+    +'<div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Descripción</th><th>Alumno</th><th style="text-align:right">Ingresos</th><th style="text-align:right">Egresos</th><th style="text-align:right">Saldo</th><th>Observaciones</th><th style="width:40px"></th></tr></thead><tbody>'+filas+'</tbody></table></div>'
+    +'<div style="margin-top:10px"><button class="btn sm primary" onclick="cajaMesAgregar()"><i class="ti ti-plus"></i>Agregar movimiento</button></div>'
+    +'<details style="margin-top:14px"><summary style="cursor:pointer;font-size:13px;font-weight:600">Conteo de billetes de este mes</summary>'
+    +'<table style="width:100%;max-width:380px;font-size:12px;border-collapse:collapse;margin-top:8px"><thead><tr><th style="text-align:left;padding:3px 6px">Denominación</th><th>Cantidad</th><th style="text-align:right;padding:3px 6px">Total</th></tr></thead><tbody>'+bilHtml+'</tbody></table></details>';
+}
+
+// Guardar cambios de un mes cerrado: recalcula la cadena y persiste todo
+function cajaMesGuardar(){
+  cajaRecalcCadena();
+  cajaHistSave();
+  cajaSave();
+  renderCaja();
+  try{ dashRefrescarSiVisible(); }catch(e){}
+  cajaMesRender();
+}
+function cajaMesCampo(i, campo, val){
+  const mes = cajaMesObj(); if(!mes) return;
+  const m = mes.movimientos[i]; if(!m) return;
+  if(campo==='ingreso'){ m.ingreso = Math.max(0, parseFloat(val)||0); if(m.ingreso>0) m.egreso=0; }
+  else if(campo==='egreso'){ m.egreso = Math.max(0, parseFloat(val)||0); if(m.egreso>0) m.ingreso=0; }
+  else m[campo] = val;
+  cajaMesGuardar();
+}
+function cajaMesEliminar(i){
+  const mes = cajaMesObj(); if(!mes) return;
+  if(!confirm('¿Eliminar este movimiento de '+cajaPeriodoLabel(mes.periodo)+'?')) return;
+  mes.movimientos.splice(i,1);
+  cajaMesGuardar();
+}
+function cajaMesAgregar(){
+  const mes = cajaMesObj(); if(!mes) return;
+  const [y,m] = mes.periodo.split('-').map(Number);
+  const ultimo = new Date(y, m, 0).getDate();
+  mes.movimientos.push({ fecha: mes.periodo+'-'+String(ultimo).padStart(2,'0'), desc:'Nuevo movimiento', ingreso:0, egreso:0, obs:'' });
+  cajaMesGuardar();
+}
+function cajaMesBillete(i, val){
+  const mes = cajaMesObj(); if(!mes) return;
+  if(!mes.billetes) mes.billetes=[];
+  mes.billetes[i] = parseFloat(val)||0;
+  cajaMesGuardar();
+}
+
+// ── Exportar a Excel ──
+function cajaCargarXLSX(cb){
+  if(window.XLSX) return cb();
+  const s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload = cb;
+  s.onerror = ()=>showToast('No se pudo cargar la librería de Excel','error');
+  document.head.appendChild(s);
+}
+function cajaFilasMes(mes){
+  const rows = [['Fecha','Descripción','Alumno','Ingresos','Egresos','Saldo','Observaciones']];
+  let acum=0;
+  mes.movimientos.forEach(m=>{
+    acum += (m.ingreso||0)-(m.egreso||0);
+    const al = (m.alumnoId!=null) ? alumnos.find(a=>a.id===m.alumnoId) : null;
+    rows.push([cajaFechaFmt(m.fecha), m.desc||'', al?al.nombre:'', m.ingreso||0, m.egreso||0, acum, m.obs||'']);
+  });
+  const t = cajaTotales(mes.movimientos);
+  rows.push([]);
+  rows.push(['','TOTALES','',t.ing,t.egr,t.saldo,'']);
+  rows.push([]);
+  rows.push(['Conteo de billetes']);
+  rows.push(['Denominación','Cantidad','Total']);
+  let bt=0;
+  BILLETES_DENOM.forEach((d,i)=>{ const q=(mes.billetes&&mes.billetes[i])||0; bt+=q*d; rows.push([BILLETES_LABEL[i], q, q*d]); });
+  rows.push(['Total contado','',bt]);
+  return rows;
+}
+function cajaExportarMes(p){
+  const mes = cajaHist.meses.find(m=>m.periodo===p); if(!mes) return;
+  cajaCargarXLSX(()=>{
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(cajaFilasMes(mes));
+    ws['!cols']=[{wch:12},{wch:30},{wch:26},{wch:14},{wch:14},{wch:14},{wch:30}];
+    XLSX.utils.book_append_sheet(wb, ws, cajaCap(cajaPeriodoLabel(p)).slice(0,31));
+    XLSX.writeFile(wb, 'Control_Caja_'+p+'.xlsx');
+  });
+}
+function cajaExportarAnio(anio){
+  const meses = cajaHist.meses.filter(m=>m.periodo.startsWith(anio+'-'));
+  if(!meses.length) return;
+  cajaCargarXLSX(()=>{
+    const wb = XLSX.utils.book_new();
+    const res = [['Mes','Ingresos','Egresos','Saldo final']];
+    let ingA=0, egrA=0;
+    meses.forEach(m=>{ const t=cajaTotales(m.movimientos); ingA+=t.ing; egrA+=t.egr; res.push([cajaCap(cajaPeriodoLabel(m.periodo,false)), t.ing, t.egr, t.saldo]); });
+    res.push(['Total '+anio, ingA, egrA, cajaTotales(meses[meses.length-1].movimientos).saldo]);
+    const wsR = XLSX.utils.aoa_to_sheet(res);
+    wsR['!cols']=[{wch:16},{wch:16},{wch:16},{wch:16}];
+    XLSX.utils.book_append_sheet(wb, wsR, 'Resumen '+anio);
+    meses.forEach(m=>{
+      const ws = XLSX.utils.aoa_to_sheet(cajaFilasMes(m));
+      ws['!cols']=[{wch:12},{wch:30},{wch:26},{wch:14},{wch:14},{wch:14},{wch:30}];
+      XLSX.utils.book_append_sheet(wb, ws, cajaCap(cajaPeriodoLabel(m.periodo,false)).slice(0,31));
+    });
+    XLSX.writeFile(wb, 'Control_Caja_'+anio+'.xlsx');
+  });
+}
+
+// ── Imprimir ──
+function cajaHtmlMes(mes){
+  let acum=0;
+  const filas = mes.movimientos.map(m=>{
+    acum += (m.ingreso||0)-(m.egreso||0);
+    const al = (m.alumnoId!=null) ? alumnos.find(a=>a.id===m.alumnoId) : null;
+    return '<tr><td>'+cajaFechaFmt(m.fecha)+'</td><td>'+cajaEsc(m.desc)+'</td><td>'+cajaEsc(al?al.nombre:'')+'</td><td class="r">'+(m.ingreso>0?cajaFmt(m.ingreso):'')+'</td><td class="r">'+(m.egreso>0?cajaFmt(m.egreso):'')+'</td><td class="r"><b>'+cajaFmt(acum)+'</b></td><td>'+cajaEsc(m.obs)+'</td></tr>';
+  }).join('');
+  const t = cajaTotales(mes.movimientos);
+  const bt = (mes.billetes||[]).reduce((s,q,i)=>s+(q||0)*BILLETES_DENOM[i],0);
+  return '<h2>Control de Caja — '+cajaCap(cajaPeriodoLabel(mes.periodo))+'</h2>'
+    +'<table><thead><tr><th>Fecha</th><th>Descripción</th><th>Alumno</th><th class="r">Ingresos</th><th class="r">Egresos</th><th class="r">Saldo</th><th>Observaciones</th></tr></thead><tbody>'+filas
+    +'<tr class="tot"><td colspan="3">TOTALES</td><td class="r">'+cajaFmt(t.ing)+'</td><td class="r">'+cajaFmt(t.egr)+'</td><td class="r">'+cajaFmt(t.saldo)+'</td><td></td></tr></tbody></table>'
+    +'<p>Total contado (billetes): <b>'+cajaFmt(bt)+'</b></p>';
+}
+function cajaImprimirHtml(titulo, html){
+  const w = window.open('','_blank');
+  if(!w){ showToast('El navegador bloqueó la ventana de impresión','error'); return; }
+  w.document.write('<html><head><meta charset="utf-8"><title>'+cajaEsc(titulo)+'</title><style>'
+    +'body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:20px}h2{margin:0 0 10px}'
+    +'table{width:100%;border-collapse:collapse;margin-bottom:10px}th,td{border:1px solid #bbb;padding:4px 6px;text-align:left}th{background:#eee}'
+    +'.r{text-align:right}.tot td{background:#f3f3f3;font-weight:bold}.mes{page-break-after:always}.mes:last-child{page-break-after:auto}'
+    +'</style></head><body>'+html+'</body></html>');
+  w.document.close(); w.focus();
+  setTimeout(()=>w.print(), 300);
+}
+function cajaImprimirMes(p){
+  const mes = cajaHist.meses.find(m=>m.periodo===p); if(!mes) return;
+  cajaImprimirHtml('Control de Caja '+p, cajaHtmlMes(mes));
+}
+function cajaImprimirAnio(anio){
+  const meses = cajaHist.meses.filter(m=>m.periodo.startsWith(anio+'-'));
+  if(!meses.length) return;
+  let ingA=0, egrA=0;
+  const filasRes = meses.map(m=>{ const t=cajaTotales(m.movimientos); ingA+=t.ing; egrA+=t.egr;
+    return '<tr><td>'+cajaCap(cajaPeriodoLabel(m.periodo,false))+'</td><td class="r">'+cajaFmt(t.ing)+'</td><td class="r">'+cajaFmt(t.egr)+'</td><td class="r"><b>'+cajaFmt(t.saldo)+'</b></td></tr>'; }).join('');
+  const resumen = '<div class="mes"><h2>Control de Caja — Resumen '+anio+'</h2><table><thead><tr><th>Mes</th><th class="r">Ingresos</th><th class="r">Egresos</th><th class="r">Saldo final</th></tr></thead><tbody>'+filasRes
+    +'<tr class="tot"><td>Total '+anio+'</td><td class="r">'+cajaFmt(ingA)+'</td><td class="r">'+cajaFmt(egrA)+'</td><td class="r">'+cajaFmt(cajaTotales(meses[meses.length-1].movimientos).saldo)+'</td></tr></tbody></table></div>';
+  cajaImprimirHtml('Control de Caja '+anio, resumen + meses.map(m=>'<div class="mes">'+cajaHtmlMes(m)+'</div>').join(''));
 }
 // ── FIN CONTROL CAJA ───────────────────────────────────────────
 
@@ -17416,6 +17788,7 @@ function bonosPrint(){
     'iscm_arancel_hist_v1',
     'iscm_becas_v1',
     'iscm_caja_v1',
+    'iscm_caja_hist_v1',
     'iscm_cobranza',
     'iscm_conciliacion_v1',
     'iscm_conc_tasas_v1',
