@@ -1656,7 +1656,7 @@ img, svg{max-width:100%}
                 <option value="egreso">Egreso ↓</option>
               </select>
             </div>
-            <div class="field" style="margin:0"><label>Monto ($)</label><input type="number" id="caja-monto" placeholder="0" style="width:100%;height:36px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px"></div>
+            <div class="field" style="margin:0"><label>Monto ($)</label><input type="number" id="caja-monto" placeholder="0" oninput="cajaVueltoActualizar()" style="width:100%;height:36px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px"></div>
           </div>
           <div style="display:flex;gap:8px;margin-top:8px;align-items:flex-end;flex-wrap:wrap">
             <input type="text" id="caja-obs" placeholder="Observaciones (opcional)" style="flex:1;min-width:160px;height:34px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
@@ -1675,6 +1675,25 @@ img, svg{max-width:100%}
           <div class="caja-concepto-sel" id="caja-concepto-sel">
             <div style="font-size:11px;font-weight:700;color:#0c5460;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">¿Qué conceptos se saldan?</div>
             <div id="caja-concepto-list"></div>
+          </div>
+          <!-- Vuelto: cuota real, vuelto exacto y sugerido según billetes -->
+          <div id="caja-vuelto-panel" style="display:none;margin-top:10px;border:1px solid #d0d0c8;border-radius:8px;padding:10px 12px;background:#fafaf6">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end">
+              <div>
+                <label style="font-size:11px;color:#666">Cuota real ($)</label>
+                <input type="number" id="caja-cuota-real" step="0.01" placeholder="0" oninput="cajaVueltoActualizar()" style="width:100%;height:34px;padding:0 8px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
+              </div>
+              <div>
+                <label style="font-size:11px;color:#666">Vuelto exacto</label>
+                <div id="caja-vuelto-exacto" style="height:34px;display:flex;align-items:center;font-size:15px;font-weight:600;color:#555">—</div>
+              </div>
+              <div>
+                <label style="font-size:11px;color:#666">Vuelto a dar ($) · sugerido</label>
+                <input type="number" id="caja-vuelto-sug" step="10" placeholder="0" oninput="cajaVueltoNetoRender()" style="width:100%;height:34px;padding:0 8px;border-radius:6px;border:2px solid #27ae60;font-size:15px;font-weight:600;color:#155724;background:#f0f9f2">
+              </div>
+            </div>
+            <div id="caja-vuelto-detalle" style="font-size:12px;color:#555;margin-top:6px"></div>
+            <div id="caja-vuelto-neto" style="font-size:13px;margin-top:6px;padding-top:6px;border-top:1px dashed #d0d0c8"></div>
           </div>
         </div>
 
@@ -8424,6 +8443,7 @@ function cajaBilleteCambio(idx, val){
   document.getElementById('billete-total-'+idx).textContent = cajaFmt(billetesQty[idx]*d);
   actualizarBilletesTotales();
   cajaSave();
+  cajaVueltoActualizar();
 }
 
 function actualizarBilletesTotales(){
@@ -8451,6 +8471,121 @@ function cajaTipoChange(){
   } else {
     wrap.style.display='';
   }
+  cajaVueltoActualizar();
+}
+
+// ── VUELTO: cuota real, exacto y sugerido según el conteo de billetes ──────
+// Devuelve {monto, cuentas:[{label,n}], diff} con el monto más cercano al exacto
+// que se puede formar con los billetes del conteo (empate -> el de abajo).
+function cajaVueltoSugerir(exacto){
+  const dens=[], qty=[], labels=[];
+  BILLETES_DENOM.forEach((d,i)=>{
+    const q=Math.floor(billetesQty[i]||0);
+    if(d>=10 && q>0){ dens.push(d/10); qty.push(q); labels.push(BILLETES_LABEL[i]); }
+  });
+  const T = Math.floor(exacto/10);
+  const cap = T + 100; // hasta $1.000 por encima del exacto
+  const stages = [];
+  let prev = new Uint8Array(cap+1); prev[0]=1; stages.push(prev);
+  for(let i=0;i<dens.length;i++){
+    const cur = new Uint8Array(cap+1);
+    for(let s2=0;s2<=cap;s2++){
+      if(!prev[s2]) continue;
+      for(let k=0;k<=qty[i];k++){ const t=s2+k*dens[i]; if(t>cap) break; cur[t]=1; }
+    }
+    stages.push(cur); prev=cur;
+  }
+  const fin = stages[stages.length-1];
+  let below=T; while(below>0 && !fin[below]) below--;
+  let above=T+1; while(above<=cap && !fin[above]) above++;
+  const dBelow = exacto - below*10;
+  const dAbove = above<=cap ? above*10 - exacto : Infinity;
+  const elegido = dBelow<=dAbove ? below : above;
+  // Reconstrucción: prioriza billetes grandes
+  const cuentas=[]; let rest=elegido;
+  for(let i=dens.length-1;i>=0;i--){
+    let k=0;
+    while(k<=qty[i] && !(rest-k*dens[i]>=0 && stages[i][rest-k*dens[i]])) k++;
+    if(k>qty[i]) k=0;
+    if(k>0) cuentas.unshift({label:labels[i], n:k});
+    rest -= k*dens[i];
+  }
+  return { monto: elegido*10, cuentas, diff: Math.round((exacto - elegido*10)*100)/100 };
+}
+
+function cajaCuotaDesdeConceptos(){
+  const inp = document.getElementById('caja-cuota-real');
+  if(!inp) return;
+  const al = (_cajaAlumnoId!==null) ? alumnos.find(a=>a.id===_cajaAlumnoId) : null;
+  if(!al){ inp.value=''; cajaVueltoActualizar(); return; }
+  const pend = (al.conceptos||[]).filter(c=>!c.pagado);
+  let suma=0;
+  document.querySelectorAll('#caja-concepto-list input[type=checkbox]:checked').forEach(cb=>{
+    const c = pend[parseInt(cb.value)]; if(c) suma += (c.monto||0);
+  });
+  inp.value = suma>0 ? (Math.round(suma*100)/100) : '';
+  cajaVueltoActualizar();
+}
+
+function cajaVueltoActualizar(){
+  const panel = document.getElementById('caja-vuelto-panel');
+  if(!panel) return;
+  const tipo = document.getElementById('caja-tipo').value;
+  const monto = parseFloat(document.getElementById('caja-monto').value)||0;
+  if(tipo!=='ingreso' || monto<=0){ panel.style.display='none'; return; }
+  panel.style.display='block';
+  const cuota = parseFloat(document.getElementById('caja-cuota-real').value)||0;
+  const inp = document.getElementById('caja-vuelto-sug');
+  const exEl = document.getElementById('caja-vuelto-exacto');
+  const det = document.getElementById('caja-vuelto-detalle');
+  if(cuota<=0){
+    inp.value=''; inp.disabled=true; exEl.textContent='—'; exEl.style.color='#555';
+    det.textContent='Ingresá la cuota real para calcular el vuelto.';
+    cajaVueltoNetoRender(); return;
+  }
+  const exacto = Math.round((monto-cuota)*100)/100;
+  if(exacto<=0){
+    inp.value=''; inp.disabled=true;
+    exEl.textContent = exacto<0 ? 'Faltan '+cajaFmt(-exacto) : 'Sin vuelto';
+    exEl.style.color = exacto<0 ? '#b45309' : '#555';
+    det.textContent = exacto<0 ? 'El monto recibido no alcanza la cuota real.' : 'Pago justo.';
+    cajaVueltoNetoRender(); return;
+  }
+  inp.disabled=false;
+  exEl.textContent = cajaFmt(exacto); exEl.style.color='#155724';
+  const sug = cajaVueltoSugerir(exacto);
+  inp.value = sug.monto;
+  if(sug.monto<=0){
+    det.textContent = 'No hay billetes en el conteo para armar este vuelto.';
+  } else {
+    const cuentas = sug.cuentas.map(c=>c.n+' de '+c.label).join(' + ');
+    let dtxt = Math.abs(sug.diff)<0.005 ? 'justo' : (sug.diff>0 ? 'queda a favor '+cajaFmt(sug.diff) : 'queda en contra '+cajaFmt(-sug.diff));
+    det.innerHTML = 'Con tus billetes: <strong>'+cuentas+'</strong> · '+dtxt
+      + (Math.abs(sug.diff)>500 ? ' <span style="color:#b45309">· ⚠️ Con el conteo actual no se llega a un vuelto parecido al exacto.</span>' : '');
+  }
+  cajaVueltoNetoRender();
+}
+
+function cajaVueltoNetoRender(){
+  const el = document.getElementById('caja-vuelto-neto');
+  if(!el) return;
+  const monto = parseFloat(document.getElementById('caja-monto').value)||0;
+  const v = cajaVueltoLeer(monto);
+  if(v>0){
+    el.innerHTML = 'Se registra: <strong style="color:#155724">'+cajaFmt(Math.round((monto-v)*100)/100)+'</strong> <span style="color:#888">(recibido '+cajaFmt(monto)+' − vuelto '+cajaFmt(v)+')</span>';
+  } else {
+    el.innerHTML = 'Se registra: <strong>'+cajaFmt(monto)+'</strong> <span style="color:#888">(sin vuelto)</span>';
+  }
+}
+
+// Vuelto válido a descontar (0 si no corresponde)
+function cajaVueltoLeer(monto){
+  const panel = document.getElementById('caja-vuelto-panel');
+  if(!panel || panel.style.display==='none') return 0;
+  const inp = document.getElementById('caja-vuelto-sug');
+  if(inp.disabled) return 0;
+  const v = parseFloat(inp.value)||0;
+  return (v>0 && v<monto) ? v : 0;
 }
 
 // ── ALUMNO VINCULADO EN CAJA ─────────────────────────────────────────────────
@@ -8493,6 +8628,8 @@ function cajaAlumnoClear(){
   document.getElementById('caja-alumno-badge').style.display='none';
   document.getElementById('caja-concepto-sel').style.display='none';
   document.getElementById('caja-concepto-list').innerHTML='';
+  const _cq = document.getElementById('caja-cuota-real'); if(_cq) _cq.value='';
+  cajaVueltoActualizar();
 }
 
 function cajaAlumnoDropdownClose(){
@@ -8503,14 +8640,15 @@ function cajaConceptosRender(al){
   const pendientes = (al.conceptos||[]).filter(c=>!c.pagado);
   const box = document.getElementById('caja-concepto-sel');
   const list = document.getElementById('caja-concepto-list');
-  if(!pendientes.length){ box.style.display='none'; return; }
+  if(!pendientes.length){ box.style.display='none'; cajaCuotaDesdeConceptos(); return; }
   box.style.display='block';
   list.innerHTML = pendientes.map((c,i)=>`
     <label>
-      <input type="checkbox" value="${i}" checked>
+      <input type="checkbox" value="${i}" checked onchange="cajaCuotaDesdeConceptos()">
       <span>${conceptoLabel(c)}</span>
       <span style="margin-left:4px;font-weight:600;color:#c0392b">${cajaFmt(c.monto||0)}</span>
     </label>`).join('');
+  cajaCuotaDesdeConceptos();
 }
 
 function cajaAgregar(){
@@ -8522,10 +8660,14 @@ function cajaAgregar(){
   if(!desc){ alert('Ingresá una descripción'); return; }
   if(monto<=0){ alert('El monto debe ser mayor a cero'); return; }
 
+  // Vuelto: se registra solo el neto (recibido − vuelto a dar)
+  const vueltoDado = (tipo==='ingreso') ? cajaVueltoLeer(monto) : 0;
+  const montoNeto = Math.round((monto - vueltoDado)*100)/100;
+
   const mov = {
     fecha: fecha || new Date().toISOString().slice(0,10),
     desc, obs,
-    ingreso: tipo==='ingreso'?monto:0,
+    ingreso: tipo==='ingreso'?montoNeto:0,
     egreso:  tipo==='egreso'?monto:0,
   };
 
@@ -8561,14 +8703,16 @@ function cajaAgregar(){
   document.getElementById('caja-monto').value='';
   document.getElementById('caja-obs').value='';
   cajaAlumnoClear();
+  cajaVueltoActualizar();
   cajaSave();
   renderCaja();
   renderTable();
   renderStats();
   // Toast feedback
-  const msg = conceptosSaldados.length
+  const msgBase = conceptosSaldados.length
     ? `✓ Pago registrado · ${conceptosSaldados.join(', ')} saldado(s)`
     : '✓ Movimiento registrado';
+  const msg = vueltoDado>0 ? msgBase+` · ${cajaFmt(montoNeto)} (recibido ${cajaFmt(monto)} − vuelto ${cajaFmt(vueltoDado)})` : msgBase;
   showToast(msg, 'success');
 }
 
