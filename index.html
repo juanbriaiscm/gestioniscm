@@ -6820,7 +6820,7 @@ function renderIndicadores(){
   const totalAlumnosActivos = activos.length;
   const tasaCob = totalAlumnosActivos>0 ? (alDia.length/totalAlumnosActivos*100).toFixed(1) : 0;
 
-  const panelExtra = `
+  const panelExtra = cajaGraficoHtml() + `
     <div class="dash-2col" style="margin-top:14px">
       <div class="dash-card">
         <h3><i class="ti ti-credit-card"></i>Últimos pagos registrados en Caja</h3>
@@ -8812,22 +8812,36 @@ function cajaCompacto(n){
   if(a>=1e3) return Math.round(n/1e3)+'k';
   return String(Math.round(n));
 }
-function cajaHistRango(n){ _cajaHistRango=n; cajaHistRender(); }
+function cajaHistRango(n){ _cajaHistRango=n; if(typeof renderIndicadores==='function') renderIndicadores(); }
 
-// Gráfico de barras: ingresos vs egresos de los últimos N meses cerrados
+// Totales de actividad real del mes: excluye la línea "Saldo inicial" (es arrastre, no un ingreso del mes)
+function cajaTotalesActividad(movs){
+  return cajaTotales(movs.filter(m=>!m.saldoInicial && !/^\s*saldo inicial\s*$/i.test(m.desc||'')));
+}
+
+// Gráfico de barras para Indicadores: ingresos vs egresos de los últimos N meses
+// (meses cerrados + mes en curso, marcado como "en curso").
 function cajaGraficoHtml(){
-  const todos = cajaHist.meses;
-  const meses = todos.slice(-_cajaHistRango);
+  const cerrados = cajaHist.meses.map(m=>({ periodo:m.periodo, movs:m.movimientos, actual:false }));
+  const todos = cerrados.concat([{ periodo:cajaPeriodoActual(), movs:cajaMovimientos, actual:true }]);
+  const sel = todos.slice(-_cajaHistRango);
   const botones = [6,12].map(n=>'<button class="btn sm'+(n===_cajaHistRango?' primary':'')+'" onclick="cajaHistRango('+n+')">'+n+' meses</button>').join(' ');
-  const datos = meses.map(m=>{ const t=cajaTotales(m.movimientos);
-    return { label: cajaCap(cajaPeriodoLabel(m.periodo,false)).slice(0,3)+' '+m.periodo.slice(2,4), ing:t.ing, egr:t.egr, saldo:t.saldo, nombre:cajaCap(cajaPeriodoLabel(m.periodo)) }; });
-  const W=760, H=230, ml=46, mr=10, mt=12, mb=34;
+  const datos = sel.map(m=>{
+    const t = cajaTotalesActividad(m.movs), tf = cajaTotales(m.movs);
+    return { label: cajaCap(cajaPeriodoLabel(m.periodo,false)).slice(0,3)+' '+m.periodo.slice(2,4), ing:t.ing, egr:t.egr, saldo:tf.saldo, nombre:cajaCap(cajaPeriodoLabel(m.periodo)), actual:m.actual };
+  });
+  const hayDatos = datos.some(d=>d.ing>0||d.egr>0);
+  const cab = '<h3><i class="ti ti-chart-bar"></i>Caja: ingresos vs egresos por mes</h3>';
+  if(!hayDatos){
+    return '<div class="dash-card" style="margin-top:14px">'+cab+'<div style="text-align:center;padding:16px 8px;color:#aaa;font-size:12px">Todavía no hay movimientos en Control de Caja para graficar.</div></div>';
+  }
+  const W=760, H=240, ml=46, mr=10, mt=12, mb=44;
   const maxV = Math.max(1, ...datos.map(d=>Math.max(d.ing,d.egr)));
   const paso = Math.pow(10, Math.floor(Math.log10(maxV)));
   const tope = Math.ceil(maxV/paso*2)/2*paso || maxV; // techo "redondo"
   const iw = W-ml-mr, ih = H-mt-mb;
   const gw = iw/datos.length, bw = Math.min(26, gw*0.32);
-  let svg = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;max-height:260px" role="img" aria-label="Ingresos y egresos por mes">';
+  let svg = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;max-height:270px" role="img" aria-label="Ingresos y egresos de caja por mes">';
   for(let i=0;i<=4;i++){
     const v = tope*i/4, y = mt+ih-(v/tope)*ih;
     svg += '<line x1="'+ml+'" x2="'+(W-mr)+'" y1="'+y+'" y2="'+y+'" stroke="#e8e8e0"/>'
@@ -8836,32 +8850,21 @@ function cajaGraficoHtml(){
   datos.forEach((d,i)=>{
     const cx = ml+gw*i+gw/2;
     const hi = (d.ing/tope)*ih, he = (d.egr/tope)*ih;
-    svg += '<g><title>'+cajaEsc(d.nombre)+'\nIngresos: '+cajaFmt(d.ing)+'\nEgresos: '+cajaFmt(d.egr)+'\nSaldo final: '+cajaFmt(d.saldo)+'</title>'
-         + '<rect x="'+(cx-bw-1)+'" y="'+(mt+ih-hi)+'" width="'+bw+'" height="'+Math.max(hi,0)+'" fill="#27ae60" rx="2"/>'
-         + '<rect x="'+(cx+1)+'" y="'+(mt+ih-he)+'" width="'+bw+'" height="'+Math.max(he,0)+'" fill="#c0392b" rx="2"/>'
-         + '<text x="'+cx+'" y="'+(H-14)+'" font-size="10" fill="#555" text-anchor="middle">'+cajaEsc(d.label)+'</text></g>';
+    const op = d.actual ? ' opacity="0.55"' : '';
+    svg += '<g><title>'+cajaEsc(d.nombre)+(d.actual?' (en curso)':'')+'\nIngresos: '+cajaFmt(d.ing)+'\nEgresos: '+cajaFmt(d.egr)+'\nSaldo final: '+cajaFmt(d.saldo)+'</title>'
+         + '<rect x="'+(cx-bw-1)+'" y="'+(mt+ih-hi)+'" width="'+bw+'" height="'+Math.max(hi,0)+'" fill="#27ae60" rx="2"'+op+'/>'
+         + '<rect x="'+(cx+1)+'" y="'+(mt+ih-he)+'" width="'+bw+'" height="'+Math.max(he,0)+'" fill="#c0392b" rx="2"'+op+'/>'
+         + '<text x="'+cx+'" y="'+(H-26)+'" font-size="10" fill="#555" text-anchor="middle">'+cajaEsc(d.label)+'</text>'
+         + (d.actual ? '<text x="'+cx+'" y="'+(H-13)+'" font-size="9" fill="#e67e22" text-anchor="middle">en curso</text>' : '')
+         + '</g>';
   });
   svg += '</svg>';
-  return '<div style="border:1px solid #e8e8e0;border-radius:8px;padding:12px;margin-bottom:16px">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">'
-    +'<div style="font-weight:700;font-size:13px"><i class="ti ti-chart-bar"></i> Ingresos vs egresos — últimos '+_cajaHistRango+' meses cerrados</div>'
-    +'<div>'+botones+'</div></div>'
+  return '<div class="dash-card" style="margin-top:14px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+cab+'<div>'+botones+'</div></div>'
     + svg
-    +'<div style="display:flex;gap:14px;font-size:11px;color:#666;margin-top:4px"><span><span style="display:inline-block;width:10px;height:10px;background:#27ae60;border-radius:2px"></span> Ingresos</span><span><span style="display:inline-block;width:10px;height:10px;background:#c0392b;border-radius:2px"></span> Egresos</span><span style="color:#aaa">Pasá el mouse por una barra para ver el detalle</span></div>'
+    +'<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#666;margin-top:4px"><span><span style="display:inline-block;width:10px;height:10px;background:#27ae60;border-radius:2px"></span> Ingresos</span><span><span style="display:inline-block;width:10px;height:10px;background:#c0392b;border-radius:2px"></span> Egresos</span><span style="color:#aaa">No incluye el saldo inicial de cada mes. Pasá el mouse por una barra para ver el detalle.</span></div>'
     +'</div>';
 }
-let _cajaMesAbierto = null;
-
-function cajaHistRefrescarSiAbierto(){
-  if(document.getElementById('modal-caja-mes').classList.contains('open')) cajaMesRender();
-  if(document.getElementById('modal-caja-hist').classList.contains('open')) cajaHistRender();
-}
-function cajaHistAbrir(){
-  document.getElementById('modal-caja-mes').classList.remove('open');
-  cajaHistRender();
-  document.getElementById('modal-caja-hist').classList.add('open');
-}
-function cajaHistAnio(a){ _cajaHistAnio=a; cajaHistRender(); }
 
 function cajaHistRender(){
   const body = document.getElementById('caja-hist-body');
@@ -8887,8 +8890,8 @@ function cajaHistRender(){
       +'</td></tr>';
   }).join('');
   const saldoFinalAnio = meses.length ? cajaTotales(meses[meses.length-1].movimientos).saldo : 0;
-  body.innerHTML = cajaGraficoHtml()
-    + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'
+  body.innerHTML =
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'
     + anios.map(a=>'<button class="btn sm'+(a===_cajaHistAnio?' primary':'')+'" onclick="cajaHistAnio(\''+a+'\')">'+a+'</button>').join('')
     + '</div>'
     + '<div class="table-wrap"><table><thead><tr><th>Mes</th><th style="text-align:right">Ingresos</th><th style="text-align:right">Egresos</th><th style="text-align:right">Saldo final</th><th></th></tr></thead><tbody>'
