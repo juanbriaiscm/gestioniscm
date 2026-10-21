@@ -13578,7 +13578,12 @@ function cruceConciliar(movs){
     const esperada = fechaAcreditacion(fila.fecha, fila.metodo);
     if(fila.conciliado === 'Si'){
       if(fila.credBanco && fila.credBanco.id) previos.set(fila.credBanco.id, fila.credBanco);
-      else if(fila.acreditado!=null) previosLegacy.push({ fila, esperada });
+      else {
+        // Conciliada sin crédito guardado (a mano, por importación o con una versión anterior):
+        // se compara por su monto real (acreditado, o neto con la comisión ajustada).
+        const valor = fila.acreditado!=null ? fila.acreditado : cruceNeto(fila);
+        if(valor > 0) previosLegacy.push({ fila, esperada, valor });
+      }
       return;
     }
     const neto = cruceNeto(fila);
@@ -13594,8 +13599,18 @@ function cruceConciliar(movs){
     // Crédito que ya se había conciliado en una carga anterior
     const prev = [...previos.entries()].find(([id,c]) => !previosUsados.has(id) && c.fecha===mov.fecha && Math.abs(c.importe-mov.importe)<0.005);
     if(prev){ previosUsados.add(prev[0]); return { mov, filas: [], ya: true }; }
-    const prevLeg = previosLegacy.find(x => !previosUsados.has(x) && Math.abs(x.fila.acreditado-mov.importe)<0.005 && Math.abs(cruceDias(x.esperada, mov.fecha))<=3);
+    const prevLeg = previosLegacy.find(x => !previosUsados.has(x) && Math.abs(x.valor-mov.importe)<0.005 && Math.abs(cruceDias(x.esperada, mov.fecha))<=3);
     if(prevLeg){ previosUsados.add(prevLeg); return { mov, filas: [], ya: true }; }
+    // Un crédito que sumó varias filas ya conciliadas con la misma fecha de acreditación
+    const cercanas = previosLegacy.filter(x => !previosUsados.has(x) && Math.abs(cruceDias(x.esperada, mov.fecha))<=3);
+    const porFechaAcr = new Map();
+    cercanas.forEach(x => { if(!porFechaAcr.has(x.esperada)) porFechaAcr.set(x.esperada, []); porFechaAcr.get(x.esperada).push(x); });
+    for(const g of porFechaAcr.values()){
+      if(g.length > 1 && Math.abs(g.reduce((a,x)=>a+x.valor,0) - mov.importe) < 0.005){
+        g.forEach(x=>previosUsados.add(x));
+        return { mov, filas: [], ya: true };
+      }
+    }
 
     const libres = pendientes.filter(x=>!usadas.has(x));
     const t0 = libres.filter(x => x.esperada === mov.fecha);                                   // pozo que se acredita ese día
