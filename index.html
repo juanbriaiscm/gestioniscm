@@ -2928,102 +2928,133 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
 
 <!-- TAB PRESUPUESTOS -->
 <div id="tab-presupuestos" style="display:none">
+  <style>
+    #tab-presupuestos .pp-card{background:#fff;border:1px solid #e8e8e0;border-radius:8px;padding:16px;margin-bottom:14px}
+    #tab-presupuestos .pp-in{height:30px;padding:0 6px;border-radius:5px;border:1px solid #d0d0c8;font-size:13px;font-family:inherit;box-sizing:border-box}
+    #tab-presupuestos textarea.pp-in{height:auto;min-height:30px;padding:5px 6px;line-height:1.35;resize:vertical;overflow:hidden}
+    #tab-presupuestos .pp-th{background:#f8f8f4;padding:8px 10px;text-align:left;font-size:11px;color:#666;border-bottom:1px solid #e8e8e0;white-space:nowrap}
+    #tab-presupuestos .pp-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px}
+    #tab-presupuestos .pp-kpi{background:#fff;border:1px solid #e8e8e0;border-radius:8px;padding:10px 14px}
+    #tab-presupuestos .pp-kpi-l{font-size:11px;color:#888;font-weight:600}
+    #tab-presupuestos .pp-kpi-v{font-size:19px;font-weight:700;color:#1a1a2e;margin:2px 0}
+    #tab-presupuestos .pp-kpi-s{font-size:11px;color:#999}
+    #tab-presupuestos .pp-badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap}
+    #tab-presupuestos .pp-row{cursor:pointer}
+    #tab-presupuestos .pp-row:hover{background:#fafaf6}
+    #tab-presupuestos .pp-btn{background:#fff;color:#1a1a2e;border:1px solid #d0d0c8;border-radius:8px;padding:9px 16px;font-size:13px;cursor:pointer}
+    #tab-presupuestos .pp-ib{background:none;border:none;cursor:pointer;font-size:15px;color:#666;padding:2px 5px}
+  </style>
+
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
     <h2 style="margin:0;font-size:17px;color:#1a1a2e"><i class="ti ti-clipboard-list"></i>Presupuestos / Cotizaciones</h2>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button onclick="presupNuevo()" style="background:#1a1a2e;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;font-weight:600"><i class="ti ti-plus"></i>Nuevo presupuesto</button>
-      <button onclick="presupMenuExportar(this)" style="background:#fff;color:#1a1a2e;border:1px solid #d0d0c8;border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer"><i class="ti ti-file-export"></i>Exportar</button>
+      <button onclick="presupDuplicar()" class="pp-btn"><i class="ti ti-copy"></i>Duplicar</button>
+      <button onclick="presupMenuExportar(this)" class="pp-btn"><i class="ti ti-file-export"></i>Exportar</button>
     </div>
   </div>
 
-  <!-- Lista de presupuestos guardados -->
-  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
-    <select id="presup-selector" onchange="presupCargar()" style="font-size:13px;height:34px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;min-width:240px">
-      <option value="">— Seleccionar presupuesto guardado —</option>
-    </select>
-    <button onclick="presupEliminarActual()" class="btn danger sm"><i class="ti ti-trash"></i>Eliminar</button>
-    <span id="presup-estado-label" style="font-size:12px;color:#888"></span>
+  <!-- KPIs -->
+  <div class="pp-kpis" id="presup-kpis"></div>
+
+  <!-- Lista -->
+  <div class="pp-card" style="padding:12px 14px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+      <input id="presup-buscar" class="pp-in" placeholder="Buscar por nº, título, proveedor..." oninput="presupRenderLista()" style="min-width:240px;height:34px">
+      <select id="presup-filtro-estado" class="pp-in" onchange="presupRenderLista()" style="height:34px">
+        <option value="">Todos los estados</option>
+        <option>Borrador</option><option>Enviado</option><option>Aprobado</option><option>Rechazado</option>
+      </select>
+      <span id="presup-count" style="font-size:12px;color:#888"></span>
+    </div>
+    <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr>
+          <th class="pp-th">Nº</th><th class="pp-th">Título</th><th class="pp-th">Proveedor</th><th class="pp-th">Fecha</th>
+          <th class="pp-th">Válido hasta</th><th class="pp-th">Estado</th><th class="pp-th" style="text-align:right">Total</th><th class="pp-th"></th>
+        </tr></thead>
+        <tbody id="presup-tbody-lista"></tbody>
+      </table>
+    </div>
   </div>
+
+  <datalist id="presup-dl-prov"></datalist>
+  <datalist id="presup-dl-cod"></datalist>
 
   <!-- Form del presupuesto activo -->
   <div id="presup-form-area">
-    <div style="background:#fff;border:1px solid #e8e8e0;border-radius:8px;padding:16px;margin-bottom:14px">
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
-        <div class="field"><label>Título del presupuesto *</label><input id="presup-titulo" placeholder="Ej: Material didáctico mayo 2026" oninput="presupAutoguardar()"></div>
+    <div class="pp-card">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px">
+        <div class="field" style="grid-column:span 2;min-width:0"><label>Título del presupuesto *</label><input id="presup-titulo" placeholder="Ej: Material didáctico mayo 2026" oninput="presupAutoguardar()"></div>
+        <div class="field"><label>Proveedor</label><input id="presup-proveedor" list="presup-dl-prov" placeholder="Elegí uno o escribí otro" autocomplete="off" oninput="presupAutoguardar()"></div>
+        <div class="field"><label>Nº</label><input id="presup-numero" readonly style="background:#f5f5f0;color:#666"></div>
         <div class="field"><label>Fecha</label><input type="date" id="presup-fecha" oninput="presupAutoguardar()"></div>
+        <div class="field"><label>Válido hasta <span id="presup-validez-lbl" style="font-weight:600;margin-left:4px"></span></label><input type="date" id="presup-validez" oninput="presupAutoguardar()"></div>
         <div class="field"><label>Estado</label>
           <select id="presup-estadosel" onchange="presupAutoguardar()" style="width:100%;height:36px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
-            <option value="Borrador">Borrador</option>
-            <option value="Enviado">Enviado</option>
-            <option value="Aprobado">Aprobado</option>
-            <option value="Rechazado">Rechazado</option>
+            <option value="Borrador">Borrador</option><option value="Enviado">Enviado</option><option value="Aprobado">Aprobado</option><option value="Rechazado">Rechazado</option>
           </select>
+        </div>
+        <div class="field" style="grid-column:1/-1"><label><i class="ti ti-link"></i>Link Google Drive de la cotización</label>
+          <div style="display:flex;gap:6px"><input id="presup-link" placeholder="https://drive.google.com/file/d/..." style="flex:1;font-size:12px" oninput="presupAutoguardar()"><button class="pp-btn" style="padding:0 12px" onclick="presupAbrirLink()" title="Abrir link"><i class="ti ti-external-link"></i></button></div>
         </div>
         <div class="field" style="grid-column:1/-1"><label>Notas / Observaciones</label><textarea id="presup-notas" rows="2" style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px;resize:vertical" oninput="presupAutoguardar()" placeholder="Observaciones generales del presupuesto..."></textarea></div>
       </div>
     </div>
 
-    <!-- SECCIÓN 1: Cotizaciones generales -->
-    <div style="background:#fff;border:1px solid #e8e8e0;border-radius:8px;padding:16px;margin-bottom:14px">
+    <!-- Productos / servicios -->
+    <div class="pp-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <h3 style="font-size:14px;font-weight:600;color:#1a1a2e;margin:0"><i class="ti ti-package"></i>Cotización de productos / servicios</h3>
         <button onclick="presupAgregarItem('general')" style="background:#1a1a2e;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:12px;cursor:pointer">+ Agregar ítem</button>
       </div>
       <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead>
-            <tr>
-              <th style="background:#f8f8f4;padding:8px 10px;text-align:left;font-size:11px;color:#666;border-bottom:1px solid #e8e8e0;white-space:nowrap">Cant.</th>
-              <th style="background:#f8f8f4;padding:8px 10px;text-align:left;font-size:11px;color:#666;border-bottom:1px solid #e8e8e0">Código</th>
-              <th style="background:#f8f8f4;padding:8px 10px;text-align:left;font-size:11px;color:#666;border-bottom:1px solid #e8e8e0">Descripción</th>
-              <th style="background:#f8f8f4;padding:8px 10px;text-align:right;font-size:11px;color:#666;border-bottom:1px solid #e8e8e0;white-space:nowrap">Valor unit.</th>
-              <th style="background:#f8f8f4;padding:8px 10px;text-align:right;font-size:11px;color:#666;border-bottom:1px solid #e8e8e0">Total</th>
-              <th style="background:#f8f8f4;padding:8px 10px;width:36px;border-bottom:1px solid #e8e8e0"></th>
-            </tr>
-          </thead>
+          <thead><tr>
+            <th class="pp-th">Cant.</th><th class="pp-th">Código</th><th class="pp-th" style="width:100%">Descripción</th>
+            <th class="pp-th" style="text-align:right">Valor unit.</th><th class="pp-th" style="text-align:right">Total</th><th class="pp-th"></th>
+          </tr></thead>
           <tbody id="presup-tbody-general"></tbody>
-          <tfoot>
-            <tr>
-              <td colspan="4" style="padding:8px 10px;text-align:right;font-weight:600;font-size:13px;border-top:2px solid #e8e8e0">TOTAL</td>
-              <td style="padding:8px 10px;text-align:right;font-weight:700;font-size:14px;color:#1a1a2e;border-top:2px solid #e8e8e0" id="presup-total-general">$ 0</td>
-              <td style="border-top:2px solid #e8e8e0"></td>
-            </tr>
-          </tfoot>
+          <tfoot><tr>
+            <td colspan="4" style="padding:8px 10px;text-align:right;font-weight:600;border-top:2px solid #e8e8e0">SUBTOTAL</td>
+            <td style="padding:8px 10px;text-align:right;font-weight:700;font-size:14px;color:#1a1a2e;border-top:2px solid #e8e8e0" id="presup-total-general">$ 0</td>
+            <td style="border-top:2px solid #e8e8e0"></td>
+          </tr></tfoot>
         </table>
       </div>
     </div>
 
-    <!-- SECCIÓN 2: Cotizaciones publicidad -->
-    <div style="background:#fff;border:1px solid #e8e8e0;border-radius:8px;padding:16px;margin-bottom:14px">
+    <!-- Publicidad -->
+    <div class="pp-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <h3 style="font-size:14px;font-weight:600;color:#1a1a2e;margin:0"><i class="ti ti-speakerphone"></i>Cotización de publicidad</h3>
         <button onclick="presupAgregarItem('pub')" style="background:#1a1a2e;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:12px;cursor:pointer">+ Agregar ítem</button>
       </div>
       <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead>
-            <tr>
-              <th style="background:#f8f8f4;padding:8px 10px;text-align:left;font-size:11px;color:#666;border-bottom:1px solid #e8e8e0">Ciudad</th>
-              <th style="background:#f8f8f4;padding:8px 10px;text-align:left;font-size:11px;color:#666;border-bottom:1px solid #e8e8e0">Tipo</th>
-              <th style="background:#f8f8f4;padding:8px 10px;text-align:left;font-size:11px;color:#666;border-bottom:1px solid #e8e8e0">Operador</th>
-              <th style="background:#f8f8f4;padding:8px 10px;text-align:left;font-size:11px;color:#666;border-bottom:1px solid #e8e8e0;white-space:nowrap">Meses / Descripción</th>
-              <th style="background:#f8f8f4;padding:8px 10px;text-align:right;font-size:11px;color:#666;border-bottom:1px solid #e8e8e0">Total</th>
-              <th style="background:#f8f8f4;padding:8px 10px;width:36px;border-bottom:1px solid #e8e8e0"></th>
-            </tr>
-          </thead>
+          <thead><tr>
+            <th class="pp-th">Ciudad</th><th class="pp-th">Tipo</th><th class="pp-th">Operador</th><th class="pp-th" style="width:100%">Descripción</th>
+            <th class="pp-th" style="text-align:right">Mensual</th><th class="pp-th">Meses</th><th class="pp-th" style="text-align:right">Total</th><th class="pp-th"></th>
+          </tr></thead>
           <tbody id="presup-tbody-pub"></tbody>
-          <tfoot>
-            <tr>
-              <td colspan="4" style="padding:8px 10px;text-align:right;font-weight:600;font-size:13px;border-top:2px solid #e8e8e0">TOTAL</td>
-              <td style="padding:8px 10px;text-align:right;font-weight:700;font-size:14px;color:#1a1a2e;border-top:2px solid #e8e8e0" id="presup-total-pub">$ 0</td>
-              <td style="border-top:2px solid #e8e8e0"></td>
-            </tr>
-          </tfoot>
+          <tfoot><tr>
+            <td colspan="6" style="padding:8px 10px;text-align:right;font-weight:600;border-top:2px solid #e8e8e0">SUBTOTAL</td>
+            <td style="padding:8px 10px;text-align:right;font-weight:700;font-size:14px;color:#1a1a2e;border-top:2px solid #e8e8e0" id="presup-total-pub">$ 0</td>
+            <td style="border-top:2px solid #e8e8e0"></td>
+          </tr></tfoot>
         </table>
       </div>
+      <div style="font-size:11px;color:#999;margin-top:6px">Si cargás precio mensual y meses, el total se calcula solo; si no, escribí el total a mano.</div>
     </div>
 
-    <!-- Total global -->
+    <!-- Totales -->
+    <div class="pp-card" style="padding:12px 20px">
+      <div style="max-width:380px;margin-left:auto;font-size:13px;display:grid;grid-template-columns:1fr auto;gap:7px 14px;align-items:center">
+        <span>Subtotal</span><b id="presup-subtotal" style="text-align:right">$ 0</b>
+        <span>Descuento <input id="presup-desc-pct" class="pp-in" type="number" min="0" max="100" step="0.01" style="width:70px;text-align:right" oninput="presupAutoguardar()"> %</span><span id="presup-desc-monto" style="text-align:right;color:#c0392b">− $ 0</span>
+        <span>IVA <select id="presup-iva-pct" class="pp-in" onchange="presupAutoguardar()"><option value="0">Sin IVA</option><option value="10.5">10,5 %</option><option value="21">21 %</option><option value="27">27 %</option></select></span><span id="presup-iva-monto" style="text-align:right">+ $ 0</span>
+      </div>
+    </div>
     <div style="background:#1a1a2e;color:#fff;border-radius:8px;padding:14px 20px;display:flex;justify-content:space-between;align-items:center">
       <span style="font-size:14px;font-weight:600">TOTAL GENERAL DEL PRESUPUESTO</span>
       <span style="font-size:20px;font-weight:700" id="presup-total-global">$ 0</span>
@@ -6659,7 +6690,7 @@ function renderDashboard(){
   const presupConTotal = presupuestos.map(p=>{
     const tg = (p.itemsGeneral||[]).reduce((s,it)=>s+(it.cant||0)*(it.valorUnit||0),0);
     const tp = (p.itemsPub||[]).reduce((s,it)=>s+(it.total||0),0);
-    return {titulo:p.titulo||'(sin título)', estado:p.estado||'Borrador', total:tg+tp};
+    return {titulo:p.titulo||'(sin título)', estado:p.estado||'Borrador', total:presupTotales(p).total};
   });
   const presupContables = presupConTotal.filter(p=>p.estado!=='Borrador');
   const presupUltimo = presupContables[0];
@@ -11090,7 +11121,57 @@ load();
 const PRESUP_KEY = 'iscm_presupuestos_v1';
 let presupuestos = [];      // array de presupuestos guardados
 let presupActivo = null;    // presupuesto actualmente en edición
+const PRESUP_COLORES = {Borrador:['#eee','#555'],Enviado:['#e3f0ff','#1f6fb2'],Aprobado:['#e0f5e7','#1e8449'],Rechazado:['#fde8e6','#c0392b']};
 
+// ── Utilidades ──
+function presupEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function presupEscDoc(s){ return presupEsc(s).replace(/\n/g,'<br>'); }
+function presupClon(o){ return JSON.parse(JSON.stringify(o)); }
+function presupFecha(s){ return s ? s.split('-').reverse().join('/') : '—'; }
+function presupTotalItemPub(it){
+  const auto = (parseFloat(it.mensual)||0) * (parseFloat(it.mesesN)||0);
+  return auto > 0 ? auto : (parseFloat(it.total)||0);
+}
+function presupTotales(p){
+  const gen = (p.itemsGeneral||[]).reduce((s,it)=>s+(parseFloat(it.cant)||0)*(parseFloat(it.valorUnit)||0),0);
+  const pub = (p.itemsPub||[]).reduce((s,it)=>s+presupTotalItemPub(it),0);
+  const sub = gen + pub;
+  const desc = sub * (parseFloat(p.descuentoPct)||0) / 100;
+  const base = sub - desc;
+  const iva = base * (parseFloat(p.ivaPct)||0) / 100;
+  return {gen, pub, sub, desc, base, iva, total: base + iva};
+}
+function presupSiguienteNumero(fechaISO){
+  const y = (fechaISO || provHoyLocalISO()).slice(0,4);
+  const re = new RegExp('^PRES-'+y+'-(\\d+)$');
+  let max = 0;
+  presupuestos.forEach(p=>{ const m = String(p.numero||'').match(re); if(m) max = Math.max(max, +m[1]); });
+  return 'PRES-'+y+'-'+String(max+1).padStart(3,'0');
+}
+function presupAsignarNumeros(){
+  let cambio = false;
+  presupuestos.slice().sort((a,b)=>(a.id||0)-(b.id||0)).forEach(p=>{
+    if(!p.numero){ p.numero = presupSiguienteNumero(p.fecha); cambio = true; }
+  });
+  return cambio;
+}
+function presupVigencia(p){
+  if(!p.validez || !['Borrador','Enviado'].includes(p.estado)) return null;
+  const dias = Math.round((new Date(p.validez+'T00:00:00') - new Date(provHoyLocalISO()+'T00:00:00')) / 86400000);
+  if(dias < 0) return {txt:'Vencido', cls:'venc', color:'#c0392b', bg:'#fde8e6'};
+  if(dias <= 7) return {txt: dias===0 ? 'Vence hoy' : 'Vence en '+dias+' d', cls:'pronto', color:'#b9770e', bg:'#fdf1dc'};
+  return {txt:'Vigente', cls:'ok', color:'#1e8449', bg:'#e0f5e7'};
+}
+function presupCatalogo(){
+  const seen = new Set(), out = [];
+  presupuestos.forEach(p=>(p.itemsGeneral||[]).forEach(it=>{
+    if(it.codigo && !seen.has(it.codigo)){ seen.add(it.codigo); out.push({codigo:it.codigo, desc:it.desc||'', valorUnit:it.valorUnit||0}); }
+  }));
+  return out;
+}
+function presupAutoAlto(t){ t.style.height='auto'; if(t.scrollHeight>0) t.style.height=t.scrollHeight+'px'; }
+
+// ── Almacenamiento ──
 function presupGuardarStorage(){
   localStorage.setItem(PRESUP_KEY, JSON.stringify(presupuestos));
   if(window._fb) window._fb.set(PRESUP_KEY, presupuestos).catch(()=>{});
@@ -11098,13 +11179,15 @@ function presupGuardarStorage(){
 function presupCargarStorage(){
   const s = localStorage.getItem(PRESUP_KEY);
   presupuestos = s ? JSON.parse(s) : [];
+  if(presupAsignarNumeros()) presupGuardarStorage();
 }
 
 function presupInit(){
   presupCargarStorage();
   presupRefrescarSelector();
+  presupRefrescarListas();
   if(!presupActivo && presupuestos.length>0){
-    presupActivo = JSON.parse(JSON.stringify(presupuestos[0]));
+    presupActivo = presupClon(presupuestos[0]);
     presupVolcarFormulario();
   } else if(!presupActivo){
     presupNuevo();
@@ -11114,179 +11197,258 @@ function presupInit(){
     await new Promise(r=>{ if(window._fbReady)return r(); window.addEventListener('fbReady',r,{once:true}); setTimeout(r,3000); });
     if(!window._fb) return;
     const remote = await window._fb.get(PRESUP_KEY);
-    if(remote && remote.length){ presupuestos=remote; presupRefrescarSelector(); }
-    window._fb.listen(PRESUP_KEY, data=>{ presupuestos=data; presupRefrescarSelector(); });
+    if(remote && remote.length){ presupuestos=remote; if(presupAsignarNumeros()) presupGuardarStorage(); presupRefrescarSelector(); presupRefrescarListas(); }
+    window._fb.listen(PRESUP_KEY, data=>{ presupuestos=data||[]; presupAsignarNumeros(); presupRefrescarSelector(); });
   })();
 }
 
-function presupRefrescarSelector(){
-  const sel = document.getElementById('presup-selector');
-  const valorActual = presupActivo ? presupActivo.id : '';
-  sel.innerHTML = '<option value="">— Seleccionar presupuesto guardado —</option>';
-  presupuestos.forEach(p=>{
-    const op = document.createElement('option');
-    op.value = p.id;
-    op.textContent = p.titulo + (p.fecha ? ' · '+p.fecha : '') + ' ['+p.estado+']';
-    if(p.id === valorActual) op.selected = true;
-    sel.appendChild(op);
-  });
+// ── Lista y KPIs ──
+function presupRefrescarSelector(){ presupRenderKpis(); presupRenderLista(); }
+
+function presupRefrescarListas(){
+  const nombres = new Set();
+  (typeof proveedores!=='undefined' && Array.isArray(proveedores) ? proveedores : []).forEach(x=>{ if(x && x.nombre) nombres.add(String(x.nombre).trim()); });
+  presupuestos.forEach(p=>{ if(p.proveedor) nombres.add(p.proveedor); });
+  const dp = document.getElementById('presup-dl-prov');
+  if(dp) dp.innerHTML = [...nombres].sort((a,b)=>a.localeCompare(b,'es')).map(n=>`<option value="${presupEsc(n)}"></option>`).join('');
+  const dc = document.getElementById('presup-dl-cod');
+  if(dc) dc.innerHTML = presupCatalogo().map(k=>`<option value="${presupEsc(k.codigo)}">${presupEsc(k.desc)}</option>`).join('');
 }
 
-function presupCargar(){
-  const id = document.getElementById('presup-selector').value;
-  if(!id) return;
-  presupGuardarActivo(); // guardar cambios actuales
-  const p = presupuestos.find(x=>x.id==id);
-  if(p){ presupActivo = JSON.parse(JSON.stringify(p)); presupVolcarFormulario(); }
+function presupRenderKpis(){
+  const el = document.getElementById('presup-kpis'); if(!el) return;
+  const por = e => presupuestos.filter(p=>p.estado===e);
+  const sum = e => por(e).reduce((s,p)=>s+presupTotales(p).total,0);
+  const venc = presupuestos.filter(p=>{ const v=presupVigencia(p); return v && v.cls!=='ok'; }).length;
+  const k = [
+    ['Enviados (pendientes)', fmtPeso(sum('Enviado')), por('Enviado').length+' presupuestos', '#1f6fb2'],
+    ['Aprobados', fmtPeso(sum('Aprobado')), por('Aprobado').length+' presupuestos', '#1e8449'],
+    ['Borradores', por('Borrador').length, 'sin enviar', '#888'],
+    ['Vencidos / por vencer', venc, 'vencidos o con 7 días o menos', venc ? '#d35400' : '#888']
+  ];
+  el.innerHTML = k.map(x=>`<div class="pp-kpi" style="border-left:4px solid ${x[3]}"><div class="pp-kpi-l">${x[0]}</div><div class="pp-kpi-v">${x[1]}</div><div class="pp-kpi-s">${x[2]}</div></div>`).join('');
 }
 
+function presupRenderLista(){
+  const tb = document.getElementById('presup-tbody-lista'); if(!tb) return;
+  const q = (document.getElementById('presup-buscar')?.value||'').toLowerCase().trim();
+  const est = document.getElementById('presup-filtro-estado')?.value || '';
+  const rows = presupuestos.filter(p=>(!est||p.estado===est) && (!q || [p.numero,p.titulo,p.proveedor,p.notas].join(' ').toLowerCase().includes(q)));
+  const cnt = document.getElementById('presup-count');
+  if(cnt) cnt.textContent = rows.length+' de '+presupuestos.length;
+  if(!rows.length){ tb.innerHTML = '<tr><td colspan="8" style="padding:18px;text-align:center;color:#aaa">No hay presupuestos que coincidan.</td></tr>'; return; }
+  tb.innerHTML = rows.map(p=>{
+    const c = PRESUP_COLORES[p.estado] || PRESUP_COLORES.Borrador;
+    const v = presupVigencia(p);
+    const activo = presupActivo && presupActivo.id==p.id;
+    const td = 'padding:8px 10px;border-bottom:1px solid #f0f0e8;';
+    return `<tr class="pp-row" onclick="presupAbrir(${p.id})" style="${activo?'background:#f3f3ec':''}">
+      <td style="${td}color:#888;white-space:nowrap">${presupEsc(p.numero||'—')}</td>
+      <td style="${td}font-weight:${activo?700:500}">${presupEsc(p.titulo||'(sin título)')}</td>
+      <td style="${td}">${presupEsc(p.proveedor||'—')}</td>
+      <td style="${td}white-space:nowrap">${presupFecha(p.fecha)}</td>
+      <td style="${td}white-space:nowrap">${p.validez?presupFecha(p.validez):'—'} ${v&&v.cls!=='ok'?`<span class="pp-badge" style="background:${v.bg};color:${v.color}">${v.txt}</span>`:''}</td>
+      <td style="${td}"><span class="pp-badge" style="background:${c[0]};color:${c[1]}">${presupEsc(p.estado||'Borrador')}</span></td>
+      <td style="${td}text-align:right;font-weight:600;white-space:nowrap">${fmtPeso(presupTotales(p).total)}</td>
+      <td style="${td}white-space:nowrap;text-align:right"><button class="pp-ib" title="Duplicar" onclick="event.stopPropagation();presupDuplicar(${p.id})"><i class="ti ti-copy"></i></button><button class="pp-ib" title="Eliminar" style="color:#c0392b" onclick="event.stopPropagation();presupEliminar(${p.id})"><i class="ti ti-trash"></i></button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Abrir / nuevo / duplicar / eliminar ──
+function presupAbrir(id){
+  presupGuardarActivo();
+  const p = presupuestos.find(x=>x.id==id); if(!p) return;
+  presupActivo = presupClon(p);
+  presupVolcarFormulario();
+  document.getElementById('presup-form-area')?.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function presupNuevo(){
+  presupGuardarActivo();
+  const hoy = provHoyLocalISO();
+  presupActivo = {
+    id: Date.now(), numero: presupSiguienteNumero(hoy), titulo:'', proveedor:'', fecha: hoy, validez:'',
+    estado:'Borrador', notas:'', linkDrive:'', descuentoPct:0, ivaPct:0, itemsGeneral:[], itemsPub:[]
+  };
+  presupuestos.unshift(presupClon(presupActivo));
+  presupGuardarStorage();
+  presupVolcarFormulario();
+}
+
+function presupDuplicar(id){
+  presupGuardarActivo();
+  const o = presupuestos.find(x=>x.id==(id!=null ? id : presupActivo?.id));
+  if(!o){ showToast('No hay presupuesto para duplicar','error'); return; }
+  const c = presupClon(o);
+  c.id = Date.now(); c.fecha = provHoyLocalISO(); c.numero = presupSiguienteNumero(c.fecha);
+  c.titulo = (o.titulo||'Presupuesto')+' (copia)'; c.estado = 'Borrador'; c.validez = '';
+  presupuestos.unshift(c);
+  presupActivo = presupClon(c);
+  presupGuardarStorage();
+  presupVolcarFormulario();
+  showToast('Presupuesto duplicado');
+}
+
+function presupEliminar(id){
+  const p = presupuestos.find(x=>x.id==id); if(!p) return;
+  if(!confirm('¿Eliminar "'+(p.titulo||p.numero||'este presupuesto')+'"?')) return;
+  const eraActivo = presupActivo && presupActivo.id==id;
+  presupuestos = presupuestos.filter(x=>x.id!=id);
+  presupGuardarStorage();
+  if(eraActivo){
+    presupActivo = presupuestos.length ? presupClon(presupuestos[0]) : null;
+    if(presupActivo) presupVolcarFormulario(); else presupNuevo();
+  }
+  presupRefrescarSelector();
+}
+function presupEliminarActual(){ if(presupActivo) presupEliminar(presupActivo.id); }
+
+function presupAbrirLink(){
+  const v = (document.getElementById('presup-link')?.value||'').trim();
+  if(!v){ showToast('No hay link cargado','error'); return; }
+  window.open(/^https?:\/\//i.test(v) ? v : 'https://'+v, '_blank', 'noopener');
+}
+
+// ── Formulario ──
 function presupVolcarFormulario(){
-  if(!presupActivo) return;
-  document.getElementById('presup-titulo').value = presupActivo.titulo||'';
-  document.getElementById('presup-fecha').value = presupActivo.fecha||'';
-  document.getElementById('presup-estadosel').value = presupActivo.estado||'Borrador';
-  document.getElementById('presup-notas').value = presupActivo.notas||'';
-  presupRenderTabla('general');
-  presupRenderTabla('pub');
+  const p = presupActivo; if(!p) return;
+  const set = (id,v)=>{ const e=document.getElementById(id); if(e) e.value=v; };
+  set('presup-titulo', p.titulo||''); set('presup-proveedor', p.proveedor||''); set('presup-numero', p.numero||'');
+  set('presup-fecha', p.fecha||''); set('presup-validez', p.validez||''); set('presup-estadosel', p.estado||'Borrador');
+  set('presup-notas', p.notas||''); set('presup-link', p.linkDrive||'');
+  set('presup-desc-pct', p.descuentoPct||0); set('presup-iva-pct', String(p.ivaPct||0));
+  presupRefrescarListas();
+  presupRenderTabla('general'); presupRenderTabla('pub');
   presupRecalcular();
-  document.getElementById('presup-estado-label').textContent = 'ID: '+presupActivo.id;
+  presupRefrescarSelector();
 }
 
 function presupLeerFormulario(){
   if(!presupActivo) return;
-  presupActivo.titulo = document.getElementById('presup-titulo').value;
-  presupActivo.fecha  = document.getElementById('presup-fecha').value;
-  presupActivo.estado = document.getElementById('presup-estadosel').value;
-  presupActivo.notas  = document.getElementById('presup-notas').value;
+  const g = id => document.getElementById(id)?.value;
+  presupActivo.titulo = (g('presup-titulo')||'').trim();
+  presupActivo.proveedor = (g('presup-proveedor')||'').trim();
+  presupActivo.fecha = g('presup-fecha')||'';
+  presupActivo.validez = g('presup-validez')||'';
+  presupActivo.estado = g('presup-estadosel')||'Borrador';
+  presupActivo.notas = g('presup-notas')||'';
+  presupActivo.linkDrive = (g('presup-link')||'').trim();
+  presupActivo.descuentoPct = Math.min(100, Math.max(0, parseFloat(g('presup-desc-pct'))||0));
+  presupActivo.ivaPct = parseFloat(g('presup-iva-pct'))||0;
 }
 
 function presupGuardarActivo(){
   if(!presupActivo) return;
   presupLeerFormulario();
   const idx = presupuestos.findIndex(x=>x.id===presupActivo.id);
-  if(idx>=0) presupuestos[idx] = JSON.parse(JSON.stringify(presupActivo));
-  else presupuestos.unshift(JSON.parse(JSON.stringify(presupActivo)));
+  if(idx>=0) presupuestos[idx] = presupClon(presupActivo); else presupuestos.unshift(presupClon(presupActivo));
   presupGuardarStorage();
   presupRefrescarSelector();
 }
 
+let _presupTimer = null;
 function presupAutoguardar(){
-  if(!presupActivo) return;
   presupLeerFormulario();
-  presupGuardarActivo();
+  presupRecalcular();
+  clearTimeout(_presupTimer);
+  _presupTimer = setTimeout(presupGuardarActivo, 400);
 }
 
-function presupNuevo(){
-  presupGuardarActivo();
-  presupActivo = {
-    id: Date.now(),
-    titulo: '',
-    fecha: new Date().toISOString().slice(0,10),
-    estado: 'Borrador',
-    notas: '',
-    itemsGeneral: [],
-    itemsPub: []
-  };
-  presupuestos.unshift(JSON.parse(JSON.stringify(presupActivo)));
-  presupGuardarStorage();
-  presupRefrescarSelector();
-  presupVolcarFormulario();
-  document.getElementById('presup-titulo').focus();
-}
-
-function presupEliminarActual(){
-  if(!presupActivo) return;
-  if(!confirm('¿Eliminar este presupuesto?')) return;
-  presupuestos = presupuestos.filter(x=>x.id!==presupActivo.id);
-  presupGuardarStorage();
-  presupActivo = presupuestos.length>0 ? JSON.parse(JSON.stringify(presupuestos[0])) : null;
-  presupRefrescarSelector();
-  if(presupActivo) presupVolcarFormulario();
-  else presupNuevo();
-}
-
-// ── ITEMS ──────────────────────────────────────────────────────
+// ── Ítems ──
 function presupAgregarItem(tipo){
   if(!presupActivo) return;
-  if(tipo==='general'){
-    presupActivo.itemsGeneral.push({cant:1, codigo:'', desc:'', valorUnit:0});
-  } else {
-    presupActivo.itemsPub.push({ciudad:'', tipoPub:'', operador:'', meses:'', total:0});
-  }
-  presupRenderTabla(tipo);
-  presupRecalcular();
-  presupGuardarActivo();
+  if(tipo==='general') presupActivo.itemsGeneral.push({cant:1, codigo:'', desc:'', valorUnit:0});
+  else presupActivo.itemsPub.push({ciudad:'', tipoPub:'', operador:'', meses:'', mensual:0, mesesN:0, total:0});
+  presupRenderTabla(tipo); presupRecalcular(); presupGuardarActivo();
+}
+
+function presupDuplicarItem(tipo, idx){
+  const arr = tipo==='general' ? presupActivo.itemsGeneral : presupActivo.itemsPub;
+  if(!arr[idx]) return;
+  arr.splice(idx+1, 0, presupClon(arr[idx]));
+  presupRenderTabla(tipo); presupRecalcular(); presupGuardarActivo();
 }
 
 function presupEliminarItem(tipo, idx){
-  if(tipo==='general') presupActivo.itemsGeneral.splice(idx,1);
-  else presupActivo.itemsPub.splice(idx,1);
-  presupRenderTabla(tipo);
-  presupRecalcular();
-  presupGuardarActivo();
-}
-
-function presupRenderTabla(tipo){
-  if(!presupActivo) return;
-  if(tipo==='general'){
-    const tbody = document.getElementById('presup-tbody-general');
-    tbody.innerHTML='';
-    (presupActivo.itemsGeneral||[]).forEach((it,i)=>{
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td style="padding:5px 6px"><input type="number" min="0" step="1" value="${it.cant}" style="width:60px;height:30px;padding:0 6px;border-radius:5px;border:1px solid #d0d0c8;font-size:13px" onchange="presupUpdateItem('general',${i},'cant',+this.value)"></td>
-        <td style="padding:5px 6px"><input value="${it.codigo}" placeholder="COD-001" style="width:90px;height:30px;padding:0 6px;border-radius:5px;border:1px solid #d0d0c8;font-size:13px" onchange="presupUpdateItem('general',${i},'codigo',this.value)"></td>
-        <td style="padding:5px 6px"><input value="${it.desc}" placeholder="Descripción del ítem..." style="width:100%;min-width:180px;height:30px;padding:0 6px;border-radius:5px;border:1px solid #d0d0c8;font-size:13px" onchange="presupUpdateItem('general',${i},'desc',this.value)"></td>
-        <td style="padding:5px 6px;text-align:right"><input type="number" min="0" step="0.01" value="${it.valorUnit}" style="width:110px;height:30px;padding:0 6px;border-radius:5px;border:1px solid #d0d0c8;font-size:13px;text-align:right" onchange="presupUpdateItem('general',${i},'valorUnit',+this.value)"></td>
-        <td style="padding:5px 10px;text-align:right;font-weight:600;white-space:nowrap">${fmtPeso(it.cant * it.valorUnit)}</td>
-        <td style="padding:5px 6px;text-align:center"><button onclick="presupEliminarItem('general',${i})" style="background:none;border:none;cursor:pointer;color:#c0392b;font-size:15px"><i class="ti ti-trash"></i></button></td>`;
-      tbody.appendChild(tr);
-    });
-    if(!presupActivo.itemsGeneral.length){
-      const tr = document.createElement('tr');
-      tr.innerHTML = '<td colspan="6" style="padding:16px;text-align:center;color:#aaa;font-size:13px">No hay ítems. Hacé clic en "+ Agregar ítem" para comenzar.</td>';
-      tbody.appendChild(tr);
-    }
-  } else {
-    const tbody = document.getElementById('presup-tbody-pub');
-    tbody.innerHTML='';
-    (presupActivo.itemsPub||[]).forEach((it,i)=>{
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td style="padding:5px 6px"><input value="${it.ciudad}" placeholder="Ej: Mercedes" style="width:110px;height:30px;padding:0 6px;border-radius:5px;border:1px solid #d0d0c8;font-size:13px" onchange="presupUpdateItem('pub',${i},'ciudad',this.value)"></td>
-        <td style="padding:5px 6px"><input value="${it.tipoPub}" placeholder="Radio / Gráfica / Web" style="width:130px;height:30px;padding:0 6px;border-radius:5px;border:1px solid #d0d0c8;font-size:13px" onchange="presupUpdateItem('pub',${i},'tipoPub',this.value)"></td>
-        <td style="padding:5px 6px"><input value="${it.operador}" placeholder="Nombre del medio" style="width:140px;height:30px;padding:0 6px;border-radius:5px;border:1px solid #d0d0c8;font-size:13px" onchange="presupUpdateItem('pub',${i},'operador',this.value)"></td>
-        <td style="padding:5px 6px"><input value="${it.meses}" placeholder="3 meses / descripción" style="width:160px;height:30px;padding:0 6px;border-radius:5px;border:1px solid #d0d0c8;font-size:13px" onchange="presupUpdateItem('pub',${i},'meses',this.value)"></td>
-        <td style="padding:5px 6px;text-align:right"><input type="number" min="0" step="0.01" value="${it.total}" style="width:110px;height:30px;padding:0 6px;border-radius:5px;border:1px solid #d0d0c8;font-size:13px;text-align:right" onchange="presupUpdateItem('pub',${i},'total',+this.value)"></td>
-        <td style="padding:5px 6px;text-align:center"><button onclick="presupEliminarItem('pub',${i})" style="background:none;border:none;cursor:pointer;color:#c0392b;font-size:15px"><i class="ti ti-trash"></i></button></td>`;
-      tbody.appendChild(tr);
-    });
-    if(!presupActivo.itemsPub.length){
-      const tr = document.createElement('tr');
-      tr.innerHTML = '<td colspan="6" style="padding:16px;text-align:center;color:#aaa;font-size:13px">No hay ítems de publicidad. Hacé clic en "+ Agregar ítem" para comenzar.</td>';
-      tbody.appendChild(tr);
-    }
-  }
+  const arr = tipo==='general' ? presupActivo.itemsGeneral : presupActivo.itemsPub;
+  arr.splice(idx,1);
+  presupRenderTabla(tipo); presupRecalcular(); presupGuardarActivo();
 }
 
 function presupUpdateItem(tipo, idx, campo, valor){
-  if(tipo==='general') presupActivo.itemsGeneral[idx][campo] = valor;
-  else presupActivo.itemsPub[idx][campo] = valor;
-  // Sólo re-renderizar si el cambio afecta totales
-  if(['cant','valorUnit','total'].includes(campo)){
-    presupRenderTabla(tipo);
+  const arr = tipo==='general' ? presupActivo.itemsGeneral : presupActivo.itemsPub;
+  const it = arr[idx]; if(!it) return;
+  if(['cant','valorUnit','total','mensual','mesesN'].includes(campo)) valor = parseFloat(valor)||0;
+  it[campo] = valor;
+  let rerender = false;
+  if(tipo==='general' && campo==='codigo' && valor){
+    const k = presupCatalogo().find(x=>x.codigo===valor);
+    if(k){
+      if(!it.desc){ it.desc = k.desc; rerender = true; }
+      if(!it.valorUnit){ it.valorUnit = k.valorUnit; rerender = true; }
+    }
+  }
+  if(tipo==='pub' && (campo==='mensual' || campo==='mesesN')) rerender = true;
+  if(rerender) presupRenderTabla(tipo);
+  else if(tipo==='general'){
+    const c = document.getElementById('pp-tot-general-'+idx);
+    if(c) c.textContent = fmtPeso((it.cant||0)*(it.valorUnit||0));
   }
   presupRecalcular();
   presupGuardarActivo();
+  if(campo==='codigo') presupRefrescarListas();
+}
+
+function presupRenderTabla(tipo){
+  const tb = document.getElementById('presup-tbody-'+tipo); if(!tb || !presupActivo) return;
+  const td = 'padding:5px 6px;border-bottom:1px solid #f0f0e8;vertical-align:top;';
+  const arr = tipo==='general' ? presupActivo.itemsGeneral : presupActivo.itemsPub;
+  if(!arr.length){
+    tb.innerHTML = `<tr><td colspan="8" style="padding:14px;text-align:center;color:#aaa;font-size:12px">Sin ítems. Usá "+ Agregar ítem".</td></tr>`;
+    return;
+  }
+  const acciones = i => `<td style="${td}white-space:nowrap"><button class="pp-ib" title="Duplicar ítem" onclick="presupDuplicarItem('${tipo}',${i})"><i class="ti ti-copy"></i></button><button class="pp-ib" title="Quitar" style="color:#c0392b" onclick="presupEliminarItem('${tipo}',${i})"><i class="ti ti-trash"></i></button></td>`;
+  const inp = (i,campo,val,extra='') => `<input class="pp-in" value="${presupEsc(val)}" ${extra} onchange="presupUpdateItem('${tipo}',${i},'${campo}',this.value)">`;
+  const num = (i,campo,val,w,step) => `<input class="pp-in" type="number" min="0" step="${step}" value="${presupEsc(val||'')}" style="width:${w}px;text-align:right" onchange="presupUpdateItem('${tipo}',${i},'${campo}',this.value)">`;
+  const area = (i,campo,val) => `<textarea class="pp-in pp-desc" rows="1" placeholder="Descripción (podés escribir varias líneas)" style="width:100%;min-width:230px" oninput="presupAutoAlto(this)" onchange="presupUpdateItem('${tipo}',${i},'${campo}',this.value)">${presupEsc(val)}</textarea>`;
+  if(tipo==='general'){
+    tb.innerHTML = arr.map((it,i)=>`<tr>
+      <td style="${td}">${num(i,'cant',it.cant,64,'any')}</td>
+      <td style="${td}"><input class="pp-in" list="presup-dl-cod" autocomplete="off" value="${presupEsc(it.codigo)}" placeholder="Código" style="width:100px" onchange="presupUpdateItem('general',${i},'codigo',this.value)"></td>
+      <td style="${td}">${area(i,'desc',it.desc)}</td>
+      <td style="${td}">${num(i,'valorUnit',it.valorUnit,110,'0.01')}</td>
+      <td style="${td}text-align:right;font-weight:600;white-space:nowrap;padding-top:11px" id="pp-tot-general-${i}">${fmtPeso((parseFloat(it.cant)||0)*(parseFloat(it.valorUnit)||0))}</td>
+      ${acciones(i)}</tr>`).join('');
+  } else {
+    tb.innerHTML = arr.map((it,i)=>{
+      const auto = (parseFloat(it.mensual)||0)*(parseFloat(it.mesesN)||0) > 0;
+      return `<tr>
+      <td style="${td}">${inp(i,'ciudad',it.ciudad,'style="width:100px"')}</td>
+      <td style="${td}">${inp(i,'tipoPub',it.tipoPub,'style="width:100px"')}</td>
+      <td style="${td}">${inp(i,'operador',it.operador,'style="width:100px"')}</td>
+      <td style="${td}">${area(i,'meses',it.meses)}</td>
+      <td style="${td}">${num(i,'mensual',it.mensual,100,'0.01')}</td>
+      <td style="${td}">${num(i,'mesesN',it.mesesN,56,'any')}</td>
+      <td style="${td}text-align:right;font-weight:600;white-space:nowrap">${auto ? `<span style="display:inline-block;padding-top:6px">${fmtPeso(presupTotalItemPub(it))}</span>` : num(i,'total',it.total,110,'0.01')}</td>
+      ${acciones(i)}</tr>`;
+    }).join('');
+  }
+  tb.querySelectorAll('.pp-desc').forEach(presupAutoAlto);
 }
 
 function presupRecalcular(){
   if(!presupActivo) return;
-  const totalGen = (presupActivo.itemsGeneral||[]).reduce((s,it)=>s + (it.cant||0)*(it.valorUnit||0),0);
-  const totalPub = (presupActivo.itemsPub||[]).reduce((s,it)=>s + (it.total||0),0);
-  document.getElementById('presup-total-general').textContent = fmtPeso(totalGen);
-  document.getElementById('presup-total-pub').textContent     = fmtPeso(totalPub);
-  document.getElementById('presup-total-global').textContent  = fmtPeso(totalGen + totalPub);
+  const t = presupTotales(presupActivo);
+  const set = (id,v)=>{ const e=document.getElementById(id); if(e) e.textContent=v; };
+  set('presup-total-general', fmtPeso(t.gen));
+  set('presup-total-pub', fmtPeso(t.pub));
+  set('presup-subtotal', fmtPeso(t.sub));
+  set('presup-desc-monto', '− '+fmtPeso(t.desc));
+  set('presup-iva-monto', '+ '+fmtPeso(t.iva));
+  set('presup-total-global', fmtPeso(t.total));
+  const l = document.getElementById('presup-validez-lbl');
+  if(l){ const v = presupVigencia(presupActivo); l.textContent = v ? '· '+v.txt : ''; l.style.color = v ? v.color : ''; }
 }
 
 function fmtPeso(n){
@@ -11349,27 +11511,28 @@ function presupGenerarDocumento(fmt){
   const notas   = p.notas   || '';
 
   // Tabla productos/servicios
-  const totalGen = (p.itemsGeneral||[]).reduce((s,it)=>s+(it.cant||0)*(it.valorUnit||0),0);
+  const T = presupTotales(p);
+  const totalGen = T.gen;
   const filasGen = (p.itemsGeneral||[]).map(it=>`
     <tr>
       <td style="padding:6px 10px;border-bottom:1px solid #f0f0e8;text-align:center">${it.cant||''}</td>
-      <td style="padding:6px 10px;border-bottom:1px solid #f0f0e8">${it.codigo||''}</td>
-      <td style="padding:6px 10px;border-bottom:1px solid #f0f0e8">${it.desc||''}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #f0f0e8">${presupEscDoc(it.codigo)}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #f0f0e8">${presupEscDoc(it.desc)}</td>
       <td style="padding:6px 10px;border-bottom:1px solid #f0f0e8;text-align:right">${_presupFmt((it.cant||0)*(it.valorUnit||0))}</td>
     </tr>`).join('');
 
   // Tabla publicidad
-  const totalPub = (p.itemsPub||[]).reduce((s,it)=>s+(it.total||0),0);
+  const totalPub = T.pub;
   const filasPub = (p.itemsPub||[]).map(it=>`
     <tr>
       <td style="padding:6px 10px;border-bottom:1px solid #f0f0e8">${it.ciudad||''}</td>
       <td style="padding:6px 10px;border-bottom:1px solid #f0f0e8">${it.tipoPub||''}</td>
       <td style="padding:6px 10px;border-bottom:1px solid #f0f0e8">${it.operador||''}</td>
-      <td style="padding:6px 10px;border-bottom:1px solid #f0f0e8">${it.meses||''}</td>
-      <td style="padding:6px 10px;border-bottom:1px solid #f0f0e8;text-align:right">${_presupFmt(it.total||0)}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #f0f0e8">${presupEscDoc(it.meses)}${(it.mensual>0&&it.mesesN>0)?' <span style="color:#888">('+it.mesesN+' × '+_presupFmt(it.mensual)+')</span>':''}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #f0f0e8;text-align:right">${_presupFmt(presupTotalItemPub(it))}</td>
     </tr>`).join('');
 
-  const totalGlobal = totalGen + totalPub;
+  const totalGlobal = T.total;
 
   // Sección general solo si tiene ítems
   const secGeneral = (p.itemsGeneral||[]).length ? `
@@ -11415,14 +11578,22 @@ function presupGenerarDocumento(fmt){
     </table>` : '';
 
   // Total solo si hay más de una sección con ítems
-  const muestraTotal = ((p.itemsGeneral||[]).length && (p.itemsPub||[]).length);
+  const muestraTotal = ((p.itemsGeneral||[]).length && (p.itemsPub||[]).length) || T.desc>0 || T.iva>0;
+  const desglose = (T.desc>0 || T.iva>0) ? `
+    <table style="margin-top:14px;margin-left:auto;font-size:11pt">
+      <tr><td style="padding:3px 14px;text-align:right">Subtotal</td><td style="padding:3px 10px;text-align:right">${_presupFmt(T.sub)}</td></tr>
+      ${T.desc>0?`<tr><td style="padding:3px 14px;text-align:right">Descuento (${p.descuentoPct}%)</td><td style="padding:3px 10px;text-align:right">− ${_presupFmt(T.desc)}</td></tr>`:''}
+      ${T.iva>0?`<tr><td style="padding:3px 14px;text-align:right">IVA (${String(p.ivaPct).replace('.',',')}%)</td><td style="padding:3px 10px;text-align:right">${_presupFmt(T.iva)}</td></tr>`:''}
+    </table>` : '';
 
   const body = `
     <!-- Encabezado -->
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #1a1a2e">
       <div>
-        <h1 style="font-size:16pt;margin:0 0 4px;color:#1a1a2e">${titulo}</h1>
-        ${fecha?`<p style="margin:0;font-size:11pt;color:#666">${fecha}</p>`:''}
+        <h1 style="font-size:16pt;margin:0 0 4px;color:#1a1a2e">${presupEscDoc(titulo)}</h1>
+        ${(p.numero||fecha)?`<p style="margin:0;font-size:11pt;color:#666">${[p.numero,fecha].filter(Boolean).join(' · ')}</p>`:''}
+        ${p.proveedor?`<p style="margin:2px 0 0;font-size:11pt;color:#666">Proveedor: ${presupEscDoc(p.proveedor)}</p>`:''}
+        ${p.validez?`<p style="margin:2px 0 0;font-size:11pt;color:#666">Válido hasta: ${presupFecha(p.validez)}</p>`:''}
       </div>
       ${estado?`<div style="background:#f5f5f0;border:1px solid #ddd;border-radius:6px;padding:5px 14px;font-size:11pt;font-weight:600;color:#1a1a2e;white-space:nowrap">${estado}</div>`:''}
     </div>
@@ -11430,6 +11601,7 @@ function presupGenerarDocumento(fmt){
     ${secGeneral}
     ${secPub}
 
+    ${desglose}
     ${muestraTotal ? `
     <div style="margin-top:18px;background:#1a1a2e;color:#fff;border-radius:8px;padding:12px 18px;display:flex;justify-content:space-between;align-items:center">
       <span style="font-size:12pt;font-weight:700">TOTAL GENERAL DEL PRESUPUESTO</span>
@@ -11440,7 +11612,7 @@ function presupGenerarDocumento(fmt){
     </div>`}
 
     ${notas ? `<div style="margin-top:16px;padding:10px 14px;background:#fff8e1;border:1px solid #ffe082;border-radius:6px;font-size:11pt;color:#555">
-      <strong>Notas:</strong> ${notas}
+      <strong>Notas:</strong> ${presupEscDoc(notas)}
     </div>` : ''}`;
 
   const estilos = `
