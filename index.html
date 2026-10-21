@@ -13390,9 +13390,35 @@ function leerXLSXExtracto(file){
   const reader = new FileReader();
   reader.onload = e => {
     try {
-      const wb = XLSX.read(e.target.result, {type:'array', cellDates:true});
+      const wb = XLSX.read(e.target.result, {type:'array', cellNF:true});
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, dateNF:'DD/MM/YYYY'});
+      // Leemos celda por celda: números como número (sin depender del formato de la celda) y
+      // fechas como DD/MM/AAAA. Con raw:false SheetJS devuelve fechas tipo "9/30/26" (mes/día/año
+      // de 2 dígitos) que no se pueden interpretar, y el extracto quedaba sin datos.
+      const pad2 = n => String(n).padStart(2,'0');
+      const ref = ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']) : null;
+      const rows = [];
+      if(ref){
+        for(let r=ref.s.r; r<=ref.e.r; r++){
+          const fila = [];
+          for(let c=ref.s.c; c<=ref.e.c; c++){
+            const cell = ws[XLSX.utils.encode_cell({r,c})];
+            let v = '';
+            if(cell && cell.v!==undefined && cell.v!==null){
+              if(cell.t==='n' && cell.z && XLSX.SSF.is_date(cell.z)){
+                const d = XLSX.SSF.parse_date_code(cell.v);
+                v = d ? pad2(d.d)+'/'+pad2(d.m)+'/'+d.y : cell.v;
+              } else if(cell.t==='d' && cell.v instanceof Date){
+                v = pad2(cell.v.getDate())+'/'+pad2(cell.v.getMonth()+1)+'/'+cell.v.getFullYear();
+              } else {
+                v = cell.v;
+              }
+            }
+            fila.push(v);
+          }
+          rows.push(fila);
+        }
+      }
       const dz = document.getElementById('extracto-drop-zone');
       dz.innerHTML = `<div style="font-size:22px;margin-bottom:6px">✅</div>
         <div style="font-size:13px;font-weight:600;color:#27ae60">${file.name}</div>
