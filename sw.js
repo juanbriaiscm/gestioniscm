@@ -1,6 +1,6 @@
 // Service worker mínimo: red primero, caché como respaldo para abrir la app sin conexión.
 // Solo maneja recursos del mismo origen; Firebase y CDNs pasan directo a la red.
-const CACHE = 'iscm-tesoreria-v2';
+const CACHE = 'iscm-tesoreria-v3';
 const PRECACHE = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {

@@ -2143,6 +2143,9 @@ img, svg{max-width:100%}
           <button class="dd-item" onclick="provExportarCSV();ddHide('dd-prov-impexp')"><i class="ti ti-file-type-csv"></i>Exportar CSV</button>
         </div>
       </div>
+      <button class="btn" onclick="provCopiarAbrir()" title="Crear las facturas de este mes a partir de las del mes anterior"><i class="ti ti-copy"></i>Copiar mes anterior</button>
+      <button class="btn" onclick="provBenefAbrir()" title="A quién le transfiere el banco por cada proveedor"><i class="ti ti-users"></i>Beneficiarios</button>
+      <button class="btn" onclick="provExtAbrir()" title="Marcar facturas como pagadas desde el extracto bancario"><i class="ti ti-building-bank"></i>Conciliar extracto</button>
       <button onclick="openNuevoProveedor()" style="background:#1a1a2e;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;font-weight:600"><i class="ti ti-plus"></i>Agregar factura</button>
     </div>
   </div>
@@ -2156,6 +2159,7 @@ img, svg{max-width:100%}
       <option value="">Todos los pagos</option>
       <option value="SI">Pagados</option>
       <option value="NO">Pendientes de pago</option>
+      <option value="ESP">Esperando factura</option>
     </select>
     <select id="prov-fil-factura" class="prov-more-filter" style="display:none" onchange="renderProveedores()">
       <option value="">Toda facturación</option>
@@ -2841,6 +2845,74 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
     <div class="modal-actions">
       <button class="btn" onclick="document.getElementById('modal-extracto-banco').classList.remove('open')">Cancelar</button>
       <button class="btn warn" id="btn-aplicar-extracto" style="display:none" onclick="extractoAplicar()"><i class="ti ti-check"></i>Aplicar conciliación</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Copiar mes anterior (Proveedores) -->
+<div class="overlay" id="modal-prov-copiar">
+  <div class="modal" style="max-width:600px">
+    <h2><i class="ti ti-copy"></i> Copiar mes anterior</h2>
+    <div class="info-box">
+      Crea las facturas del mes elegido a partir de las del mes anterior (mismo proveedor y monto, vencimiento un mes después).
+      Quedan como <strong>"Esperando factura"</strong>: no suman en los totales hasta que cargues el N° de factura o las marques como pagadas.
+    </div>
+    <div class="field" style="margin:0"><label>Mes a generar</label>
+      <input type="month" id="prov-copy-mes" onchange="provCopiarRender()" style="height:34px;padding:0 8px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px"></div>
+    <div id="prov-copy-list"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('modal-prov-copiar').classList.remove('open')">Cancelar</button>
+      <button class="btn primary" id="btn-prov-copiar-ok" style="display:none" onclick="provCopiarConfirmar()"></button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Beneficiarios del extracto (Proveedores) -->
+<div class="overlay" id="modal-prov-benef">
+  <div class="modal" style="max-width:700px">
+    <h2><i class="ti ti-users"></i> Beneficiarios del extracto</h2>
+    <div class="info-box">
+      Es un recordatorio para cuando subas el extracto: escribí <strong>a quién le transfiere el banco</strong> por cada proveedor.
+      Si son varias personas (ej. Representantes Legales), separalas con <strong>punto y coma</strong>: <em>Rodrigo Monaco; Pilar Echecopar</em>.
+      Se puede escribir nombre y apellido en cualquier orden, sin importar mayúsculas ni tildes (o el CUIT).
+      Si lo dejás vacío, se usa el nombre del proveedor.
+    </div>
+    <input type="text" id="prov-benef-search" placeholder="Buscar proveedor..." oninput="provBenefRender()" style="width:100%;height:34px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
+    <div id="prov-benef-list" style="max-height:380px;overflow-y:auto;margin-top:8px"></div>
+    <div class="modal-actions">
+      <button class="btn primary" onclick="document.getElementById('modal-prov-benef').classList.remove('open')">Listo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Conciliar extracto con Proveedores -->
+<div class="overlay" id="modal-prov-extracto">
+  <div class="modal" style="max-width:760px">
+    <h2><i class="ti ti-building-bank"></i> Conciliar pagos a proveedores con el extracto</h2>
+    <div class="info-box">
+      Subí el extracto (CSV o Excel). Se buscan los débitos cuyo beneficiario coincide con un proveedor (ver <strong>Beneficiarios</strong>)
+      y se cruzan por monto con sus facturas pendientes. Vos confirmás cuáles marcar como pagadas, con la fecha del banco.
+    </div>
+    <input type="file" id="prov-ext-file" accept=".csv,.txt,.xlsx,.xls" style="display:none" onchange="provExtArchivo(this)">
+    <div id="prov-ext-drop" onclick="document.getElementById('prov-ext-file').click()"
+         style="background:#f8f8f4;border:2px dashed #d0d0c8;border-radius:8px;padding:20px;text-align:center;cursor:pointer;margin-bottom:12px"></div>
+    <div id="prov-ext-resultado" style="display:none">
+      <div id="prov-ext-stats" style="font-size:13px;margin-bottom:10px;padding:10px 12px;background:#f0f7ff;border:1px solid #bee5eb;border-radius:6px"></div>
+      <div style="max-height:320px;overflow-y:auto;border:1px solid #e8e8e0;border-radius:6px">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:#f8f8f4;font-size:11px">
+            <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #e8e8e0">Transferencia del banco</th>
+            <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #e8e8e0">Factura</th>
+            <th style="padding:6px 8px;text-align:center;border-bottom:1px solid #e8e8e0">Estado</th></tr></thead>
+          <tbody id="prov-ext-tbody"></tbody>
+        </table>
+      </div>
+      <div id="prov-ext-sin"></div>
+    </div>
+    <div id="prov-ext-error" style="display:none;background:#f8d7da;border:1px solid #f5c6cb;border-radius:6px;padding:10px 14px;font-size:12px;color:#721c24;margin-top:8px"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('modal-prov-extracto').classList.remove('open')">Cerrar</button>
+      <button class="btn warn" id="btn-prov-ext-aplicar" style="display:none" onclick="provExtAplicar()"><i class="ti ti-check"></i>Marcar como pagadas</button>
     </div>
   </div>
 </div>
@@ -10313,6 +10385,7 @@ function loadProv(){
   proveedores = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(PROV_INITIAL));
   const savedH = localStorage.getItem(PROV_HIDDEN_KEY);
   provOcultos = savedH ? new Set(JSON.parse(savedH)) : new Set();
+  try{ const sb = localStorage.getItem(PROV_BENEF_KEY); provBenef = sb ? JSON.parse(sb) : []; }catch(e){ provBenef = []; }
   // Sincronizar con Firebase
   (async ()=>{
     await new Promise(r=>{ if(window._fbReady)return r(); window.addEventListener('fbReady',r,{once:true}); setTimeout(r,3000); });
@@ -10321,6 +10394,9 @@ function loadProv(){
     if(remote){ proveedores = remote; renderProveedores(); }
     const remoteH = await window._fb.get(PROV_HIDDEN_KEY);
     if(remoteH){ provOcultos = new Set(remoteH); renderProveedores(); }
+    const remoteB = await window._fb.get(PROV_BENEF_KEY);
+    if(Array.isArray(remoteB)){ provBenef = remoteB; localStorage.setItem(PROV_BENEF_KEY, JSON.stringify(provBenef)); }
+    window._fb.listen(PROV_BENEF_KEY, data=>{ if(Array.isArray(data)) provBenef = data; });
     window._fb.listen(PROV_KEY, data=>{ proveedores=data; renderProveedores(); });
     window._fb.listen(PROV_HIDDEN_KEY, data=>{ provOcultos=new Set(data); renderProveedores(); });
   })();
@@ -10335,6 +10411,406 @@ function saveProv(){
 }
 function provFmt(n){ const p=(parseFloat(n)||0).toFixed(2).split('.'); p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.'); return '$'+p[0]+','+p[1]; }
 function fmtFecha(s){ if(!s) return '—'; const d=s.split('-'); return d[2]+'/'+d[1]+'/'+d[0]; }
+
+// ── PROVEEDORES · pagos recurrentes, beneficiarios del extracto y cruce con el banco ──────────
+const PROV_BENEF_KEY = 'iscm_prov_benef_v1';
+let provBenef = [];          // [{ clave, nombre, personas:[...] }]  (quién recibe la transferencia de cada proveedor)
+let provExtItems = [];       // resultado del último cruce con el extracto
+const PROV_TOL = 1;          // $ de tolerancia entre el monto de la factura y lo transferido
+
+function provTokens(s){
+  return String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,' ').trim().split(' ').filter(Boolean);
+}
+function provClave(s){ return provTokens(s).join(' '); }
+function provBenefDe(clave){ return provBenef.find(b=>b.clave===clave) || null; }
+function provBenefSave(){
+  localStorage.setItem(PROV_BENEF_KEY, JSON.stringify(provBenef));
+  if(window._fb) window._fb.set(PROV_BENEF_KEY, provBenef).catch(()=>{});
+}
+function provYM(iso){ return /^\d{4}-\d{2}/.test(iso||'') ? iso.slice(0,7) : ''; }
+function provMesAnteriorYM(ym){
+  let [y,m] = ym.split('-').map(Number); m--; if(m<1){ m=12; y--; }
+  return y+'-'+String(m).padStart(2,'0');
+}
+function provSumarMes(iso){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(iso||'')) return '';
+  let [y,m,d] = iso.split('-').map(Number);
+  m++; if(m>12){ m=1; y++; }
+  const ult = new Date(y, m, 0).getDate();
+  return y+'-'+String(m).padStart(2,'0')+'-'+String(Math.min(d,ult)).padStart(2,'0');
+}
+function provSemaforoHtml(p){
+  if(p.pagado==='SI' || p.esperando || !p.fechaVencimiento) return '';
+  const hoy = new Date(provHoyLocalISO()+'T12:00:00');
+  const dias = Math.round((new Date(p.fechaVencimiento+'T12:00:00') - hoy) / 86400000);
+  if(dias < 0) return `<span title="Vencida hace ${-dias} día(s)" style="margin-right:4px">🔴</span>`;
+  if(dias <= 7) return `<span title="Vence ${dias===0?'hoy':'en '+dias+' día(s)'}" style="margin-right:4px">🟡</span>`;
+  return '';
+}
+
+// ── Copiar mes anterior (facturas recurrentes en estado "Esperando factura") ──
+function provCopiarAbrir(){
+  document.getElementById('prov-copy-mes').value = provHoyLocalISO().slice(0,7);
+  provCopiarRender();
+  document.getElementById('modal-prov-copiar').classList.add('open');
+}
+function provCopiarCandidatas(){
+  const destino = document.getElementById('prov-copy-mes').value;
+  if(!/^\d{4}-\d{2}$/.test(destino)) return { destino:'', origen:'', lista:[] };
+  const origen = provMesAnteriorYM(destino);
+  const yaEnDestino = new Set(proveedores.filter(p=>provYM(p.fechaVencimiento)===destino).map(p=>provClave(p.nombre)));
+  const lista = proveedores.filter(p => !provOcultos.has(p.id) && !p.esperando
+      && provYM(p.fechaVencimiento || p.fechaPago) === origen
+      && !yaEnDestino.has(provClave(p.nombre)));
+  return { destino, origen, lista };
+}
+function provCopiarRender(){
+  const { origen, lista } = provCopiarCandidatas();
+  const box = document.getElementById('prov-copy-list');
+  const btn = document.getElementById('btn-prov-copiar-ok');
+  if(!origen){ box.innerHTML = '<div style="color:#888;font-size:12px;padding:10px">Elegí un mes.</div>'; btn.style.display='none'; return; }
+  if(!lista.length){
+    box.innerHTML = `<div style="color:#888;font-size:12px;padding:10px">No hay facturas con vencimiento en ${nombreMes(origen)} para copiar (o ya existen en el mes elegido).</div>`;
+    btn.style.display='none'; return;
+  }
+  box.innerHTML = `<div style="font-size:12px;color:#666;margin:8px 0 6px">Facturas de <strong>${nombreMes(origen)}</strong> (destildá las que no se repiten):</div>
+    <div style="max-height:300px;overflow-y:auto;border:1px solid #e8e8e0;border-radius:6px">
+    <table style="width:100%;font-size:12px;border-collapse:collapse">` +
+    lista.map(p=>`<tr style="border-bottom:1px solid #f0f0f0">
+      <td style="padding:6px 8px;width:28px"><input type="checkbox" checked id="prov-copy-chk-${p.id}" onchange="provCopiarContar()"></td>
+      <td style="padding:6px 8px;font-weight:500">${cajaEsc(p.nombre)}</td>
+      <td style="padding:6px 8px;text-align:right">${provFmt(p.precio)}</td>
+      <td style="padding:6px 8px;color:#888">vence ${fmtFecha(provSumarMes(p.fechaVencimiento)||'')}</td></tr>`).join('') +
+    '</table></div>';
+  provCopiarContar();
+}
+function provCopiarContar(){
+  const { lista } = provCopiarCandidatas();
+  const n = lista.filter(p=>{ const c=document.getElementById('prov-copy-chk-'+p.id); return c && c.checked; }).length;
+  const btn = document.getElementById('btn-prov-copiar-ok');
+  btn.style.display = n ? 'inline-flex' : 'none';
+  btn.innerHTML = `<i class="ti ti-check"></i>Crear ${n} factura${n===1?'':'s'}`;
+}
+function provCopiarConfirmar(){
+  const { lista } = provCopiarCandidatas();
+  let id = proveedores.length ? Math.max(...proveedores.map(p=>p.id)) + 1 : 1, n = 0;
+  lista.forEach(p=>{
+    const c = document.getElementById('prov-copy-chk-'+p.id);
+    if(!c || !c.checked) return;
+    proveedores.push({
+      id: id++, nombre: p.nombre, precio: p.precio, facturaEnviada: 'NO', nFactura: '', linkFactura: '',
+      fechaVencimiento: provSumarMes(p.fechaVencimiento), pagado: 'NO', fechaPago: '', observaciones: '',
+      origen: '', esperando: true
+    });
+    n++;
+  });
+  if(!n) return;
+  saveProv();
+  document.getElementById('modal-prov-copiar').classList.remove('open');
+  renderProveedores();
+  showToast(`✓ ${n} factura${n===1?'':'s'} creada${n===1?'':'s'} como "Esperando factura"`);
+}
+
+// ── Beneficiarios: a quién se le transfiere cada proveedor ──
+function provBenefAbrir(){
+  document.getElementById('prov-benef-search').value = '';
+  provBenefRender();
+  document.getElementById('modal-prov-benef').classList.add('open');
+}
+function provBenefRender(){
+  const q = provClave(document.getElementById('prov-benef-search').value);
+  const m = new Map();
+  proveedores.forEach(p=>{ const k=provClave(p.nombre); if(!k) return; if(!m.has(k)) m.set(k,{clave:k,nombre:p.nombre,n:0}); m.get(k).n++; });
+  provBenef.forEach(b=>{ if(!m.has(b.clave)) m.set(b.clave,{clave:b.clave,nombre:b.nombre,n:0}); });
+  const filas = [...m.values()].filter(x=>!q || x.clave.includes(q)).sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
+  document.getElementById('prov-benef-list').innerHTML = filas.length ? filas.map(x=>{
+    const b = provBenefDe(x.clave);
+    return `<div style="display:grid;grid-template-columns:200px 1fr;gap:10px;align-items:center;padding:7px 4px;border-bottom:1px solid #f0f0f0">
+      <div style="font-size:12px;font-weight:600">${cajaEsc(x.nombre)}<div style="font-weight:400;color:#999;font-size:11px">${x.n} factura${x.n===1?'':'s'}</div></div>
+      <input type="text" data-k="${x.clave}" data-n="${cajaEsc(x.nombre)}" value="${cajaEsc(b ? b.personas.join('; ') : '')}"
+        placeholder="Igual al nombre del proveedor" onchange="provBenefGuardar(this)"
+        style="height:32px;border-radius:5px;border:1px solid #d0d0c8;font-size:12px;padding:0 8px;width:100%"></div>`;
+  }).join('') : '<div style="color:#888;font-size:12px;padding:12px">No hay proveedores que coincidan.</div>';
+}
+function provBenefGuardar(inp){
+  const personas = inp.value.split(/[;\n]/).map(s=>s.trim()).filter(Boolean);
+  const k = inp.dataset.k;
+  const i = provBenef.findIndex(b=>b.clave===k);
+  if(!personas.length){ if(i>=0) provBenef.splice(i,1); }
+  else if(i>=0){ provBenef[i].personas = personas; }
+  else provBenef.push({ clave:k, nombre:inp.dataset.n, personas });
+  provBenefSave();
+}
+
+// ── Lectura del extracto ──
+function provParseCSV(text){
+  text = text.replace(/^\uFEFF/,'');
+  const l1 = text.split(/\r?\n/)[0] || '';
+  const cnt = c => l1.split(c).length;
+  const sep = cnt(';')>=cnt(',') && cnt(';')>=cnt('\t') ? ';' : (cnt('\t')>cnt(',') ? '\t' : ',');
+  const rows = []; let row = [], cur = '', q = false;
+  for(let i=0;i<text.length;i++){
+    const ch = text[i];
+    if(q){ if(ch==='"'){ if(text[i+1]==='"'){ cur+='"'; i++; } else q=false; } else cur+=ch; }
+    else if(ch==='"') q = true;
+    else if(ch===sep){ row.push(cur.trim()); cur=''; }
+    else if(ch==='\n' || ch==='\r'){ if(ch==='\r' && text[i+1]==='\n') i++; row.push(cur.trim()); cur=''; rows.push(row); row=[]; }
+    else cur+=ch;
+  }
+  if(cur!=='' || row.length){ row.push(cur.trim()); rows.push(row); }
+  return rows;
+}
+// Convierte la hoja de un Excel en filas: números como número y fechas como DD/MM/AAAA
+function extractoXlsxARows(buffer){
+  const wb = XLSX.read(buffer, {type:'array', cellNF:true});
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const pad2 = n => String(n).padStart(2,'0');
+  const ref = ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']) : null;
+  const rows = [];
+  if(!ref) return rows;
+  for(let r=ref.s.r; r<=ref.e.r; r++){
+    const fila = [];
+    for(let c=ref.s.c; c<=ref.e.c; c++){
+      const cell = ws[XLSX.utils.encode_cell({r,c})];
+      let v = '';
+      if(cell && cell.v!==undefined && cell.v!==null){
+        if(cell.t==='n' && cell.z && XLSX.SSF.is_date(cell.z)){
+          const d = XLSX.SSF.parse_date_code(cell.v);
+          v = d ? pad2(d.d)+'/'+pad2(d.m)+'/'+d.y : cell.v;
+        } else if(cell.t==='d' && cell.v instanceof Date){
+          v = pad2(cell.v.getDate())+'/'+pad2(cell.v.getMonth()+1)+'/'+cell.v.getFullYear();
+        } else v = cell.v;
+      }
+      fila.push(v);
+    }
+    rows.push(fila);
+  }
+  return rows;
+}
+function provExtAbrir(){
+  provExtItems = [];
+  ['prov-ext-resultado','prov-ext-error'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('btn-prov-ext-aplicar').style.display = 'none';
+  document.getElementById('prov-ext-file').value = '';
+  document.getElementById('prov-ext-drop').innerHTML = `<div style="font-size:28px;margin-bottom:8px">🏦</div>
+    <div style="font-size:13px;font-weight:600;color:#1a1a2e">Hacer clic para elegir el extracto</div>
+    <div style="font-size:11px;color:#888;margin-top:4px">Soporta .csv (banco) o .xlsx</div>`;
+  document.getElementById('modal-prov-extracto').classList.add('open');
+}
+function provExtError(msg){
+  const el = document.getElementById('prov-ext-error');
+  el.textContent = '⚠️ ' + msg; el.style.display = 'block';
+  document.getElementById('prov-ext-resultado').style.display = 'none';
+  document.getElementById('btn-prov-ext-aplicar').style.display = 'none';
+}
+function provExtArchivo(input){
+  const file = input.files[0]; if(!file) return;
+  document.getElementById('prov-ext-error').style.display = 'none';
+  const ext = file.name.split('.').pop().toLowerCase();
+  const listo = rows => {
+    document.getElementById('prov-ext-drop').innerHTML = `<div style="font-size:22px;margin-bottom:6px">✅</div>
+      <div style="font-size:13px;font-weight:600;color:#27ae60">${cajaEsc(file.name)}</div>
+      <div style="font-size:11px;color:#888;margin-top:4px">${rows.length} filas detectadas</div>`;
+    provExtAnalizar(rows);
+  };
+  const reader = new FileReader();
+  if(ext==='csv' || ext==='txt'){
+    reader.onload = e => { try{ listo(provParseCSV(e.target.result)); }catch(err){ provExtError('Error al leer el archivo: '+err.message); } };
+    reader.readAsText(file, 'UTF-8');
+  } else if(ext==='xlsx' || ext==='xls'){
+    const leer = () => {
+      reader.onload = e => { try{ listo(extractoXlsxARows(e.target.result)); }catch(err){ provExtError('Error al leer el Excel: '+err.message); } };
+      reader.readAsArrayBuffer(file);
+    };
+    if(typeof XLSX !== 'undefined') leer();
+    else {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload = leer;
+      s.onerror = () => provExtError('No se pudo cargar la librería para .xlsx. Subí el extracto en CSV.');
+      document.head.appendChild(s);
+    }
+  } else provExtError('Formato no soportado. Usá CSV (.csv) o Excel (.xlsx).');
+}
+function provExtAnalizar(rows){
+  let h = 0;
+  for(let i=0;i<Math.min(rows.length,15);i++){ if(rows[i].filter(c=>c!==''&&c!=null).length>=3){ h=i; break; } }
+  const hdr = (rows[h]||[]).map(c=>normalizar(String(c==null?'':c)));
+  const col = re => hdr.findIndex(x=>re.test(x));
+  const iF = col(/^fecha/), iD = col(/^debito/), iDesc = col(/^descripcion/);
+  const iL1 = col(/^leyendas? adicionales? ?1$/), iL2 = col(/^leyendas? adicionales? ?2$/);
+  const faltan = [iF<0&&'Fecha', iD<0&&'Débitos', iL1<0&&'Leyendas Adicionales 1'].filter(Boolean);
+  if(faltan.length){ provExtError('No encuentro estas columnas en el extracto: ' + faltan.join(', ') + '. (Leyendas Adicionales 1 es donde el banco pone el nombre de quien recibe la transferencia.)'); return; }
+  const movs = [];
+  rows.slice(h+1).forEach((r,idx)=>{
+    const importe = parsearNum(r[iD]);
+    if(!importe || importe<=0) return;
+    const fecha = normalizarFecha(String(r[iF]||''));
+    if(!fecha) return;
+    movs.push({ idx, fecha, importe, desc: String(iDesc>=0?r[iDesc]:'')||'', nombreBanco: String(r[iL1]||''),
+                cuit: String(iL2>=0?r[iL2]:'').replace(/\D/g,'') });
+  });
+  if(!movs.length){ provExtError('No encontré débitos con fecha e importe válidos en el extracto.'); return; }
+  const res = provCruzarExtracto(movs);
+  provExtItems = res.items;
+  provExtRender(res, movs.length);
+}
+
+// ── Cruce ──
+const PROV_STOP = new Set(['de','del','la','el','los','las','y','e','sa','srl','sas','s','a','l','r']);
+function provPatronCoincide(patron, bancoTokens, bancoCuit){
+  const dig = String(patron||'').replace(/\D/g,'');
+  if(dig.length===11 && /^[\d\s.\-]+$/.test(String(patron))) return !!bancoCuit && bancoCuit.includes(dig);
+  const t = provTokens(patron).filter(x=>!PROV_STOP.has(x));
+  if(!t.length) return false;
+  if(t.length===1 && t[0].length<4) return false;
+  return t.every(x=>bancoTokens.has(x));
+}
+function provGrupos(){
+  const m = new Map();
+  proveedores.forEach(p=>{
+    const k = provClave(p.nombre); if(!k) return;
+    if(!m.has(k)) m.set(k,{clave:k,nombre:p.nombre,facturas:[]});
+    m.get(k).facturas.push(p);
+  });
+  m.forEach(g=>{ const b = provBenefDe(g.clave); g.personas = (b && b.personas.length) ? b.personas.slice() : [g.nombre]; });
+  return [...m.values()];
+}
+// Menor subconjunto (de minTam a 4 movimientos) que suma el monto de la factura
+function provSubconjunto(movs, objetivo, minTam){
+  const n = Math.min(movs.length, 12); let mejor = null;
+  (function rec(i, el, suma){
+    if(el.length>=minTam && el.length>0 && Math.abs(suma-objetivo) <= PROV_TOL*el.length){
+      if(!mejor || el.length<mejor.length) mejor = el.slice();
+    }
+    if(el.length>=4 || i>=n) return;
+    for(let j=i;j<n;j++){ el.push(movs[j]); rec(j+1, el, suma+movs[j].importe); el.pop(); }
+  })(0, [], 0);
+  return mejor;
+}
+function provCruzarExtracto(movs){
+  const grupos = provGrupos();
+  const items = [], sinRelacion = [];
+  const ya = new Map();
+  proveedores.forEach(p=>(p.pagoExtracto||[]).forEach(x=>{
+    const k = x.fecha+'|'+(+x.importe).toFixed(2); ya.set(k,(ya.get(k)||0)+1);
+  }));
+  const legacyUsadas = new Set();
+  movs.sort((a,b)=> a.fecha<b.fecha?-1 : a.fecha>b.fecha?1 : a.idx-b.idx);
+  const porGrupo = new Map();
+  movs.forEach(m=>{
+    const toks = new Set(provTokens(m.nombreBanco));
+    const hits = [];
+    grupos.forEach(g=>{
+      const k = g.personas.findIndex(pt=>provPatronCoincide(pt, toks, m.cuit));
+      if(k>=0) hits.push({g,k});
+    });
+    if(!hits.length){ sinRelacion.push(m); return; }
+    if(hits.length>1){ items.push({estado:'ambiguo', movs:[m], nombres:hits.map(h=>h.g.nombre)}); return; }
+    const g = hits[0].g;
+    const key = m.fecha+'|'+m.importe.toFixed(2);
+    if(ya.get(key)>0){ ya.set(key, ya.get(key)-1); items.push({estado:'ya', movs:[m], grupo:g}); return; }
+    const leg = g.facturas.find(f=>!legacyUsadas.has(f) && f.pagado==='SI' && !(f.pagoExtracto&&f.pagoExtracto.length)
+                                && f.fechaPago===m.fecha && Math.abs(f.precio-m.importe)<=PROV_TOL);
+    if(leg){ legacyUsadas.add(leg); items.push({estado:'ya', movs:[m], grupo:g, factura:leg}); return; }
+    m.persona = hits[0].k;
+    if(!porGrupo.has(g)) porGrupo.set(g, []);
+    porGrupo.get(g).push(m);
+  });
+  porGrupo.forEach((ms, g)=>{
+    const libres = ms.slice();
+    const pend = g.facturas.filter(f=>f.pagado!=='SI' && !f.esperando && !provOcultos.has(f.id))
+      .sort((a,b)=>(a.fechaVencimiento||'9999').localeCompare(b.fechaVencimiento||'9999') || a.id-b.id);
+    const nP = g.personas.length;
+    const usadas = new Set();
+    pend.forEach(f=>{
+      let sel = null;
+      if(nP>=2){
+        // varias personas: o todas cobraron el monto de la factura, o entre todas suman ese monto
+        const porPersona = g.personas.map((_,k)=>libres.find(m=>m.persona===k && Math.abs(m.importe-f.precio)<=PROV_TOL));
+        sel = porPersona.every(Boolean) ? porPersona : provSubconjunto(libres, f.precio, 2);
+      } else sel = provSubconjunto(libres, f.precio, 1);
+      if(sel && sel.length){
+        sel.forEach(m=>libres.splice(libres.indexOf(m),1));
+        usadas.add(f);
+        items.push({estado:'ok', grupo:g, factura:f, movs:sel});
+      }
+    });
+    if(libres.length){
+      const cobraron = new Set(libres.map(m=>m.persona));
+      items.push({ estado:'revisar', grupo:g, movs:libres, pendientes: pend.filter(f=>!usadas.has(f)),
+        faltan: nP>=2 ? g.personas.filter((_,k)=>!cobraron.has(k)) : [] });
+    }
+  });
+  items.sort((a,b)=> a.movs[0].fecha<b.movs[0].fecha?-1 : a.movs[0].fecha>b.movs[0].fecha?1 : 0);
+  return { items, sinRelacion };
+}
+function provExtRender(res, total){
+  const items = res.items;
+  const nOk = items.filter(i=>i.estado==='ok').length;
+  const nYa = items.filter(i=>i.estado==='ya').length;
+  const nRev = items.filter(i=>i.estado==='revisar'||i.estado==='ambiguo').length;
+  const ignorar = /iva|com\.|comisi|impuesto|haberes|sellos|percep|ley 25413/i;
+  const sin = res.sinRelacion.filter(m=>!ignorar.test(m.desc));
+  document.getElementById('prov-ext-stats').innerHTML =
+    `<strong>${total}</strong> débitos en el extracto · <span style="color:#27ae60"><strong>${nOk}</strong> para marcar pagadas</span>` +
+    (nYa ? ` · <span style="color:#888"><strong>${nYa}</strong> ya registrados</span>` : '') +
+    (nRev ? ` · <span style="color:#c0392b"><strong>${nRev}</strong> para revisar</span>` : '') +
+    ` · <span style="color:#888"><strong>${sin.length}</strong> sin proveedor asociado</span>`;
+  const movHtml = m => `${fmtFecha(m.fecha)} · ${cajaEsc(m.nombreBanco||m.desc)} · <strong>${provFmt(m.importe)}</strong>`;
+  const facHtml = f => `${cajaEsc(f.nombre)} · ${provFmt(f.precio)}${f.nFactura?' · N° '+cajaEsc(f.nFactura):''}${f.fechaVencimiento?' · vence '+fmtFecha(f.fechaVencimiento):''}`;
+  document.getElementById('prov-ext-tbody').innerHTML = items.map((it,i)=>{
+    const movs = it.movs.map(movHtml).join('<br>');
+    let fac, est, tr = '';
+    if(it.estado==='ok'){
+      fac = facHtml(it.factura);
+      est = `<label style="color:#27ae60;font-weight:600;cursor:pointer"><input type="checkbox" checked id="prov-ext-chk-${i}" style="margin-right:4px">✓ Pagada</label>`;
+    } else if(it.estado==='ya'){
+      fac = it.factura ? facHtml(it.factura) : cajaEsc(it.grupo.nombre);
+      est = '<span style="color:#888;font-weight:600">✓ ya registrado</span>';
+    } else if(it.estado==='ambiguo'){
+      tr = 'background:#fdecea';
+      fac = `<span style="color:#c0392b">Coincide con varios proveedores: ${it.nombres.map(cajaEsc).join(', ')}</span>`;
+      est = '<span style="color:#c0392b;font-weight:700">✗ revisar</span>';
+    } else {
+      tr = 'background:#fdecea';
+      const pend = it.pendientes.length
+        ? 'Pendientes: ' + it.pendientes.map(f=>provFmt(f.precio)).join(' · ')
+        : 'No hay facturas pendientes';
+      fac = `<span style="color:#c0392b">${cajaEsc(it.grupo.nombre)}: el monto no coincide con ninguna factura pendiente.<br>${pend}` +
+        (it.faltan.length ? `<br>Sin transferencia todavía: ${it.faltan.map(cajaEsc).join(', ')}` : '') + '</span>';
+      est = '<span style="color:#c0392b;font-weight:700">✗ revisar</span>';
+    }
+    return `<tr style="${tr}"><td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;font-size:11px">${movs}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;font-size:11px">${fac}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;text-align:center;font-size:11px;white-space:nowrap">${est}</td></tr>`;
+  }).join('') || '<tr><td colspan="3" style="padding:14px;text-align:center;color:#888;font-size:12px">Ningún débito coincide con un proveedor cargado. Revisá los Beneficiarios.</td></tr>';
+  document.getElementById('prov-ext-sin').innerHTML = sin.length
+    ? `<details style="margin-top:10px;font-size:11px"><summary style="cursor:pointer;color:#666">Débitos sin proveedor asociado (${sin.length}) — si alguno es un proveedor, agregá su nombre en Beneficiarios</summary>` +
+      sin.map(m=>`<div style="padding:3px 0;color:#555">${fmtFecha(m.fecha)} · ${cajaEsc(m.nombreBanco||'—')} · ${provFmt(m.importe)} <span style="color:#aaa">(${cajaEsc(m.desc)})</span></div>`).join('') + '</details>'
+    : '';
+  document.getElementById('prov-ext-resultado').style.display = 'block';
+  document.getElementById('btn-prov-ext-aplicar').style.display = nOk ? 'inline-flex' : 'none';
+}
+function provExtAplicar(){
+  let n = 0;
+  provExtItems.forEach((it,i)=>{
+    if(it.estado!=='ok') return;
+    const chk = document.getElementById('prov-ext-chk-'+i);
+    if(chk && !chk.checked) return;
+    const f = proveedores.find(x=>x.id===it.factura.id); if(!f) return;
+    f.pagado = 'SI';
+    f.fechaPago = it.movs.map(m=>m.fecha).sort().slice(-1)[0];
+    f.pagoExtracto = (f.pagoExtracto||[]).concat(it.movs.map(m=>({fecha:m.fecha, importe:m.importe})));
+    n++;
+  });
+  if(!n){ showToast('No hay pagos tildados para aplicar', 'info'); return; }
+  saveProv();
+  document.getElementById('modal-prov-extracto').classList.remove('open');
+  renderProveedores();
+  showToast(`✓ ${n} factura${n===1?'':'s'} marcada${n===1?'':'s'} como pagada${n===1?'':'s'}`);
+}
 
 function provLimpiarFiltros(){
   document.getElementById('prov-search').value = '';
@@ -10378,7 +10854,8 @@ function getProvFiltered(){
     if(esOculto && !hayBusqueda && !provMostrarOcultos) return false;
 
     // Filtros de pagado / factura
-    if(fp && p.pagado !== fp) return false;
+    if(fp==='ESP'){ if(!p.esperando) return false; }
+    else if(fp){ if(p.esperando || p.pagado !== fp) return false; }
     if(ff && p.facturaEnviada !== ff) return false;
 
     // Búsqueda de texto (nombre, N° factura, observaciones, monto)
@@ -10399,7 +10876,9 @@ function getProvFiltered(){
 function renderProvStats(){
   const el = document.getElementById('prov-stats-row');
   if(!el) return;
-  const visible = proveedores.filter(p=>!provOcultos.has(p.id));
+  const todas = proveedores.filter(p=>!provOcultos.has(p.id));
+  const nEsperando = todas.filter(p=>p.esperando).length;
+  const visible = todas.filter(p=>!p.esperando);   // 'Esperando factura' no cuenta en los totales
   const total = visible.length;
   const pagados = visible.filter(p=>p.pagado==='SI').length;
   const pendientes = total - pagados;
@@ -10413,6 +10892,7 @@ function renderProvStats(){
     <div class="stat"><div class="stat-label">Pendientes de pago</div><div class="stat-value danger">${pendientes}</div></div>
     <div class="stat"><div class="stat-label">Monto total</div><div class="stat-value">${provFmt(montoTotal)}</div></div>
     <div class="stat"><div class="stat-label">Monto pendiente</div><div class="stat-value danger">${provFmt(montoPend)}</div></div>
+    ${nEsperando>0 ? `<div class="stat"><div class="stat-label">Esperando factura</div><div class="stat-value" style="color:#b45309">${nEsperando}</div></div>` : ''}
     ${nOcultos>0 ? `<div class="stat"><div class="stat-label">Filas ocultas</div><div class="stat-value" style="color:#888">${nOcultos}</div></div>` : ''}
   `;
 }
@@ -10435,7 +10915,7 @@ function renderProveedores(){
 
   tbody.innerHTML = slice.map(p => {
     const esOculto = provOcultos.has(p.id);
-    const rowStyle = esOculto ? 'opacity:0.45;background:#f9f9f6;font-style:italic' : '';
+    const rowStyle = esOculto ? 'opacity:0.45;background:#f9f9f6;font-style:italic' : (p.esperando ? 'background:#fffbea' : '');
     const pagBadge = p.pagado==='SI'
       ? '<span class="badge pagado">✓ Pagado</span>'
       : '<span class="badge debe">Pendiente</span>';
@@ -10452,9 +10932,9 @@ function renderProveedores(){
       <td style="font-weight:600;color:#1a1a2e">${provFmt(p.precio)}</td>
       <td>${factBadge}</td>
       <td class="factura-cell${p.linkFactura?' has-link':''}" style="font-size:12px" onmouseenter="showFacturaPopup(event,${p.id})" onmouseleave="startHidePopup()" onclick="${p.linkFactura?`abrirFacturaLink(${p.id})`:''}">
-        ${p.nFactura||'—'}${p.linkFactura?' 📎':''}</td>
-      <td style="font-size:12px">${fmtFecha(p.fechaVencimiento)}</td>
-      <td>${pagBadge}</td>
+        ${p.esperando ? '<span class="badge debe" style="background:#fff3cd;color:#8a6d00">Esperando factura</span>' : (p.nFactura||'—')}${p.linkFactura?' 📎':''}</td>
+      <td style="font-size:12px">${provSemaforoHtml(p)}${fmtFecha(p.fechaVencimiento)}</td>
+      <td>${p.esperando ? '<span class="badge" style="background:#f1f1ec;color:#888">—</span>' : pagBadge}</td>
       <td style="font-size:12px">${fmtFecha(p.fechaPago)}</td>
       <td style="font-size:12px;color:#666">${p.observaciones||'—'}</td>
       <td style="white-space:nowrap">
@@ -10675,6 +11155,9 @@ function guardarProveedor(){
     observaciones: document.getElementById('prov-obs').value.trim(),
     origen: original ? (original.origen||'') : '',
   };
+  if(original && original.pagoExtracto) entry.pagoExtracto = original.pagoExtracto;
+  // "Esperando factura" se mantiene hasta que se cargue el N° de factura, se marque la factura recibida o se pague
+  if(original && original.esperando && !entry.nFactura && entry.facturaEnviada!=='SI' && entry.pagado!=='SI') entry.esperando = true;
   if(editingProvId !== null){
     const idx = proveedores.findIndex(p=>p.id===editingProvId);
     if(idx>=0) proveedores[idx]=entry;
@@ -13390,35 +13873,7 @@ function leerXLSXExtracto(file){
   const reader = new FileReader();
   reader.onload = e => {
     try {
-      const wb = XLSX.read(e.target.result, {type:'array', cellNF:true});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      // Leemos celda por celda: números como número (sin depender del formato de la celda) y
-      // fechas como DD/MM/AAAA. Con raw:false SheetJS devuelve fechas tipo "9/30/26" (mes/día/año
-      // de 2 dígitos) que no se pueden interpretar, y el extracto quedaba sin datos.
-      const pad2 = n => String(n).padStart(2,'0');
-      const ref = ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']) : null;
-      const rows = [];
-      if(ref){
-        for(let r=ref.s.r; r<=ref.e.r; r++){
-          const fila = [];
-          for(let c=ref.s.c; c<=ref.e.c; c++){
-            const cell = ws[XLSX.utils.encode_cell({r,c})];
-            let v = '';
-            if(cell && cell.v!==undefined && cell.v!==null){
-              if(cell.t==='n' && cell.z && XLSX.SSF.is_date(cell.z)){
-                const d = XLSX.SSF.parse_date_code(cell.v);
-                v = d ? pad2(d.d)+'/'+pad2(d.m)+'/'+d.y : cell.v;
-              } else if(cell.t==='d' && cell.v instanceof Date){
-                v = pad2(cell.v.getDate())+'/'+pad2(cell.v.getMonth()+1)+'/'+cell.v.getFullYear();
-              } else {
-                v = cell.v;
-              }
-            }
-            fila.push(v);
-          }
-          rows.push(fila);
-        }
-      }
+      const rows = extractoXlsxARows(e.target.result);
       const dz = document.getElementById('extracto-drop-zone');
       dz.innerHTML = `<div style="font-size:22px;margin-bottom:6px">✅</div>
         <div style="font-size:13px;font-weight:600;color:#27ae60">${file.name}</div>
