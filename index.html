@@ -2841,30 +2841,12 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
   <div class="modal" style="max-width:620px">
     <h2><i class="ti ti-mail"></i> Cargar desde Mails de Pronto Pago</h2>
     <div class="info-box" style="margin-bottom:12px">
-      Subí los <strong>PDFs de los mails</strong> o los <strong>TXT adjuntos</strong> de Pronto Pago (podés subir los 3 a la vez).
-      El sistema extrae automáticamente <strong>Medio, Fecha, Bruto, Comisión e Importe a depositar</strong>
+      Subí los <strong>TXT</strong> de Pronto Pago (podés subir los 3 a la vez).
+      El sistema extrae automáticamente <strong>Medio, Fecha, Bruto y Comisión</strong> (el neto se calcula)
       y calcula la fecha de acreditación según las reglas: QR = 24hs hábiles · Link / Boca de Pago = 48hs hábiles.
     </div>
 
-    <!-- Drop zone PDFs -->
-    <div id="pp-drop-zone"
-         style="background:#f8f8f4;border:2px dashed #8e44ad;border-radius:8px;padding:24px;text-align:center;cursor:pointer;margin-bottom:12px;transition:border-color .2s,background .2s"
-         onclick="document.getElementById('pp-pdf-input').click()"
-         ondragover="event.preventDefault();this.style.background='#f0e8f8';this.style.borderColor='#6c3483'"
-         ondragleave="this.style.background='#f8f8f4';this.style.borderColor='#8e44ad'"
-         ondrop="ppHandleDrop(event)">
-      <div style="font-size:32px;margin-bottom:8px">📄</div>
-      <div style="font-size:13px;font-weight:600;color:#6c3483">Clic o arrastrá los PDFs de los mails</div>
-      <div style="font-size:11px;color:#888;margin-top:4px">Soporta múltiples archivos PDF a la vez</div>
-    </div>
     <input type="file" id="pp-pdf-input" accept=".pdf" multiple style="display:none" onchange="ppCargarPDFs(this.files)">
-
-    <!-- Separador -->
-    <div style="display:flex;align-items:center;gap:10px;margin:4px 0 12px">
-      <div style="flex:1;height:1px;background:#e8e8e0"></div>
-      <span style="font-size:11px;color:#aaa;white-space:nowrap">o también podés subir los TXT adjuntos</span>
-      <div style="flex:1;height:1px;background:#e8e8e0"></div>
-    </div>
 
     <!-- Drop zone TXT -->
     <div id="pp-txt-drop-zone"
@@ -2874,8 +2856,8 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
          ondragleave="this.style.background='#f4f8f4';this.style.borderColor='#27ae60'"
          ondrop="ppHandleDropTXT(event)">
       <div style="font-size:28px;margin-bottom:6px">📋</div>
-      <div style="font-size:13px;font-weight:600;color:#1e8449">Clic o arrastrá los TXT adjuntos (IPM, LDP, QR)</div>
-      <div style="font-size:11px;color:#888;margin-top:4px">PP260513.IPM · PPLDP260513.txt · PPQR260513.txt</div>
+      <div style="font-size:13px;font-weight:600;color:#1e8449">Clic o arrastrá los TXT de Pronto Pago</div>
+      <div style="font-size:11px;color:#888;margin-top:4px">DetalleRecaudacion-….TXT · PP….IPM · PPLDP….txt · PPQR….txt</div>
     </div>
     <input type="file" id="pp-txt-input" accept=".txt,.ipm,.TXT,.IPM" multiple style="display:none" onchange="ppCargarTXTs(this.files)">
 
@@ -13720,11 +13702,18 @@ function ppParsearTXTIpm(texto, nombre){
   if(brutoEncontrado===null && netoEncontrado===null) throw new Error(`No se encontraron importes en "${nombre}".`);
   if(!fecha_rendicion) throw new Error(`No se encontró la fecha en "${nombre}".`);
 
-  return { medio: 'Boca de Pago', fecha_rendicion, bruto, comision_base, iva_comision, neto };
+  // Medio según la línea "Empresa:" (… QR → QR · … LDP → Link de Pago · resto → Boca de Pago)
+  const mEmp = texto.match(/Empresa:[ \t]*([^\r\n]*)/i);
+  const empresa = mEmp ? mEmp[1] : '';
+  let medio = 'Boca de Pago';
+  if(/\bQR\b/i.test(empresa))       medio = 'QR';
+  else if(/\bLDP\b/i.test(empresa)) medio = 'Link de Pago';
+
+  return { medio, fecha_rendicion, bruto, comision_base, iva_comision, neto };
 }
 
 function ppParsearTXTPosicional(texto, nombre){
-  const lineas = texto.split('\n').map(l=>l.trimEnd());
+  const lineas = texto.split('\n').map(l=>l.replace(/\r$/,'').trimEnd());
 
   // Medio desde header
   const header = lineas[0] || '';
@@ -13732,47 +13721,41 @@ function ppParsearTXTPosicional(texto, nombre){
   if(/\bQR\b/i.test(header))  medio = 'QR';
   else if(/\bLDP\b/i.test(header)) medio = 'Link de Pago';
 
-  // Fecha desde header posición 8-16: "20260513"
-  let fecha_rendicion = '';
-  const fh = header.match(/\d{8}COBRANZAS/i);
-  if(fh){
-    // fecha está antes de "COBRANZAS", 8 dígitos
-    const mf = header.match(/(\d{4})(\d{2})(\d{2})COBRANZAS/i);
-    if(mf) fecha_rendicion = `${mf[1]}-${mf[2]}-${mf[3]}`;
-  }
-  // fallback: buscar en líneas de detalle "20260512"
-  if(!fecha_rendicion){
-    const dl = lineas.find(l=>l.startsWith('2026') || l.startsWith('2025'));
-    if(dl){ const y=dl.slice(0,4),mo=dl.slice(4,6),d=dl.slice(6,8); fecha_rendicion=`${y}-${mo}-${d}`; }
-  }
+  // Detalle: AAAAMMDD"T"HHMMSS + importe en centavos + UUID + nro (5 díg.)
+  // El importe de cada operación se suma; la fecha es la de las operaciones (no la del header,
+  // que es la fecha de generación del archivo, un día posterior).
+  const DET = /^(\d{4})(\d{2})(\d{2})T\d{6}(\d+?)[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\d{5}$/;
+  const porFecha = {};
+  lineas.forEach(l=>{
+    const m = l.match(DET);
+    if(!m) return;
+    const f = `${m[1]}-${m[2]}-${m[3]}`;
+    porFecha[f] = (porFecha[f]||0) + parseInt(m[4],10);
+  });
+  const fechas = Object.keys(porFecha).sort();
 
-  // Línea de cierre 99999999: contiene cantidad TX y monto total en centavos
-  const cierre = lineas.find(l=>l.startsWith('99999999')) || '';
-  if(!cierre) throw new Error(`No se encontró la línea de cierre (99999999) en "${nombre}".`);
-  const nums = cierre.slice(8).match(/\d+/g) || [];
-  let bruto = 0;
-  for(let i=nums.length-1;i>=0;i--){
-    const v = parseInt(nums[i],10);
-    if(v > 100) { bruto = v / 100; break; }
+  if(!fechas.length){
+    // Archivo sin operaciones (día sin cobros): válido, pero no genera filas
+    if(!lineas.some(l=>l.startsWith('99999999'))) throw new Error(`No se encontró la línea de cierre (99999999) en "${nombre}".`);
+    const vacio = [];
+    vacio._sinMovimientos = true;
+    return vacio;
   }
 
-  if(!fecha_rendicion) throw new Error(`No se encontró la fecha en "${nombre}".`);
-
-  return { medio, fecha_rendicion, bruto, comision_base: 0, iva_comision: 0, neto: bruto,
-           _soloDetalle: true };
+  // Un archivo puede abarcar más de un día: una liquidación por fecha de operación
+  return fechas.map(f => {
+    const bruto = porFecha[f] / 100;
+    return { medio, fecha_rendicion: f, bruto, comision_base: 0, iva_comision: 0, neto: bruto, _soloDetalle: true };
+  });
 }
 
 function ppParsearTXT(texto, nombre){
-  const nom = nombre.toLowerCase();
-  // IPM: tiene el texto "RECAUDACION PRONTO PAGO" o label "Importe Recaudado" con $ y comas
-  if(nom.endsWith('.ipm') || /importe recaudado/i.test(texto)){
-    return ppParsearTXTIpm(texto, nombre);
-  }
-  // LDP / QR: formato posicional con header 00000000
-  if(texto.trimStart().startsWith('00000000')){
-    return ppParsearTXTPosicional(texto, nombre);
-  }
-  throw new Error(`Formato no reconocido para "${nombre}". Soporta IPM y TXT posicional (LDP/QR).`);
+  const t = texto.replace(/^\uFEFF/, '');
+  // DetalleRecaudacion: texto con "Importe Recaudado"
+  if(/importe\s+recaudado/i.test(t)) return ppParsearTXTIpm(t, nombre);
+  // PP….IPM / PPLDP….txt / PPQR….txt: formato posicional con header 00000000 (sin importar la extensión)
+  if(t.trimStart().startsWith('00000000')) return ppParsearTXTPosicional(t, nombre);
+  throw new Error(`Formato no reconocido para "${nombre}". Soporta DetalleRecaudacion y los archivos PP / PPLDP / PPQR (.txt o .IPM).`);
 }
 
 function ppProcesarTXTs(){
@@ -13787,13 +13770,19 @@ function ppProcesarTXTs(){
 
   const liquidaciones = [];
   const erroresTotales = [];
+  const sinMovimientos = [];
   ppTXTsTexto.forEach(({nombre, texto}, i) => {
     document.getElementById('pp-loading-msg').textContent = `Leyendo ${nombre}...`;
     document.getElementById('pp-loading-bar').style.width =
       `${Math.round(20 + ((i+1)/ppTXTsTexto.length)*75)}%`;
     try{
       const liq = ppParsearTXT(texto, nombre);
-      liquidaciones.push(liq);
+      if(Array.isArray(liq)){
+        if(liq.length) liquidaciones.push(...liq);
+        else sinMovimientos.push(nombre);
+      } else {
+        liquidaciones.push(liq);
+      }
     } catch(errArchivo){
       // Un archivo con error no descarta los demás
       erroresTotales.push(`"${nombre}": ${errArchivo.message}`);
@@ -13803,11 +13792,18 @@ function ppProcesarTXTs(){
   setTimeout(()=>{ document.getElementById('pp-loading').style.display='none'; }, 300);
 
   if(liquidaciones.length===0){
-    mostrarPPError(erroresTotales.length ? erroresTotales.join(' · ') : 'No se pudo procesar ningún archivo TXT.');
+    if(!erroresTotales.length && sinMovimientos.length){
+      mostrarPPError('Los archivos no tienen operaciones (día sin cobros): ' + sinMovimientos.join(' · '));
+    } else {
+      mostrarPPError(erroresTotales.length ? erroresTotales.join(' · ') : 'No se pudo procesar ningún archivo TXT.');
+    }
     return;
   }
 
   ppMostrarPreview(liquidaciones);
+  if(sinMovimientos.length){
+    showToast(`ℹ️ Sin operaciones (se omiten): ${sinMovimientos.join(' · ')}`, 'success');
+  }
   if(erroresTotales.length){
     showToast(`⚠️ ${erroresTotales.length} archivo/s no se pudieron leer (se importó el resto). Revisá: ${erroresTotales.join(' · ')}`, 'error');
   }
@@ -13880,14 +13876,17 @@ function ppMostrarPreview(liquidaciones){
     const mesRend    = liq.fecha_rendicion.slice(0,7);
     const pasaMes    = mesAcred !== mesRend;
 
-    const comisionTotal = (liq.comision_base||0) + (liq.iva_comision||0);
+    // Comisión del archivo (base + IVA). Si el archivo no la informa (PP / PPLDP / PPQR),
+    // queda null y se usa la tasa configurada del método.
+    const comisionArchivo = liq._soloDetalle ? null : Math.round(((liq.comision_base||0) + (liq.iva_comision||0))*100)/100;
+    const comisionMostrar = comisionArchivo!==null ? comisionArchivo : calcComision(liq.bruto, metodoConc);
+    const netoCalc        = calcNeto(liq.bruto, comisionMostrar);
 
     ppFilasParsed.push({
       fecha:         liq.fecha_rendicion,
       metodo:        metodoConc,
       bruto:         liq.bruto,
-      comisionManual: comisionTotal,   // guardamos la del mail (ya tiene base+IVA)
-      neto:          liq.neto,         // "Importe a depositar"
+      comisionManual: comisionArchivo,
       fechaAcred,
       pasaMes,
       mesAcred,
@@ -13908,24 +13907,21 @@ function ppMostrarPreview(liquidaciones){
           <div style="font-size:11px;color:#888">Rendición ${fmtFecha(liq.fecha_rendicion)} → Acreditación ${fmtFecha(fechaAcred)}</div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:12px;margin-bottom:8px">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12px;margin-bottom:8px">
         <div style="text-align:center;background:#fff;border-radius:6px;padding:8px">
           <div style="color:#666;font-size:10px;margin-bottom:2px">BRUTO</div>
           <div style="font-weight:700;color:#2980b9">${fmtN(liq.bruto)}</div>
         </div>
         <div style="text-align:center;background:#fff;border-radius:6px;padding:8px">
-          <div style="color:#666;font-size:10px;margin-bottom:2px">COMISIÓN</div>
-          <div style="font-weight:700;color:#c0392b">${fmtN(liq.comision_base)}</div>
+          <div style="color:#666;font-size:10px;margin-bottom:2px">COMISIÓN (con IVA)</div>
+          <div style="font-weight:700;color:#c0392b">${fmtN(comisionMostrar)}</div>
         </div>
         <div style="text-align:center;background:#fff;border-radius:6px;padding:8px">
-          <div style="color:#666;font-size:10px;margin-bottom:2px">IVA COMIS.</div>
-          <div style="font-weight:700;color:#e67e22">${fmtN(liq.iva_comision)}</div>
-        </div>
-        <div style="text-align:center;background:#fff;border-radius:6px;padding:8px">
-          <div style="color:#666;font-size:10px;margin-bottom:2px">A DEPOSITAR</div>
-          <div style="font-weight:700;color:#27ae60">${fmtN(liq.neto)}</div>
+          <div style="color:#666;font-size:10px;margin-bottom:2px">NETO</div>
+          <div style="font-weight:700;color:#27ae60">${fmtN(netoCalc)}</div>
         </div>
       </div>
+      ${liq._soloDetalle ? '<div style="color:#e67e22;font-size:11px;margin-bottom:8px">ℹ️ Este archivo no informa la comisión: se calcula con la tasa configurada. Para usar la comisión real, cargá el DetalleRecaudacion.</div>' : ''}
       <div style="display:flex;align-items:center;gap:8px;font-size:12px">
         <label style="color:#666;white-space:nowrap">Método en conciliación:</label>
         <select onchange="ppFilasParsed[${i}].metodo=this.value" style="height:28px;border-radius:5px;border:1px solid #d0d0c8;font-size:12px;padding:0 6px">
@@ -13953,23 +13949,17 @@ function ppImportar(){
     );
     if(existe){ omitidas++; return; }
 
-    // La comisión del mail ya tiene base+IVA; calcular auto para comparar
-    const comisionAuto = calcComision(f.bruto, f.metodo);
-    const diffRel = comisionAuto > 0 ? Math.abs(f.comisionManual - comisionAuto) / comisionAuto : 1;
-    // Guardamos comisionManual solo si difiere del cálculo automático (>2%)
-    const comisionFinal = diffRel > 0.02 ? f.comisionManual : null;
-
     concData[mes].push({
       id:            Date.now() + Math.random(),
       fecha:         f.fecha,
       metodo:        f.metodo,
       bruto:         f.bruto,
-      comisionManual: comisionFinal,
-      acreditado:    f.neto,          // "Importe a depositar" → campo Acreditado Banco
+      comisionManual: f.comisionManual,   // comisión del archivo (base+IVA); null → tasa configurada
+      acreditado:    null,                // el neto se calcula (bruto − comisión)
       fechaAcred:    f.fechaAcred,
       pasaMesSig:    f.pasaMes,
       conciliado:    'No',
-      obs:           `Mail PP · ${f.medio_original}`
+      obs:           ''
     });
     importadas++;
   });
