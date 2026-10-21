@@ -1725,7 +1725,7 @@ img, svg{max-width:100%}
                   <th style="text-align:right">Egresos</th>
                   <th style="text-align:right">Saldo</th>
                   <th>Observaciones</th>
-                  <th style="width:30px"></th>
+                  <th style="width:64px"></th>
                 </tr>
               </thead>
               <tbody id="caja-tbody"></tbody>
@@ -3240,6 +3240,30 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
       <button onclick="closeBecaModal()" style="background:#f0f0e8;border:none;border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer">Cancelar</button>
       <button onclick="guardarBeca()" style="background:#1a1a2e;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;font-weight:600"><i class="ti ti-device-floppy"></i>Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR MOVIMIENTO DE CAJA -->
+<div class="overlay" id="modal-caja-edit">
+  <div class="modal" style="max-width:480px">
+    <h2 style="margin:0 0 12px"><i class="ti ti-pencil"></i> Editar movimiento</h2>
+    <div id="caja-edit-alumno" style="font-size:12px;color:#555;margin-bottom:10px;display:none"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="field" style="margin:0"><label>Fecha</label><input type="date" id="caja-edit-fecha" style="width:100%;height:36px;padding:0 8px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px"></div>
+      <div class="field" style="margin:0"><label>Tipo</label>
+        <select id="caja-edit-tipo" style="width:100%;height:36px;padding:0 8px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
+          <option value="ingreso">Ingreso ↑</option>
+          <option value="egreso">Egreso ↓</option>
+        </select>
+      </div>
+      <div class="field" style="margin:0;grid-column:1/-1"><label>Descripción</label><input type="text" id="caja-edit-desc" onkeydown="if(event.key==='Enter'){event.preventDefault();cajaEditarGuardar()}" style="width:100%;height:36px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px"></div>
+      <div class="field" style="margin:0"><label>Monto ($)</label><input type="text" inputmode="decimal" autocomplete="off" id="caja-edit-monto" onkeydown="if(event.key==='Enter'){event.preventDefault();cajaEditarGuardar()}" style="width:100%;height:36px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px"></div>
+      <div class="field" style="margin:0"><label>Observaciones</label><input type="text" id="caja-edit-obs" onkeydown="if(event.key==='Enter'){event.preventDefault();cajaEditarGuardar()}" style="width:100%;height:36px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+      <button class="btn" onclick="closeModal('modal-caja-edit')">Cancelar</button>
+      <button class="btn primary" onclick="cajaEditarGuardar()">Guardar</button>
     </div>
   </div>
 </div>
@@ -8429,7 +8453,7 @@ function renderCaja(){
       <td style="text-align:right;color:#c0392b">${m.egreso>0?cajaFmt(m.egreso):'—'}</td>
       <td style="text-align:right;font-weight:600">${cajaFmt(saldoAcum)}</td>
       <td style="color:#888;font-size:12px">${m.obs||''}</td>
-      <td><button class="btn sm danger" onclick="cajaEliminar(${i})" title="Eliminar"><i class="ti ti-x" style="margin-right:0"></i></button></td>
+      <td style="white-space:nowrap"><button class="btn sm" onclick="cajaEditar(${i})" title="Editar"><i class="ti ti-pencil" style="margin-right:0"></i></button> <button class="btn sm danger" onclick="cajaEliminar(${i})" title="Eliminar"><i class="ti ti-x" style="margin-right:0"></i></button></td>
     </tr>`;
   }).join('') || '<tr><td colspan="8" style="text-align:center;color:#888;padding:20px">Sin movimientos</td></tr>';
 
@@ -8811,6 +8835,53 @@ function cajaEliminar(idx){
   cajaMovimientos.splice(idx,1);
   cajaSave();
   renderCaja();
+}
+
+let _cajaEditIdx = null;
+function cajaEditar(idx){
+  const mov = cajaMovimientos[idx];
+  if(!mov) return;
+  _cajaEditIdx = idx;
+  const esIng = (mov.ingreso||0) > 0 || !(mov.egreso>0);
+  document.getElementById('caja-edit-fecha').value = mov.fecha || '';
+  document.getElementById('caja-edit-desc').value = mov.desc || '';
+  document.getElementById('caja-edit-tipo').value = esIng ? 'ingreso' : 'egreso';
+  document.getElementById('caja-edit-monto').value = String(esIng ? (mov.ingreso||0) : (mov.egreso||0)).replace('.',',');
+  document.getElementById('caja-edit-obs').value = mov.obs || '';
+  // Si está vinculado a un alumno, el tipo queda fijo (el pago ya saldó conceptos)
+  document.getElementById('caja-edit-tipo').disabled = (mov.alumnoId!=null);
+  const infoAl = document.getElementById('caja-edit-alumno');
+  const al = (mov.alumnoId!=null) ? alumnos.find(a=>a.id===mov.alumnoId) : null;
+  if(al){
+    infoAl.style.display='block';
+    infoAl.innerHTML = 'Alumno vinculado: <b>'+cajaEsc(al.nombre)+'</b>'+(mov.conceptosSaldados&&mov.conceptosSaldados.length?' · saldó: '+cajaEsc(mov.conceptosSaldados.join(', ')):'')+'<br><span style="color:#888">El vínculo y los conceptos saldados no se modifican al editar.</span>';
+  } else { infoAl.style.display='none'; infoAl.innerHTML=''; }
+  document.getElementById('modal-caja-edit').classList.add('open');
+  const d = document.getElementById('caja-edit-desc'); d.focus(); d.select();
+}
+
+function cajaEditarGuardar(){
+  const mov = cajaMovimientos[_cajaEditIdx];
+  if(!mov){ closeModal('modal-caja-edit'); return; }
+  const fecha = document.getElementById('caja-edit-fecha').value;
+  const desc  = document.getElementById('caja-edit-desc').value.trim();
+  const tipo  = document.getElementById('caja-edit-tipo').value;
+  const monto = cajaNum(document.getElementById('caja-edit-monto').value);
+  const obs   = document.getElementById('caja-edit-obs').value.trim();
+  if(!desc){ alert('Ingresá una descripción'); return; }
+  if(monto<=0){ alert('El monto debe ser mayor a cero'); return; }
+  mov.fecha   = fecha || mov.fecha;
+  mov.desc    = desc;
+  mov.obs     = obs;
+  mov.ingreso = tipo==='ingreso' ? monto : 0;
+  mov.egreso  = tipo==='egreso'  ? monto : 0;
+  _cajaEditIdx = null;
+  closeModal('modal-caja-edit');
+  cajaOrdenar();
+  cajaSave();
+  renderCaja();
+  if(typeof dashRefrescarSiVisible==='function') dashRefrescarSiVisible();
+  showToast('✓ Movimiento actualizado', 'success');
 }
 
 function cajaLimpiar(){
