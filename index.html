@@ -8440,7 +8440,19 @@ function cajaOrdenar(){
   });
 }
 
+// Fecha de hoy en hora local (YYYY-MM-DD). No usar toISOString(): devuelve UTC y de noche daría el día siguiente.
+function cajaFechaHoy(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+// Precarga la fecha de hoy en el formulario si está vacía (si la cambiaste a mano, se respeta)
+function cajaFechaAuto(){
+  const el = document.getElementById('caja-fecha');
+  if(el && !el.value) el.value = cajaFechaHoy();
+}
+
 function renderCaja(){
+  cajaFechaAuto();
   cajaOrdenar();
   const _btnCerrar = document.getElementById('caja-btn-cerrar');
   if(_btnCerrar){
@@ -8772,7 +8784,7 @@ function cajaAgregar(){
   const montoNeto = Math.round((monto - vueltoDado)*100)/100;
 
   const mov = {
-    fecha: fecha || new Date().toISOString().slice(0,10),
+    fecha: fecha || cajaFechaHoy(),
     desc, obs,
     ingreso: tipo==='ingreso'?montoNeto:0,
     egreso:  tipo==='egreso'?monto:0,
@@ -8814,6 +8826,7 @@ function cajaAgregar(){
   document.getElementById('caja-desc').value='';
   document.getElementById('caja-monto').value='';
   document.getElementById('caja-obs').value='';
+  document.getElementById('caja-fecha').value = cajaFechaHoy();
   cajaAlumnoClear();
   cajaVueltoActualizar();
   cajaSave();
