@@ -475,7 +475,7 @@ img, svg{max-width:100%}
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
   import {
-    getFirestore, doc, getDoc, setDoc, onSnapshot,
+    getFirestore, initializeFirestore, doc, getDoc, setDoc, onSnapshot,
     collection, getDocs, deleteDoc, query, orderBy, limit, startAfter, addDoc, writeBatch
   } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
   import {
@@ -503,7 +503,9 @@ img, svg{max-width:100%}
     isTokenAutoRefreshEnabled: true
   });
 
-  const db = getFirestore(app);
+  // Detecta solo si la red (proxy/firewall de oficina) bloquea el streaming y pasa a long-polling.
+  // Sin esto, en redes restrictivas las escrituras pueden quedar colgadas sin dar error.
+  const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
   const auth = getAuth(app);
   const functions = getFunctions(app);
 
@@ -870,27 +872,107 @@ img, svg{max-width:100%}
     if (!user) return; // esperar a que haya una sesión real (login o restaurada)
     if (window._fbReady) return; // evitar reconfigurar si el callback se dispara de nuevo
 
-    async function fbSet(key, value) {
-      // Leemos el valor anterior para poder auditar qué cambió. Este paso
-      // extra agrega una lectura antes de cada guardado, pero es lo que
-      // permite saber "quién borró qué" sin tener que tocar los ~560
-      // lugares del código que llaman a _fb.set.
+    // ── COLA DE ESCRITURA CONFIABLE ─────────────────────────────────────
+    // - Una escritura por clave a la vez; si se piden varias, gana la última (es el estado completo).
+    // - Cada intento tiene timeout (una escritura colgada ya no queda en el aire).
+    // - Reintenta con espera creciente; si igual falla, queda en "fallidas" y se reintenta
+    //   sola al volver la conexión, al volver a la pestaña y cada 30 s.
+    // - Mientras haya cambios sin confirmar por el servidor, el indicador lo muestra y el
+    //   navegador avisa antes de cerrar la pestaña.
+    const _fbCola = new Map();      // key -> { valor, waiters, corriendo }
+    const _fbFallidas = new Map();  // key -> valor (último valor que no se pudo subir)
+    const _FB_ESPERAS = [0, 2000, 5000, 15000];
+    const _FB_TIMEOUT = 20000;
+    const _sleep = ms => new Promise(r => setTimeout(r, ms));
+
+    function _fbPendientes() {
+      let n = _fbFallidas.size;
+      _fbCola.forEach(q => { n += 1; });
+      return n;
+    }
+    function _fbActualizarEstado() {
+      const n = _fbPendientes();
+      window._fbPendientes = n;
+      const ind = window._fbSyncIndicator;
+      if (typeof ind !== 'function') return;
+      if (_fbFallidas.size > 0) ind('err', _fbFallidas.size);
+      else if (n > 0) ind('saving', n);
+      else ind('ok');
+    }
+
+    async function _fbEscribirUnaVez(key, valor) {
       let anteriorStr = null;
       try {
         const prev = await getDoc(doc(db, "datos", key));
         if (prev.exists()) anteriorStr = prev.data().v;
       } catch (e) {
-        console.warn("fbSet: no se pudo leer el valor anterior (auditoría incompleta para esta escritura)", key, e);
+        console.warn("fbSet: no se pudo leer el valor anterior (auditoría incompleta)", key, e);
       }
-      const nuevoStr = JSON.stringify(value);
-      try {
-        await setDoc(doc(db, "datos", key), { v: nuevoStr });
-      } catch(e) {
-        console.error("fbSet error", key, e);
-        throw e; // re-lanzar: quien llama (save()) tiene que enterarse del fallo
-      }
+      const nuevoStr = JSON.stringify(valor);
+      await Promise.race([
+        setDoc(doc(db, "datos", key), { v: nuevoStr }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error("timeout de escritura")), _FB_TIMEOUT))
+      ]);
       auditRegistrar(key, anteriorStr, nuevoStr); // no bloquea el guardado si falla
     }
+
+    async function _fbEscribirConReintento(key, valor) {
+      let ultimoError;
+      for (const espera of _FB_ESPERAS) {
+        if (espera) await _sleep(espera);
+        try { await _fbEscribirUnaVez(key, valor); return; }
+        catch (e) {
+          ultimoError = e;
+          console.warn("fbSet: intento fallido", key, e && (e.code || e.message));
+          if (e && e.code === 'permission-denied') break; // reintentar no sirve
+        }
+      }
+      throw ultimoError;
+    }
+
+    async function _fbDrenar(key, q) {
+      q.corriendo = true;
+      while (q.waiters.length) {
+        const ws = q.waiters; q.waiters = [];
+        const valor = q.valor;
+        try {
+          await _fbEscribirConReintento(key, valor);
+          _fbFallidas.delete(key);
+          ws.forEach(w => w.resolve());
+        } catch (e) {
+          if (!q.waiters.length) _fbFallidas.set(key, valor); // se reintenta luego
+          console.error("fbSet error", key, e);
+          ws.forEach(w => w.reject(e));
+        }
+        _fbActualizarEstado();
+      }
+      q.corriendo = false;
+      _fbCola.delete(key);
+      _fbActualizarEstado();
+    }
+
+    function fbSet(key, value) {
+      return new Promise((resolve, reject) => {
+        let q = _fbCola.get(key);
+        if (!q) { q = { valor: null, waiters: [], corriendo: false }; _fbCola.set(key, q); }
+        q.valor = value;
+        q.waiters.push({ resolve, reject });
+        _fbFallidas.delete(key); // este valor nuevo reemplaza al fallido anterior
+        _fbActualizarEstado();
+        if (!q.corriendo) _fbDrenar(key, q);
+      });
+    }
+
+    function _fbReintentarFallidas() {
+      if (!_fbFallidas.size) return;
+      Array.from(_fbFallidas.entries()).forEach(([key, valor]) => { fbSet(key, valor).catch(() => {}); });
+    }
+    window.addEventListener('online', _fbReintentarFallidas);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') _fbReintentarFallidas(); });
+    setInterval(_fbReintentarFallidas, 30000);
+    window.addEventListener('beforeunload', e => {
+      if (_fbPendientes() > 0) { e.preventDefault(); e.returnValue = ''; return ''; }
+    });
 
     // Lee un valor JSON desde Firestore
     async function fbGet(key) {
@@ -910,7 +992,7 @@ img, svg{max-width:100%}
         if (snap.exists()) {
           try { callback(JSON.parse(snap.data().v)); } catch(e) {}
         }
-      });
+      }, err => console.error("fbListen error", key, err));
     }
 
     // Exponer al scope global para que el resto del script (no-module) lo use
@@ -3859,7 +3941,7 @@ let pagoId = null;
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 // Muestra indicador de sincronización en el topbar
-function _fbSyncIndicator(state){
+function _fbSyncIndicator(state, n){
   let el = document.getElementById('_fb-sync');
   if(!el){
     el = document.createElement('span');
@@ -3868,9 +3950,11 @@ function _fbSyncIndicator(state){
     const topbar = document.querySelector('.topbar');
     if(topbar) topbar.appendChild(el);
   }
-  if(state === 'saving'){ el.textContent='☁ Guardando…'; el.style.background='rgba(255,255,255,0.15)'; el.style.color='#fff'; }
-  else if(state === 'ok'){ el.textContent='✓ Sincronizado'; el.style.background='rgba(39,174,96,0.3)'; el.style.color='#a8f0c6'; setTimeout(()=>{ el.textContent=''; el.style.background=''; }, 2500); }
-  else if(state === 'err'){ el.textContent='⚠ Sin conexión (local)'; el.style.background='rgba(192,57,43,0.3)'; el.style.color='#f5c6c0'; }
+  clearTimeout(el._t);
+  const sufijo = n > 1 ? ' (' + n + ')' : '';
+  if(state === 'saving'){ el.textContent='☁ Guardando…' + sufijo; el.style.background='rgba(255,255,255,0.15)'; el.style.color='#fff'; }
+  else if(state === 'ok'){ el.textContent='✓ Sincronizado'; el.style.background='rgba(39,174,96,0.3)'; el.style.color='#a8f0c6'; el._t=setTimeout(()=>{ el.textContent=''; el.style.background=''; }, 2500); }
+  else if(state === 'err'){ el.textContent='⚠ Sin subir a la nube' + sufijo + ' — no cierres esta pestaña'; el.style.background='rgba(192,57,43,0.3)'; el.style.color='#f5c6c0'; }
 }
 
 function _periodoValor(str){
