@@ -2772,6 +2772,15 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
     <div style="margin-top:12px;font-size:12px;color:#666;padding:8px 10px;background:#fffbe6;border-radius:6px;border:1px solid #fde68a">
       IVA aplicado: <strong>21%</strong> · Fórmula: Tasa total = Tasa base × 1.21
     </div>
+    <details style="margin-top:14px">
+      <summary style="cursor:pointer;font-size:12px;font-weight:600;color:#444">Feriados y días no hábiles (definen la fecha de acreditación)</summary>
+      <div style="display:flex;gap:6px;align-items:center;margin-top:8px">
+        <input type="date" id="fer-nueva" style="height:30px;padding:0 6px;border-radius:5px;border:1px solid #d0d0c8;font-size:13px">
+        <button type="button" class="btn" onclick="feriadoAgregar()">Agregar</button>
+      </div>
+      <div id="fer-lista" style="margin-top:6px;max-height:220px;overflow-y:auto;font-size:12px"></div>
+      <div style="font-size:11px;color:#888;margin-top:6px">Los cambios se guardan al instante. No modifican filas ya cargadas, solo las nuevas.</div>
+    </details>
     <div class="modal-actions">
       <button class="btn" onclick="document.getElementById('modal-conc-tasas').classList.remove('open')">Cerrar</button>
       <button class="btn primary" onclick="concGuardarTasas()">Guardar tasas</button>
@@ -11679,7 +11688,9 @@ function concMigrarMetodosLegacy(data){
   return data;
 }
 
-const FERIADOS_AR = new Set([
+// Feriados y días no hábiles. FERIADOS_BASE son los de fábrica; el usuario puede agregar o quitar
+// (ajustes en feriadosCfg, guardados en FERIADOS_KEY) desde Conciliación → Tasas → Feriados.
+const FERIADOS_BASE = [
   // 2025
   '2025-01-01','2025-03-03','2025-03-04','2025-04-02','2025-04-17','2025-04-18',
   '2025-05-01','2025-05-25','2025-06-20','2025-07-09','2025-08-17','2025-10-12',
@@ -11687,8 +11698,85 @@ const FERIADOS_AR = new Set([
   // 2026
   '2026-01-01','2026-02-16','2026-02-17','2026-04-02','2026-04-03','2026-04-09',
   '2026-05-01','2026-05-25','2026-06-20','2026-07-09','2026-08-17','2026-10-12',
-  '2026-11-20','2026-12-08','2026-12-25'
-]);
+  '2026-11-20','2026-12-08','2026-12-25',
+  // 2027 (trasladables según Ley 27.399: martes/miércoles → lunes anterior, jueves/viernes → lunes siguiente)
+  '2027-01-01','2027-02-08','2027-02-09','2027-03-24','2027-03-25','2027-03-26','2027-04-02',
+  '2027-05-01','2027-05-25','2027-06-20','2027-06-21','2027-07-09','2027-08-16','2027-10-11',
+  '2027-11-20','2027-12-08','2027-12-25'
+];
+const FERIADOS_KEY = 'iscm_conc_feriados_v1';
+let feriadosCfg = { extra: [], quitados: [] };
+const FERIADOS_AR = new Set(FERIADOS_BASE);
+
+function feriadosNormalizar(cfg){
+  const lista = v => Array.isArray(v) ? v : (v && typeof v==='object' ? Object.values(v) : []);
+  return {
+    extra:   lista(cfg && cfg.extra).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x)),
+    quitados: lista(cfg && cfg.quitados).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x))
+  };
+}
+function feriadosReconstruir(){
+  FERIADOS_AR.clear();
+  FERIADOS_BASE.forEach(f=>{ if(!feriadosCfg.quitados.includes(f)) FERIADOS_AR.add(f); });
+  feriadosCfg.extra.forEach(f=>FERIADOS_AR.add(f));
+}
+function feriadosCargarLocal(){
+  try{
+    const s = localStorage.getItem(FERIADOS_KEY);
+    if(s) feriadosCfg = feriadosNormalizar(JSON.parse(s));
+  }catch(e){}
+  feriadosReconstruir();
+}
+function feriadosGuardar(){
+  feriadosReconstruir();
+  try{ localStorage.setItem(FERIADOS_KEY, JSON.stringify(feriadosCfg)); }catch(e){}
+  if(window._fb) window._fb.set(FERIADOS_KEY, feriadosCfg).catch(()=>{});
+  feriadosRender();
+}
+async function feriadosSincronizarFirebase(){
+  await new Promise(r=>{ if(window._fbReady)return r(); window.addEventListener('fbReady',r,{once:true}); setTimeout(r,3000); });
+  if(!window._fb) return;
+  const aplicar = data=>{
+    if(!data) return;
+    feriadosCfg = feriadosNormalizar(data);
+    try{ localStorage.setItem(FERIADOS_KEY, JSON.stringify(feriadosCfg)); }catch(e){}
+    feriadosReconstruir();
+    feriadosRender();
+  };
+  aplicar(await window._fb.get(FERIADOS_KEY));
+  window._fb.listen(FERIADOS_KEY, aplicar);
+}
+function feriadoAgregar(){
+  const inp = document.getElementById('fer-nueva');
+  const f = inp ? inp.value : '';
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(f)){ showToast('⚠ Elegí una fecha', 'error'); return; }
+  if(feriadosCfg.quitados.includes(f)) feriadosCfg.quitados = feriadosCfg.quitados.filter(x=>x!==f);
+  else if(!FERIADOS_AR.has(f)) feriadosCfg.extra.push(f);
+  inp.value = '';
+  feriadosGuardar();
+}
+function feriadoQuitar(f){
+  if(feriadosCfg.extra.includes(f)) feriadosCfg.extra = feriadosCfg.extra.filter(x=>x!==f);
+  if(FERIADOS_BASE.includes(f) && !feriadosCfg.quitados.includes(f)) feriadosCfg.quitados.push(f);
+  feriadosGuardar();
+}
+function feriadosRender(){
+  const cont = document.getElementById('fer-lista');
+  if(!cont) return;
+  const dias = ['dom','lun','mar','mié','jue','vie','sáb'];
+  const fechas = [...FERIADOS_AR].sort();
+  let html = '', anio = '';
+  fechas.forEach(f=>{
+    if(f.slice(0,4)!==anio){ anio = f.slice(0,4); html += `<div style="font-weight:700;color:#555;margin:8px 0 2px">${anio}</div>`; }
+    const dow = dias[new Date(f+'T12:00:00').getDay()];
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;border-bottom:1px solid #f4f4ee">
+      <span>${dow} ${fmtFecha(f)}</span>
+      <button type="button" onclick="feriadoQuitar('${f}')" title="Quitar" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:12px">Quitar</button>
+    </div>`;
+  });
+  cont.innerHTML = html || '<div style="color:#aaa">Sin feriados cargados.</div>';
+}
+feriadosCargarLocal();
 
 let concData  = {};   // { 'YYYY-MM': [ ...filas ] }
 let concMesActual = '';
@@ -11727,10 +11815,22 @@ function sumarDias(fechaStr, dias, habiles){
   return d.toISOString().slice(0,10);
 }
 
+// Pozo: un día hábil B más los días no hábiles que le siguen (sáb, dom y feriados) hasta el
+// próximo día hábil. Devuelve B, el día hábil al que pertenece la fecha (ella misma si es hábil).
+function inicioPozo(fechaStr){
+  const d = new Date(fechaStr + 'T12:00:00');
+  let guard = 0;
+  while(!esHabil(d) && guard++ < 60) d.setDate(d.getDate()-1);
+  return d.toISOString().slice(0,10);
+}
+
+// Fecha de acreditación del pozo: B + DEMORA[método] días hábiles
+// (QR = B+1, Link de Pago y Boca de Pago = B+2).
 function fechaAcreditacion(fechaStr, metodo){
   const dem = DEMORA[metodo];
   if(!dem) return fechaStr;
-  return sumarDias(fechaStr, dem.dias, dem.habiles);
+  const base = dem.habiles ? inicioPozo(fechaStr) : fechaStr;
+  return sumarDias(base, dem.dias, dem.habiles);
 }
 
 function mesDeStr(fechaStr){ return fechaStr.slice(0,7); } // 'YYYY-MM'
@@ -11767,6 +11867,7 @@ function concCargar(){
   if(!tasas['Link de Pago']) tasas['Link de Pago'] = { ...TASAS_DEFAULT['Link de Pago'] };
   if(!tasas['Pago Mis Cuentas']) tasas['Pago Mis Cuentas'] = { ...TASAS_DEFAULT['Pago Mis Cuentas'] };
   renderTasasFacturacion();
+  feriadosSincronizarFirebase();
   // Sincronizar con Firebase
   (async ()=>{
     await new Promise(r=>{ if(window._fbReady)return r(); window.addEventListener('fbReady',r,{once:true}); setTimeout(r,3000); });
@@ -12781,6 +12882,7 @@ function concAbrirTasas(){
       <td style="padding:7px 8px;border-bottom:1px solid #f0f0e8;text-align:right;font-weight:600" class="tasa-total">${total}%</td>
     </tr>`;
   });
+  feriadosRender();
   document.getElementById('modal-conc-tasas').classList.add('open');
 }
 
