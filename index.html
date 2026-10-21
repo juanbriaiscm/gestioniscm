@@ -1655,7 +1655,7 @@ img, svg{max-width:100%}
           <h3><i class="ti ti-plus"></i>Registrar movimiento</h3>
           <div style="display:grid;grid-template-columns:140px 1fr 110px 120px;gap:8px;align-items:end;margin-top:10px">
             <div class="field" style="margin:0"><label>Fecha</label><input type="date" id="caja-fecha" style="width:100%;height:36px;padding:0 8px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px"></div>
-            <div class="field" style="margin:0"><label>Descripción</label><input type="text" id="caja-desc" placeholder="Ej: Pago cuota" style="width:100%;height:36px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px"></div>
+            <div class="field" style="margin:0"><label>Descripción</label><input type="text" id="caja-desc" placeholder="Ej: Pago cuota" onkeydown="cajaEnterAgregar(event)" style="width:100%;height:36px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px"></div>
             <div class="field" style="margin:0">
               <label>Tipo</label>
               <select id="caja-tipo" onchange="cajaTipoChange()" style="width:100%;height:36px;padding:0 8px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
@@ -1663,17 +1663,18 @@ img, svg{max-width:100%}
                 <option value="egreso">Egreso ↓</option>
               </select>
             </div>
-            <div class="field" style="margin:0"><label>Monto ($)</label><input type="text" inputmode="decimal" autocomplete="off" id="caja-monto" placeholder="0" oninput="cajaVueltoActualizar()" style="width:100%;height:36px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px"></div>
+            <div class="field" style="margin:0"><label>Monto ($)</label><input type="text" inputmode="decimal" autocomplete="off" id="caja-monto" placeholder="0" oninput="cajaVueltoActualizar()" onkeydown="cajaEnterAgregar(event)" style="width:100%;height:36px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px"></div>
           </div>
           <div style="display:flex;gap:8px;margin-top:8px;align-items:flex-end;flex-wrap:wrap">
-            <input type="text" id="caja-obs" placeholder="Observaciones (opcional)" style="flex:1;min-width:160px;height:34px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
+            <input type="text" id="caja-obs" placeholder="Observaciones (opcional)" onkeydown="cajaEnterAgregar(event)" style="flex:1;min-width:160px;height:34px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
             <!-- Alumno vinculado -->
             <div class="caja-alumno-wrap" id="caja-alumno-wrap" title="Vincular alumno (opcional)">
               <div id="caja-alumno-badge" style="display:none"></div>
               <input type="text" id="caja-alumno-input" placeholder="Vincular alumno (opcional)" autocomplete="off"
                 oninput="cajaAlumnoSearch(this.value)"
                 onfocus="cajaAlumnoSearch(this.value)"
-                onblur="setTimeout(()=>cajaAlumnoDropdownClose(),200)">
+                onblur="setTimeout(()=>cajaAlumnoDropdownClose(),200)"
+                onkeydown="cajaAlumnoInputKeydown(event)">
               <div class="caja-alumno-dropdown" id="caja-alumno-dropdown"></div>
             </div>
             <button class="btn primary" onclick="cajaAgregar()">Agregar</button>
@@ -8610,6 +8611,7 @@ function cajaVueltoLeer(monto){
 
 // ── ALUMNO VINCULADO EN CAJA ─────────────────────────────────────────────────
 let _cajaAlumnoId = null; // id del alumno actualmente vinculado
+let _cajaAlumnoLista = []; // candidatos actualmente listados en el dropdown (para Enter)
 
 function cajaAlumnoSearch(q){
   const dd = document.getElementById('caja-alumno-dropdown');
@@ -8618,6 +8620,7 @@ function cajaAlumnoSearch(q){
   const lista = q.length<1
     ? alumnos.filter(a=>a.estado!=='Baja').slice(0,8)
     : alumnos.filter(a=>a.estado!=='Baja'&&normalizar(a.nombre).includes(q)).slice(0,10);
+  _cajaAlumnoLista = lista;
   if(!lista.length){ dd.innerHTML='<div class="caja-alumno-option" style="color:#aaa">Sin resultados</div>'; dd.classList.add('open'); return; }
   dd.innerHTML = lista.map(a=>`
     <div class="caja-alumno-option" onmousedown="cajaAlumnoSelect(${a.id})">
@@ -8625,6 +8628,17 @@ function cajaAlumnoSearch(q){
       <div class="caa-sub">${a.carrera} · ${a.anio} · <span style="color:${a.estado==='Debe'?'#c0392b':'#27ae60'}">${a.estado==='Debe'?'Debe '+a.conceptos.filter(c=>!c.pagado).length+' concepto(s)':'Al día'}</span></div>
     </div>`).join('');
   dd.classList.add('open');
+}
+
+// Enter en el buscador de alumno: selecciona el primer resultado listado
+function cajaAlumnoInputKeydown(e){
+  if(e.key!=='Enter') return;
+  e.preventDefault();
+  if(_cajaAlumnoLista.length){
+    cajaAlumnoSelect(_cajaAlumnoLista[0].id);
+  }else{
+    document.getElementById('caja-monto').focus();
+  }
 }
 
 function cajaAlumnoSelect(id){
@@ -8637,8 +8651,15 @@ function cajaAlumnoSelect(id){
   const badge = document.getElementById('caja-alumno-badge');
   badge.style.display='flex';
   badge.innerHTML=`<span class="caja-alumno-badge" style="max-width:none"><i class="ti ti-user-circle" style="margin-right:5px"></i>${al.nombre} <button onclick="cajaAlumnoClear()" title="Quitar alumno"><i class="ti ti-x" style="margin-right:0"></i></button></span>`;
+  // Autocompletar descripción (solo si está vacía, para no pisar lo que haya escrito el usuario)
+  const descInput = document.getElementById('caja-desc');
+  if(!descInput.value.trim()) descInput.value = 'Pago cuota';
   // Mostrar conceptos pendientes si los hay
   cajaConceptosRender(al);
+  // Pasar el foco a Monto para continuar cargando el pago
+  const montoInput = document.getElementById('caja-monto');
+  montoInput.focus();
+  montoInput.select();
 }
 
 function cajaAlumnoClear(){
@@ -8654,6 +8675,13 @@ function cajaAlumnoClear(){
 
 function cajaAlumnoDropdownClose(){
   document.getElementById('caja-alumno-dropdown').classList.remove('open');
+}
+
+// Enter en Descripción / Monto / Observaciones: registra el movimiento
+function cajaEnterAgregar(e){
+  if(e.key!=='Enter') return;
+  e.preventDefault();
+  cajaAgregar();
 }
 
 function cajaConceptosRender(al){
@@ -8693,6 +8721,7 @@ function cajaAgregar(){
 
   // Vincular alumno si se seleccionó
   let conceptosSaldados = [];
+  let conceptosSaldadosRef = [];
   if(_cajaAlumnoId !== null && tipo==='ingreso'){
     mov.alumnoId = _cajaAlumnoId;
     const al = alumnos.find(a=>a.id===_cajaAlumnoId);
@@ -8706,13 +8735,17 @@ function cajaAgregar(){
           const concepto = pendientes[idx];
           if(concepto){
             concepto.pagado = true;
-            conceptosSaldados.push(conceptoLabel(concepto));
+            const label = conceptoLabel(concepto);
+            conceptosSaldados.push(label);
+            // Guardamos una referencia identificable (no solo el texto) para poder reabrir el concepto si se borra el movimiento
+            conceptosSaldadosRef.push({tipo:concepto.tipo, mes:concepto.mes, descripcion:concepto.descripcion, label});
           }
         });
         recalcDeuda(al);
         save(); // guardar cambios en alumno
       }
       mov.conceptosSaldados = conceptosSaldados;
+      if(conceptosSaldadosRef.length) mov.conceptosSaldadosRef = conceptosSaldadosRef;
     }
   }
 
@@ -8736,8 +8769,45 @@ function cajaAgregar(){
   showToast(msg, 'success');
 }
 
+// Determina si un concepto del alumno es el mismo que se referenció al registrar el pago
+function cajaRefMatch(concepto, ref){
+  if(ref.tipo!=null){
+    if(concepto.tipo!==ref.tipo) return false;
+    if(ref.tipo==='Cuota') return concepto.mes===ref.mes;
+    return (concepto.descripcion||'')===(ref.descripcion||'');
+  }
+  // Movimientos viejos: solo tenemos el texto, comparamos por label
+  return conceptoLabel(concepto)===ref.label;
+}
+
 function cajaEliminar(idx){
+  const mov = cajaMovimientos[idx];
+  if(!mov) return;
   if(!confirm('¿Eliminar este movimiento?')) return;
+
+  // Si el movimiento había saldado conceptos de un alumno, el pago queda registrado
+  // en el alumno aunque se borre el movimiento de caja. Ofrecemos reabrirlos.
+  if(mov.alumnoId!=null){
+    const al = alumnos.find(a=>a.id===mov.alumnoId);
+    const refs = mov.conceptosSaldadosRef || (mov.conceptosSaldados||[]).map(label=>({label}));
+    if(al && refs.length){
+      const labels = refs.map(r=>r.label).join(', ');
+      if(confirm(`Este movimiento había saldado: ${labels}.\n\n¿Querés reabrir esos conceptos (marcarlos como pendientes de pago nuevamente)?`)){
+        let reabiertos = 0;
+        refs.forEach(ref=>{
+          const c = (al.conceptos||[]).find(c=>c.pagado && cajaRefMatch(c,ref));
+          if(c){ c.pagado=false; reabiertos++; }
+        });
+        if(reabiertos>0){
+          recalcDeuda(al);
+          save();
+          renderTable();
+          renderStats();
+        }
+      }
+    }
+  }
+
   cajaMovimientos.splice(idx,1);
   cajaSave();
   renderCaja();
