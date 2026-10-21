@@ -4425,6 +4425,19 @@ function _normalizarTelArg(raw){
   return '+549' + s;
 }
 
+// Normaliza un teléfono para GUARDARLO. Solo reescribe si el resultado es un celular
+// argentino completo (+549 + 10 dígitos). Si no (vacío, extranjero, local sin código
+// de área, varios números en el campo, etc.) conserva lo que escribió el usuario.
+function normalizarTelParaGuardar(raw){
+  const orig = String(raw==null ? '' : raw).trim();
+  if(!orig) return '';
+  const digitos = orig.replace(/\D/g,'');
+  // Número internacional que no es de Argentina: no tocar
+  if(/^(\+|00)/.test(orig) && !/^(\+|00)\s*54/.test(orig)) return orig;
+  const n = _normalizarTelArg(orig);
+  return (n && /^\+549\d{10}$/.test(n)) ? n : orig;
+}
+
 function _doExportWpp(filtro){
   const filas = [];
   const sinTel = [];
@@ -4735,7 +4748,7 @@ function restaurarDeudaFile(file){
         const anio    = r[1] ? String(r[1]).trim() : '';
         const carrera = r[2] ? String(r[2]).trim() : '';
         const cuotas  = parseFloat(r[3])||0;
-        const tel     = r[4]!=null ? String(r[4]).trim() : '';
+        const tel     = r[4]!=null ? normalizarTelParaGuardar(r[4]) : '';
         const obs     = r[5]!=null ? String(r[5]).trim() : '';
         const monto   = parseFloat(r[7])||0;
         const correo  = r[8]!=null ? String(r[8]).trim() : '';
@@ -6069,7 +6082,7 @@ function openEdit(id){
       linksDiv.style.display='flex';
       const wa = document.getElementById('ed-link-wa');
       const mail = document.getElementById('ed-link-mail');
-      if(wa){ wa.href=tel?`https://wa.me/54${tel.replace(/\D/g,'')}`:'#'; wa.style.display=tel?'':'none'; }
+      if(wa){ wa.href=tel?`https://wa.me/${(()=>{ const n=_normalizarTelArg(tel); return n ? n.replace(/\D/g,'') : '54'+tel.replace(/\D/g,''); })()}`:'#'; wa.style.display=tel?'':'none'; }
       if(mail){ mail.href=email?`mailto:${email}`:'#'; mail.style.display=email?'':'none'; mail.textContent=`✉️ ${email}`; }
     } else {
       linksDiv.style.display='none';
@@ -6125,7 +6138,7 @@ function saveAlumno(){
   const nuevoEstado = document.getElementById('ed-estado').value;
   const data = {
     nombre, cbu:(document.getElementById('ed-cbu').value||'').trim(),
-    tel:(document.getElementById('ed-tel').value||'').trim(),
+    tel:normalizarTelParaGuardar(document.getElementById('ed-tel').value),
     email:(document.getElementById('ed-email').value||'').trim(),
     carrera:document.getElementById('ed-carrera').value,
     anio:document.getElementById('ed-anio').value,
