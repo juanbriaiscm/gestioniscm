@@ -3052,7 +3052,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
       <div class="field" style="grid-column:1/-1"><label><i class="ti ti-link"></i>Link Google Drive de la factura</label><input id="prov-link" placeholder="https://drive.google.com/file/d/..." style="font-size:12px"></div>
       <div class="field"><label>Fecha vencimiento factura</label><input type="date" id="prov-fec-venc"></div>
       <div class="field"><label>¿Le pagamos?</label>
-        <select id="prov-pagado">
+        <select id="prov-pagado" onchange="provPagadoChange()">
           <option value="NO">NO</option>
           <option value="SI">SI</option>
         </select>
@@ -10567,7 +10567,28 @@ function openNuevoProveedor(){
   document.getElementById('prov-fec-pago').value = '';
   document.getElementById('prov-obs').value = '';
   document.getElementById('prov-suggest-list').style.display = 'none';
+  provPagadoChange();
   document.getElementById('modal-prov').classList.add('open');
+}
+
+function provHoyLocalISO(){
+  const d = new Date();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return d.getFullYear()+'-'+m+'-'+day;
+}
+
+function provPagadoChange(){
+  const sel = document.getElementById('prov-pagado');
+  const fec = document.getElementById('prov-fec-pago');
+  if(!sel || !fec) return;
+  if(sel.value === 'SI'){
+    fec.disabled = false;
+    if(!fec.value) fec.value = provHoyLocalISO();
+  } else {
+    fec.value = '';
+    fec.disabled = true;
+  }
 }
 
 function openEditProv(id){
@@ -10584,6 +10605,7 @@ function openEditProv(id){
   document.getElementById('prov-pagado').value = p.pagado;
   document.getElementById('prov-fec-pago').value = p.fechaPago||'';
   document.getElementById('prov-obs').value = p.observaciones||'';
+  provPagadoChange();
   document.getElementById('modal-prov').classList.add('open');
 }
 
@@ -10601,7 +10623,7 @@ function guardarProveedor(){
     linkFactura: document.getElementById('prov-link').value.trim(),
     fechaVencimiento: document.getElementById('prov-fec-venc').value,
     pagado: document.getElementById('prov-pagado').value,
-    fechaPago: document.getElementById('prov-fec-pago').value,
+    fechaPago: document.getElementById('prov-pagado').value === 'SI' ? document.getElementById('prov-fec-pago').value : '',
     observaciones: document.getElementById('prov-obs').value.trim(),
     origen: original ? (original.origen||'') : '',
   };
