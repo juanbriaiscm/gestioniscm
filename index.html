@@ -13862,6 +13862,35 @@ function ppParsearTXT(texto, nombre){
   throw new Error(`Formato no reconocido para "${nombre}". Soporta DetalleRecaudacion y los archivos PP / PPLDP / PPQR (.txt o .IPM).`);
 }
 
+// Mezcla de archivos: empareja por fecha de cobro y método. Si hay DetalleRecaudacion y posicional
+// (PP / PPLDP / PPQR) del mismo día y método, manda el Detalle (comisión real) y el posicional
+// no genera fila; si los brutos no coinciden, la fila del Detalle lleva un aviso para la vista previa.
+// Si solo hay posicional, queda como antes (tasa configurada).
+function ppFusionarLiquidaciones(liquidaciones){
+  const grupos = {}, orden = [];
+  liquidaciones.forEach(l=>{
+    const k = l.fecha_rendicion + '|' + l.medio;
+    if(!grupos[k]){ grupos[k] = { det: [], pos: [] }; orden.push(k); }
+    grupos[k][l._soloDetalle ? 'pos' : 'det'].push(l);
+  });
+  const resultado = [];
+  orden.forEach(k=>{
+    const g = grupos[k];
+    if(!g.det.length){ resultado.push(...g.pos); return; }
+    if(g.pos.length){
+      const sumDet = g.det.reduce((a,l)=>a+(l.bruto||0), 0);
+      const sumPos = g.pos.reduce((a,l)=>a+(l.bruto||0), 0);
+      if(Math.round((sumDet - sumPos)*100) !== 0){
+        g.det.forEach(l=>{
+          l._avisoBruto = `El archivo posicional de este día suma ${fmtN(sumPos)} y el Detalle ${fmtN(sumDet)} (diferencia ${fmtN(sumDet - sumPos)}). Se usa el Detalle.`;
+        });
+      }
+    }
+    resultado.push(...g.det);
+  });
+  return resultado;
+}
+
 function ppProcesarTXTs(){
   if(!ppTXTsTexto.length){ mostrarPPError('No hay archivos TXT cargados.'); return; }
 
@@ -13904,7 +13933,7 @@ function ppProcesarTXTs(){
     return;
   }
 
-  ppMostrarPreview(liquidaciones);
+  ppMostrarPreview(ppFusionarLiquidaciones(liquidaciones));
   if(sinMovimientos.length){
     showToast(`ℹ️ Sin operaciones (se omiten): ${sinMovimientos.join(' · ')}`, 'success');
   }
@@ -14025,6 +14054,7 @@ function ppMostrarPreview(liquidaciones){
           <div style="font-weight:700;color:#27ae60">${fmtN(netoCalc)}</div>
         </div>
       </div>
+      ${liq._avisoBruto ? '<div style="color:#c0392b;font-size:11px;margin-bottom:8px">⚠️ ' + liq._avisoBruto + '</div>' : ''}
       ${liq._soloDetalle ? '<div style="color:#e67e22;font-size:11px;margin-bottom:8px">ℹ️ Este archivo no informa la comisión: se calcula con la tasa configurada. Para usar la comisión real, cargá el DetalleRecaudacion.</div>' : ''}
       <div style="display:flex;align-items:center;gap:8px;font-size:12px">
         <label style="color:#666;white-space:nowrap">Método en conciliación:</label>
@@ -14041,17 +14071,48 @@ function ppMostrarPreview(liquidaciones){
 }
 
 function ppImportar(){
-  let importadas=0, omitidas=0;
+  let importadas=0, omitidas=0, actualizadas=0;
+  const avisos = [];
+
+  // Filas ya cargadas del mismo día de cobro y método (en cualquier mes)
+  const delDiaYMetodo = f => {
+    const r = [];
+    Object.values(concData).forEach(filas=>(filas||[]).forEach(x=>{
+      if(x.fecha === f.fecha && x.metodo === f.metodo) r.push(x);
+    }));
+    return r;
+  };
 
   ppFilasParsed.forEach(f => {
     const mes = f.mesAcred;   // siempre el mes de acreditación
     if(!concData[mes]) concData[mes] = [];
 
-    // Deduplicar: misma fecha rendición + mismo bruto
-    const existe = concData[mes].some(x =>
-      x.fecha === f.fecha && Math.abs((x.bruto||0) - f.bruto) < 1
-    );
-    if(existe){ omitidas++; return; }
+    const tieneComisionReal = f.comisionManual !== null && f.comisionManual !== undefined;  // viene del Detalle
+    const delDia = delDiaYMetodo(f);
+    const igual  = delDia.find(x => Math.abs((x.bruto||0) - f.bruto) < 1);
+
+    if(igual){
+      // Misma fila: si estaba con comisión estimada y ahora llega el Detalle, se completa con la comisión real
+      if(tieneComisionReal && (igual.comisionManual === null || igual.comisionManual === undefined)){
+        igual.comisionManual = f.comisionManual;
+        igual.bruto = f.bruto;
+        actualizadas++;
+      } else {
+        omitidas++;
+      }
+      return;
+    }
+
+    // Posicional (sin comisión real) cuando ya hay una fila de ese día/método con comisión real: manda la existente
+    const conReal = delDia.find(x => x.comisionManual !== null && x.comisionManual !== undefined);
+    if(!tieneComisionReal && conReal){
+      omitidas++;
+      avisos.push(`${fmtFecha(f.fecha)} ${f.metodo}: el posicional (${fmtN(f.bruto)}) no coincide con la fila ya cargada con comisión real (${fmtN(conReal.bruto)}). No se agregó.`);
+      return;
+    }
+    if(delDia.length){
+      avisos.push(`${fmtFecha(f.fecha)} ${f.metodo}: ya había una fila de ese día con otro bruto (${fmtN(delDia[0].bruto)}). Se agregó igual (${fmtN(f.bruto)}); revisá si es un duplicado.`);
+    }
 
     concData[mes].push({
       id:            Date.now() + Math.random(),
@@ -14078,9 +14139,11 @@ function ppImportar(){
   concRender();
 
   let msg = `✅ ${importadas} fila/s cargadas desde los mails de Pronto Pago.`;
+  if(actualizadas) msg += `\n• ${actualizadas} fila/s existentes actualizadas con la comisión real del Detalle`;
   if(omitidas) msg += `\n• ${omitidas} omitidas (ya existían)`;
   const pasanMes = ppFilasParsed.filter(f=>f.pasaMes);
   if(pasanMes.length) msg += `\n\n⚠️ ${pasanMes.length} liquidación/es caen en el mes siguiente → se crearon en ${[...new Set(pasanMes.map(f=>nombreMes(f.mesAcred)))].join(', ')}.`;
+  if(avisos.length) msg += `\n\n⚠️ Para revisar:\n• ` + avisos.join('\n• ');
   alert(msg);
 }
 
