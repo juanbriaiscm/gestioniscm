@@ -1663,7 +1663,7 @@ img, svg{max-width:100%}
                 <option value="egreso">Egreso ↓</option>
               </select>
             </div>
-            <div class="field" style="margin:0"><label>Monto ($)</label><input type="number" id="caja-monto" placeholder="0" oninput="cajaVueltoActualizar()" style="width:100%;height:36px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px"></div>
+            <div class="field" style="margin:0"><label>Monto ($)</label><input type="text" inputmode="decimal" autocomplete="off" id="caja-monto" placeholder="0" oninput="cajaVueltoActualizar()" style="width:100%;height:36px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px"></div>
           </div>
           <div style="display:flex;gap:8px;margin-top:8px;align-items:flex-end;flex-wrap:wrap">
             <input type="text" id="caja-obs" placeholder="Observaciones (opcional)" style="flex:1;min-width:160px;height:34px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
@@ -1688,7 +1688,7 @@ img, svg{max-width:100%}
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end">
               <div>
                 <label style="font-size:11px;color:#666">Cuota real ($)</label>
-                <input type="number" id="caja-cuota-real" step="0.01" placeholder="0" oninput="cajaVueltoActualizar()" style="width:100%;height:34px;padding:0 8px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
+                <input type="text" inputmode="decimal" autocomplete="off" id="caja-cuota-real" placeholder="0" oninput="cajaVueltoActualizar()" style="width:100%;height:34px;padding:0 8px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
               </div>
               <div>
                 <label style="font-size:11px;color:#666">Vuelto exacto</label>
@@ -8352,6 +8352,19 @@ let cajaHist = (_cajaHistLocal && Array.isArray(_cajaHistLocal.meses)) ? _cajaHi
   window._fb.listen('iscm_caja_hist_v1', data=>{ if(data && Array.isArray(data.meses)){ cajaHist=data; try{ localStorage.setItem('iscm_caja_hist_v1', JSON.stringify(cajaHist)); }catch(e){} cajaHistRefrescarSiAbierto(); } });
 })();
 
+// Parsea números escritos en formato argentino o con punto decimal:
+// "100.000,5" · "100000,5" · "100000.5" · "100.000" (miles) · "84196.66"
+function cajaNum(v){
+  let t = String(v==null?'':v).trim().replace(/[\s$]/g,'');
+  if(!t) return 0;
+  if(t.indexOf(',')>=0){
+    t = t.replace(/\./g,'').replace(',','.');          // coma = decimal, puntos = miles
+  } else if(/^\d{1,3}(\.\d{3})+$/.test(t)){
+    t = t.replace(/\./g,'');                           // solo puntos de miles
+  }                                                    // si no, el punto es decimal
+  const n = parseFloat(t);
+  return isFinite(n) ? n : 0;
+}
 function cajaFmt(n){ const p=(parseFloat(n)||0).toFixed(2).split('.'); p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.'); return '$'+p[0]+','+p[1]; }
 
 function cajaSaldoActual(){
@@ -8538,10 +8551,10 @@ function cajaVueltoActualizar(){
   const panel = document.getElementById('caja-vuelto-panel');
   if(!panel) return;
   const tipo = document.getElementById('caja-tipo').value;
-  const monto = parseFloat(document.getElementById('caja-monto').value)||0;
+  const monto = cajaNum(document.getElementById('caja-monto').value);
   if(tipo!=='ingreso' || monto<=0){ panel.style.display='none'; return; }
   panel.style.display='block';
-  const cuota = parseFloat(document.getElementById('caja-cuota-real').value)||0;
+  const cuota = cajaNum(document.getElementById('caja-cuota-real').value);
   const inp = document.getElementById('caja-vuelto-sug');
   const exEl = document.getElementById('caja-vuelto-exacto');
   const det = document.getElementById('caja-vuelto-detalle');
@@ -8576,7 +8589,7 @@ function cajaVueltoActualizar(){
 function cajaVueltoNetoRender(){
   const el = document.getElementById('caja-vuelto-neto');
   if(!el) return;
-  const monto = parseFloat(document.getElementById('caja-monto').value)||0;
+  const monto = cajaNum(document.getElementById('caja-monto').value);
   const v = cajaVueltoLeer(monto);
   if(v>0){
     el.innerHTML = 'Se registra: <strong style="color:#155724">'+cajaFmt(Math.round((monto-v)*100)/100)+'</strong> <span style="color:#888">(recibido '+cajaFmt(monto)+' − vuelto '+cajaFmt(v)+')</span>';
@@ -8662,7 +8675,7 @@ function cajaAgregar(){
   const fecha = document.getElementById('caja-fecha').value;
   const desc  = document.getElementById('caja-desc').value.trim();
   const tipo  = document.getElementById('caja-tipo').value;
-  const monto = parseFloat(document.getElementById('caja-monto').value)||0;
+  const monto = cajaNum(document.getElementById('caja-monto').value);
   const obs   = document.getElementById('caja-obs').value.trim();
   if(!desc){ alert('Ingresá una descripción'); return; }
   if(monto<=0){ alert('El monto debe ser mayor a cero'); return; }
