@@ -901,6 +901,7 @@ img, svg{max-width:100%}
     }
 
     async function _fbEscribirUnaVez(key, valor) {
+      if (key === _SH_KEY) return _shEscribirUnaVez(valor); // débitos: se guarda partido en varios documentos
       let anteriorStr = null;
       try {
         const prev = await getDoc(doc(db, "datos", key));
@@ -975,7 +976,160 @@ img, svg{max-width:100%}
     });
 
     // Lee un valor JSON desde Firestore
+    // ── DÉBITOS PARTIDOS EN VARIOS DOCUMENTOS ───────────────────────────
+    // "iscm_debitos_v1" crece con cada importación del banco y un documento de Firestore
+    // no puede pasar de 1 MiB. Para el resto de la app nada cambia: sigue usando
+    // _fb.get/_fb.set/_fb.listen con la misma clave y recibe/entrega la lista completa.
+    // Por dentro se guarda así:
+    //   iscm_debitos_v2_idx            → índice { shards:[{id,n}], total }
+    //   iscm_debitos_v2_<mes>_<día>_pN → bloques con las filas (máx. ~300 KB cada uno)
+    // El documento viejo iscm_debitos_v1 NO se borra: queda como respaldo.
+    const _SH_KEY = 'iscm_debitos_v1';
+    const _SH_IDX = 'iscm_debitos_v2_idx';
+    const _SH_PFX = 'iscm_debitos_v2_';
+    const _SH_MAX = 300000;      // tamaño máximo (en caracteres de JSON) de cada bloque
+    const _SH_TIMEOUT = 45000;
+    const _shCache = new Map();  // id de bloque -> JSON que sabemos que está en la nube
+    let _shUltimoStr = null;     // última lista completa conocida (para el diff de auditoría)
+    let _shMigrando = false;
+
+    function _shPartir(rows) {
+      const limpio = v => String(v).replace(/[^A-Za-z0-9-]/g, '_');
+      const grupos = new Map();
+      rows.forEach(r => {
+        const mes = limpio((r && r.periodoMes) || 'sinperiodo');
+        const dia = (r && r.periodoDia != null) ? limpio(r.periodoDia) : 'sd';
+        const gid = _SH_PFX + mes + '_' + dia;
+        if (!grupos.has(gid)) grupos.set(gid, []);
+        grupos.get(gid).push(r);
+      });
+      const shards = [];
+      grupos.forEach((arr, gid) => {
+        let parte = [], largo = 0, n = 0;
+        const cerrar = () => { shards.push({ id: gid + '_p' + n, rows: parte }); n++; parte = []; largo = 0; };
+        arr.forEach(r => {
+          const l = JSON.stringify(r).length + 1;
+          if (parte.length && largo + l > _SH_MAX) cerrar();
+          parte.push(r); largo += l;
+        });
+        if (parte.length) cerrar();
+      });
+      return shards;
+    }
+
+    async function _shEscribirUnaVez(rows) {
+      if (!Array.isArray(rows)) throw new Error('débitos: se esperaba una lista');
+      const shards = _shPartir(rows);
+      const meta = { shards: shards.map(s => ({ id: s.id, n: s.rows.length })), total: rows.length };
+      let idsPrevios = [];
+      try {
+        const p = await getDoc(doc(db, "datos", _SH_IDX));
+        if (p.exists()) idsPrevios = (JSON.parse(p.data().v).shards || []).map(s => s.id);
+      } catch (e) { console.warn("débitos: no se pudo leer el índice anterior", e); }
+
+      // 1º los bloques (solo los que cambiaron), 2º el índice. Así nadie ve un índice que
+      // apunta a bloques que todavía no llegaron.
+      const trabajo = (async () => {
+        await Promise.all(shards.map(async s => {
+          const str = JSON.stringify(s.rows);
+          if (_shCache.get(s.id) === str) return;
+          await setDoc(doc(db, "datos", s.id), { v: str });
+          _shCache.set(s.id, str);
+        }));
+        await setDoc(doc(db, "datos", _SH_IDX), { v: JSON.stringify(meta) });
+      })();
+      trabajo.catch(() => {}); // si pierde la carrera con el timeout, no dejar un rechazo sin atender
+      await Promise.race([
+        trabajo,
+        new Promise((_, rej) => setTimeout(() => rej(new Error("timeout de escritura")), _SH_TIMEOUT))
+      ]);
+
+      // Bloques que ya no existen (por ejemplo, un mes borrado): limpieza sin bloquear.
+      const vigentes = new Set(meta.shards.map(s => s.id));
+      idsPrevios.filter(id => !vigentes.has(id)).forEach(id => {
+        _shCache.delete(id);
+        deleteDoc(doc(db, "datos", id)).catch(() => {});
+      });
+      const nuevoStr = JSON.stringify(rows);
+      auditRegistrar(_SH_KEY, _shUltimoStr, nuevoStr); // una sola entrada de auditoría por guardado
+      _shUltimoStr = nuevoStr;
+    }
+
+    async function _shGet() {
+      const idxSnap = await getDoc(doc(db, "datos", _SH_IDX));
+      if (!idxSnap.exists()) {
+        // Todavía no migrado: leer el documento viejo y, si el usuario puede escribir, migrarlo.
+        const snap = await getDoc(doc(db, "datos", _SH_KEY));
+        if (!snap.exists()) return null;
+        const legacy = JSON.parse(snap.data().v);
+        const rol = window.sesionActual && window.sesionActual.rol;
+        if (Array.isArray(legacy) && legacy.length && !_shMigrando && (rol === 'admin' || rol === 'superadmin')) {
+          _shMigrando = true;
+          console.info("débitos: migrando a documentos partidos…");
+          fbSet(_SH_KEY, legacy).then(() => console.info("débitos: migración lista"), e => { _shMigrando = false; console.error("débitos: migración falló", e); });
+        }
+        return legacy;
+      }
+      const meta = JSON.parse(idxSnap.data().v);
+      const snaps = await Promise.all(meta.shards.map(sh => getDoc(doc(db, "datos", sh.id))));
+      const rows = [];
+      snaps.forEach((sn, i) => {
+        const sh = meta.shards[i];
+        if (!sn.exists()) throw new Error('débitos: falta el bloque ' + sh.id);
+        const part = JSON.parse(sn.data().v);
+        if (part.length !== sh.n) throw new Error('débitos: bloque incompleto ' + sh.id);
+        _shCache.set(sh.id, sn.data().v);
+        for (const r of part) rows.push(r);
+      });
+      if (rows.length !== meta.total) throw new Error('débitos: total no coincide');
+      _shUltimoStr = JSON.stringify(rows);
+      return rows;
+    }
+
+    function _shListen(callback) {
+      let meta = null, unLegacy = null;
+      const unShards = new Map(), datos = new Map();
+      function recomputar() {
+        if (!meta) return;
+        const rows = [];
+        for (const sh of meta.shards) {
+          const part = datos.get(sh.id);
+          if (!part || part.length !== sh.n) return; // todavía falta algún bloque: se espera al resto
+          for (const r of part) rows.push(r);
+        }
+        if (rows.length !== meta.total) return;
+        _shUltimoStr = JSON.stringify(rows);
+        try { callback(rows); } catch (e) {}
+      }
+      const unIdx = onSnapshot(doc(db, "datos", _SH_IDX), snap => {
+        if (!snap.exists()) {
+          if (snap.metadata.fromCache) return; // esperar la respuesta real del servidor
+          if (!unLegacy) {
+            unLegacy = onSnapshot(doc(db, "datos", _SH_KEY), s => {
+              if (s.exists()) { try { callback(JSON.parse(s.data().v)); } catch (e) {} }
+            }, err => console.error("fbListen error", _SH_KEY, err));
+          }
+          return;
+        }
+        if (unLegacy) { unLegacy(); unLegacy = null; }
+        try { meta = JSON.parse(snap.data().v); } catch (e) { return; }
+        const ids = new Set(meta.shards.map(sh => sh.id));
+        unShards.forEach((un, id) => { if (!ids.has(id)) { un(); unShards.delete(id); datos.delete(id); } });
+        ids.forEach(id => {
+          if (unShards.has(id)) return;
+          unShards.set(id, onSnapshot(doc(db, "datos", id), s => {
+            if (!s.exists()) { datos.delete(id); return; }
+            try { datos.set(id, JSON.parse(s.data().v)); _shCache.set(id, s.data().v); } catch (e) { return; }
+            recomputar();
+          }, err => console.error("fbListen error", id, err)));
+        });
+        recomputar();
+      }, err => console.error("fbListen error", _SH_IDX, err));
+      return () => { unIdx(); if (unLegacy) unLegacy(); unShards.forEach(un => un()); };
+    }
+
     async function fbGet(key) {
+      if (key === _SH_KEY) return _shGet();
       try {
         const snap = await getDoc(doc(db, "datos", key));
         if (snap.exists()) return JSON.parse(snap.data().v);
@@ -988,6 +1142,7 @@ img, svg{max-width:100%}
 
     // Escucha cambios en tiempo real de un documento
     function fbListen(key, callback) {
+      if (key === _SH_KEY) return _shListen(callback);
       return onSnapshot(doc(db, "datos", key), snap => {
         if (snap.exists()) {
           try { callback(JSON.parse(snap.data().v)); } catch(e) {}
