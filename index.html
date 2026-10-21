@@ -13429,9 +13429,10 @@ function extractoCargarColumnas(rows){
 }
 
 // ── CRUCE POR POZOS ──────────────────────────────────────────
-const CRUCE_TOL_MONTO     = 100;     // diferencia máxima ($) para dar por cerrado un cruce
+const CRUCE_TOL_MONTO     = 100;     // diferencia máxima ($) para dar por cerrado un cruce (pasada 1)
 const CRUCE_LOOKBACK_DIAS = 10;      // cobros pendientes de hasta N días antes de la fecha del crédito
 const CRUCE_MAX_NODOS     = 200000;  // tope de combinaciones exploradas por crédito
+const CRUCE_COMISION_MAX_PCT = 0.10; // comisión implícita máxima (% del bruto) aceptada en la pasada 2 (diferencias grandes)
 
 function cruceDias(a, b){
   return Math.round((new Date(a+'T12:00:00') - new Date(b+'T12:00:00')) / 86400000);
@@ -13482,6 +13483,53 @@ function cruceBuscar(grupos, objetivo){
   return mejor;
 }
 
+// Calcula el ajuste de comisión necesario para que el neto de las filas cruzadas quede
+// exactamente igual al monto acreditado por el banco. No toca "acreditado" (queda en null).
+//   - 1 fila:  comisión = bruto − monto banco
+//   - N filas: la diferencia (banco − suma de netos) se aplica a la fila de mayor bruto del grupo
+// Devuelve { ok, cambios:[{mes, filaId, comisionAnterior, comisionNueva}] }. ok=false si la fila
+// afectada quedaría con comisión negativa (en ese caso el crédito se trata como sin match).
+function cruceCalcularAjuste(filas, montoBanco){
+  if(filas.length === 1){
+    const x = filas[0];
+    const bruto = x.fila.bruto||0;
+    const comisionAnterior = x.fila.comisionManual!=null ? x.fila.comisionManual : calcComision(bruto, x.fila.metodo);
+    const comisionNueva = +(bruto - montoBanco).toFixed(2);
+    return { ok: comisionNueva >= 0, cambios: [{ mes: x.mes, filaId: x.fila.id, comisionAnterior, comisionNueva }] };
+  }
+  const sumaNetos = filas.reduce((a,x)=>a+x.neto,0);
+  const diff = +(montoBanco - sumaNetos).toFixed(2);
+  let mayor = filas[0];
+  filas.forEach(x=>{ if((x.fila.bruto||0) > (mayor.fila.bruto||0)) mayor = x; });
+  const comisionAnterior = mayor.fila.comisionManual!=null ? mayor.fila.comisionManual : calcComision(mayor.fila.bruto||0, mayor.fila.metodo);
+  const comisionNueva = +(comisionAnterior - diff).toFixed(2);
+  return { ok: comisionNueva >= 0, cambios: [{ mes: mayor.mes, filaId: mayor.fila.id, comisionAnterior, comisionNueva }] };
+}
+
+// Pasada 2 (diferencias grandes): prueba el pozo esperado ese día (por método o combinación de
+// métodos), solo con filas aún libres. Devuelve TODOS los candidatos válidos (comisión implícita
+// positiva y ≤ CRUCE_COMISION_MAX_PCT del bruto); si hay más de uno, el llamador debe descartarlos
+// (candidato no único → sin conciliar).
+function cruceSegundaPasadaCandidatos(t0rows, montoBanco){
+  const grupos = cruceGrupos(t0rows, x=>x.fila.metodo);
+  const n = grupos.length;
+  if(!n) return [];
+  const candidatos = [];
+  for(let mask=1; mask < (1<<n); mask++){
+    let filas = [];
+    for(let k=0;k<n;k++){ if(mask & (1<<k)) filas = filas.concat(grupos[k].filas); }
+    const totalBruto = filas.reduce((a,x)=>a+(x.fila.bruto||0),0);
+    if(totalBruto <= 0) continue;
+    const comisionImplicita = +(totalBruto - montoBanco).toFixed(2);
+    if(comisionImplicita <= 0) continue;                                   // banco pagó igual o más que el bruto
+    if(comisionImplicita > totalBruto * CRUCE_COMISION_MAX_PCT + 0.005) continue; // supera el % máximo permitido
+    const ajuste = cruceCalcularAjuste(filas, montoBanco);
+    if(!ajuste.ok) continue;
+    candidatos.push({ filas, ajuste, comisionImplicita, totalBruto });
+  }
+  return candidatos;
+}
+
 // Cruza cada crédito de Pronto Pago con las filas pendientes. Devuelve, en orden cronológico,
 // [{ mov, filas:[{mes,fila,neto,esperada}], netoHTML, diffMonto, arrastre, ya }]
 //   filas vacías + ya=false → sin conciliar (revisión manual)
@@ -13502,7 +13550,8 @@ function cruceConciliar(movs){
   const orden = movs.map((mov,i)=>({mov,i}))
     .sort((a,b)=> a.mov.fecha<b.mov.fecha ? -1 : a.mov.fecha>b.mov.fecha ? 1 : a.i-b.i);
 
-  return orden.map(({mov}) => {
+  // ── Pasada 1: cruce normal (hasta $100 de diferencia) + ajuste de comisión ──
+  const resultados = orden.map(({mov}) => {
     // Crédito que ya se había conciliado en una carga anterior
     const prev = [...previos.entries()].find(([id,c]) => !previosUsados.has(id) && c.fecha===mov.fecha && Math.abs(c.importe-mov.importe)<0.005);
     if(prev){ previosUsados.add(prev[0]); return { mov, filas: [], ya: true }; }
@@ -13529,14 +13578,38 @@ function cruceConciliar(movs){
     if(!res) return { mov, filas: [], ya: false };
 
     const filas = res.grupos.flatMap(g=>g.filas);
+    const ajuste = cruceCalcularAjuste(filas, mov.importe);
+    if(!ajuste.ok) return { mov, filas: [], ya: false };  // comisión quedaría negativa → se trata como sin match
+
     filas.forEach(x=>usadas.add(x));
     return {
       mov, filas, ya: false,
       netoHTML: res.suma,
       diffMonto: parseFloat((mov.importe - res.suma).toFixed(2)),
-      arrastre: filas.some(x=>x.esperada < mov.fecha)
+      arrastre: filas.some(x=>x.esperada < mov.fecha),
+      ajuste
     };
   });
+
+  // ── Pasada 2: créditos sin match → se prueba el pozo esperado ese día con las filas que ──
+  // ── no usó la pasada 1, aceptando solo si hay un candidato único y válido.               ──
+  resultados.forEach(r=>{
+    if(r.ya || r.filas.length) return;
+    const libres2 = pendientes.filter(x=>!usadas.has(x));
+    const t0 = libres2.filter(x => x.esperada === r.mov.fecha);
+    const candidatos = cruceSegundaPasadaCandidatos(t0, r.mov.importe);
+    if(candidatos.length !== 1) return;  // 0 candidatos (sin match) o más de uno (ambiguo) → sin conciliar
+    const { filas, ajuste } = candidatos[0];
+    filas.forEach(x=>usadas.add(x));
+    r.filas = filas;
+    r.netoHTML = filas.reduce((a,x)=>a+x.neto,0);
+    r.diffMonto = parseFloat((r.mov.importe - r.netoHTML).toFixed(2));
+    r.arrastre = false;
+    r.ajuste = ajuste;
+    r.segundaPasada = true;
+  });
+
+  return resultados;
 }
 
 function extractoAnalizar(){
@@ -13585,7 +13658,7 @@ function extractoAnalizar(){
   tbody.innerHTML = '';
   let nMatch=0, nSinMatch=0, nYa=0;
 
-  extractoCruce.forEach(({mov, filas, netoHTML, diffMonto, arrastre, ya}) => {
+  extractoCruce.forEach(({mov, filas, netoHTML, diffMonto, arrastre, ya, ajuste, segundaPasada}) => {
     let estadoHtml, filaHtml, netoCol = '—', trStyle = '';
     if(ya){
       nYa++;
@@ -13593,20 +13666,26 @@ function extractoAnalizar(){
       filaHtml   = `<span style="color:#aaa;font-style:italic">Aplicado en una carga anterior</span>`;
     } else if(filas.length){
       nMatch++;
-      const absDiff = Math.abs(diffMonto);
-      const difColor = absDiff < 0.01 ? '#27ae60' : absDiff < 20 ? '#e67e22' : '#c0392b';
-      estadoHtml = absDiff < 0.01
-        ? `<span style="color:#27ae60;font-weight:600">✓ exacto</span>`
-        : `<span style="color:${difColor};font-weight:600" title="Créditos banco: ${fmtN(mov.importe)} | Neto HTML: ${fmtN(netoHTML)}">${diffMonto>0?'+':''}${fmtN(diffMonto)} dif.</span>`;
       netoCol = fmtN(netoHTML);
+      const cambio = ajuste && ajuste.cambios && ajuste.cambios[0];
+      const ajusteMonto = cambio ? Math.abs(cambio.comisionNueva - cambio.comisionAnterior) : 0;
+      const resaltar = ajusteMonto > 100;
+      estadoHtml = resaltar
+        ? `<span style="color:#e67e22;font-weight:700" title="Ajuste de comisión > $100 — revisar">⚠ ajuste grande</span>`
+        : `<span style="color:#27ae60;font-weight:600">✓ ajustado</span>`;
       if(filas.length === 1){
         const f = filas[0].fila;
-        filaHtml = `${fmtFecha(f.fecha)} · ${f.metodo} · Bruto: ${fmtN(f.bruto||0)} → Neto: ${fmtN(netoHTML)}`;
+        filaHtml = `${fmtFecha(f.fecha)} · ${f.metodo} · Bruto: ${fmtN(f.bruto||0)}`;
       } else {
         filaHtml = `<strong>${filas.length} filas</strong><br>` +
           filas.map(x=>`${fmtFecha(x.fila.fecha)} · ${x.fila.metodo} · ${fmtN(x.neto)}`).join('<br>');
       }
+      if(cambio){
+        const estiloAjuste = resaltar ? 'color:#c0392b;font-weight:700;background:#fff3cd;padding:1px 4px;border-radius:3px' : 'color:#888';
+        filaHtml += `<br><span style="${estiloAjuste}">Comisión: ${fmtN(cambio.comisionAnterior)} → ${fmtN(cambio.comisionNueva)}</span>`;
+      }
       if(arrastre) filaHtml += `<br><span style="color:#e67e22">↩ incluye cobros pendientes de días anteriores</span>`;
+      if(segundaPasada) filaHtml += `<br><span style="color:#8e44ad">◆ 2da pasada (diferencia grande, candidato único)</span>`;
     } else {
       nSinMatch++;
       trStyle = 'background:#fdecea';
@@ -13636,8 +13715,8 @@ function extractoAnalizar(){
 }
 
 function extractoAplicar(){
-  let filasAct=0, creditos=0;
-  extractoCruce.forEach(({mov, filas}, i) => {
+  let filasAct=0, creditos=0, filasAjustadas=0;
+  extractoCruce.forEach(({mov, filas, ajuste}, i) => {
     if(!filas || !filas.length) return;
     const credId = 'ext-' + Date.now() + '-' + i;
     filas.forEach(({mes, fila}) => {
@@ -13646,26 +13725,28 @@ function extractoAplicar(){
       const f = concData[mes][idx];
       f.conciliado = 'Si';
       f.credBanco  = { id: credId, fecha: mov.fecha, importe: mov.importe };   // para reconocerlo si se vuelve a cargar el extracto
-      if(filas.length === 1){
-        // Un crédito ↔ una fila: sobreescribir acreditado con el monto real del banco
-        f.acreditado = mov.importe;
-        const b = f.bruto||0;
-        const c = f.comisionManual!=null ? f.comisionManual : calcComision(b, f.metodo);
-        const diff = mov.importe - (b - c);
-        if(Math.abs(diff)>0.001){
-          const nota = `Acreditado real: ${fmtN(mov.importe)} (dif. ${diff>=0?'+':''}${diff.toFixed(2)})`;
-          f.obs = [f.obs, nota].filter(Boolean).join(' | ');
-        }
-      }
       filasAct++;
     });
+    // Ajuste de comisión (para que el neto quede igual al monto del banco); acreditado queda en null.
+    // Reversibilidad: la comisión anterior se guarda en un campo interno (comisionPrevAjuste), oculto.
+    if(ajuste && ajuste.cambios){
+      ajuste.cambios.forEach(c => {
+        const idx = concData[c.mes].findIndex(f => f.id === c.filaId);
+        if(idx<0) return;
+        const f = concData[c.mes][idx];
+        if(f.comisionPrevAjuste === undefined) f.comisionPrevAjuste = c.comisionAnterior;
+        f.comisionManual = c.comisionNueva;
+        f.acreditado = null;
+        filasAjustadas++;
+      });
+    }
     creditos++;
   });
 
   concGuardar();
   document.getElementById('modal-extracto-banco').classList.remove('open');
   concRender();
-  showToast(`Conciliación aplicada · ${creditos} crédito/s · ${filasAct} fila/s conciliadas`);
+  showToast(`Conciliación aplicada · ${creditos} crédito/s · ${filasAct} fila/s conciliadas · ${filasAjustadas} comisión/es ajustada/s`);
 }
 
 function mostrarExtractoError(msg){
