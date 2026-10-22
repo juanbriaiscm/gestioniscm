@@ -378,6 +378,7 @@ body[data-tab="dashboard"] #stats-row,body[data-tab="dashboard"] #stats-row-seco
 
 /* ── ESTADO ACUERDO DE PAGO ─────────────────────────────────── */
 .badge.acuerdo{background:#fff3cd;color:#856404}
+.badge.riesgo{background:#fef3cd;color:#92600a;border:1px solid #fcd47a}
 .concepto-tag.acuerdo{background:#fff3cd;color:#856404}
 
 /* ── FILTRO CONCILIACIÓN ────────────────────────────────────── */
@@ -802,11 +803,7 @@ img, svg{max-width:100%}
     Object.keys(datos).forEach(k => {
       try { legible.datos[k] = JSON.parse(datos[k]); } catch (e) { legible.datos[k] = datos[k]; }
     });
-    const blob = new Blob([JSON.stringify(legible, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'backup-iscm-' + fecha + '.json';
-    document.body.appendChild(a); a.click(); a.remove();
+    descargarArchivo('backup-iscm-' + fecha + '.json', JSON.stringify(legible, null, 2), 'application/json');
   }
 
   window._fbBackup = {
@@ -1533,6 +1530,7 @@ img, svg{max-width:100%}
           <div class="dd-sep"></div>
           <div class="dd-sec">Exportar</div>
           <button class="dd-item" onclick="exportarDeudaXLSX();ddHide('dd-impexp')" title="Exportar tabla para pegar en Alumnos con deuda ISCM"><i class="ti ti-file-spreadsheet"></i>Excel de deudas</button>
+          <button class="dd-item" onclick="exportarAlumnosExcel(this);ddHide('dd-impexp')" title="Exportar planilla completa de alumnos (activos/inactivos)"><i class="ti ti-table"></i>Planilla de alumnos</button>
           <button class="dd-item" onclick="exportarContactosWpp(this);ddHide('dd-impexp')" title="Exportar teléfonos de activos e inactivos para WhatsApp"><i class="ti ti-brand-whatsapp"></i>Contactos para WhatsApp</button>
         </div>
       </div>
@@ -2830,7 +2828,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
       <p style="font-size:12px;color:#888;margin:4px 0 0">Historial de cobros por débito/CBU, con motivo de rechazo, buscando por identificador.</p>
     </div>
     
-  <div class="mini-head-actions"><button class="btn primary" onclick="debAbrirImport()"><i class="ti ti-file-import"></i>Subir CSV</button><details class="ui-actions"><summary class="btn">Acciones <i class="ti ti-chevron-down"></i></summary><div class="ui-actions-list"><button onclick="debBorrarTodo();this.closest('details').open=false" class="btn peligro ui-menu-btn" title="Borra todo el historial cargado"><i class="ti ti-trash"></i>Vaciar</button></div></details></div></div>
+  <div class="mini-head-actions"><button class="btn primary" onclick="debAbrirImport()"><i class="ti ti-file-import"></i>Subir CSV</button><details class="ui-actions"><summary class="btn">Acciones <i class="ti ti-chevron-down"></i></summary><div class="ui-actions-list"><button onclick="debExportarExcel();this.closest('details').open=false" class="btn ui-menu-btn" title="Exporta a Excel lo que se ve con los filtros actuales (período, estado, motivo)"><i class="ti ti-file-spreadsheet"></i>Exportar a Excel</button><button onclick="debBorrarTodo();this.closest('details').open=false" class="btn peligro ui-menu-btn" title="Borra todo el historial cargado"><i class="ti ti-trash"></i>Vaciar</button></div></details></div></div>
   
 
   <!-- Stats -->
@@ -4948,7 +4946,7 @@ function renderResumen(){
     const rows = carreras.map(c=>{
       const g=datos.filter(a=>(a.carrera||'')===c);
       const dia=g.filter(a=>inac ? !(Number(a.deuda)>0) : a.estado==='Al día').length;
-      const deben=g.filter(a=>Number(a.deuda)>0).length;
+      const deben=g.filter(a=>inac ? Number(a.deuda)>0 : a.estado==='Debe').length;
       const deuda=g.reduce((v,a)=>v+(Number(a.deuda)||0),0);
       const pct=Math.round(dia/g.length*100);
       const idx=window._miniResumenCarreras.push({c,inac})-1;
@@ -5142,6 +5140,86 @@ function exportarContactosWpp(anchorEl){
   }, 0);
 }
 
+// Menú para elegir qué alumnos exportar a Excel (mismo patrón visual que el
+// export de contactos para WhatsApp).
+function exportarAlumnosExcel(anchorEl){
+  const prev = document.getElementById('alu-export-menu');
+  if(prev){ prev.remove(); if(prev._anchor===anchorEl) return; }
+
+  const menu = document.createElement('div');
+  menu.id = 'alu-export-menu';
+  menu._anchor = anchorEl;
+  menu.style.cssText = `
+    position:fixed;z-index:9999;background:#fff;border:1px solid #e0e0d8;
+    border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.15);
+    padding:6px;min-width:210px`;
+
+  const opts = [
+    { label:'<i class="ti ti-users"></i>Activos + Inactivos', val:'todos' },
+    { label:'<i class="ti ti-user-check"></i>Solo activos',         val:'activos' },
+    { label:'<i class="ti ti-user-off"></i>Solo inactivos',       val:'inactivos' },
+  ];
+
+  menu.innerHTML = `
+    <div style="font-size:11px;color:#aaa;padding:4px 10px 6px;border-bottom:1px solid #f0f0e8;margin-bottom:4px;font-weight:600;letter-spacing:.04em">EXPORTAR PLANILLA DE ALUMNOS</div>
+    ${opts.map(o=>`
+      <button onclick="_doExportAlumnosExcel('${o.val}');document.getElementById('alu-export-menu').remove()"
+        style="display:flex;align-items:center;gap:9px;width:100%;padding:8px 12px;background:none;border:none;
+               cursor:pointer;border-radius:7px;font-size:13px;color:#1a1a2e;text-align:left"
+        onmouseenter="this.style.background='#f5f5f0'" onmouseleave="this.style.background=''">
+        ${o.label}
+      </button>`).join('')}`;
+
+  document.body.appendChild(menu);
+  const rect = anchorEl.getBoundingClientRect();
+  let top = rect.bottom + 6, left = rect.left;
+  const mw = menu.offsetWidth;
+  if(left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
+  menu.style.top = top + 'px';
+  menu.style.left = left + 'px';
+
+  setTimeout(()=>{
+    document.addEventListener('click', function _c(e){
+      if(!menu.contains(e.target)){ menu.remove(); document.removeEventListener('click',_c); }
+    });
+  }, 0);
+}
+
+// Exporta la planilla de alumnos con las columnas principales del listado
+// (nombre, carrera, año, estado, deuda, cuota, teléfono, observaciones),
+// filtrando por activos/inactivos/todos según lo elegido en el menú.
+function _doExportAlumnosExcel(filtro){
+  let lista;
+  if(filtro === 'inactivos') lista = getInactivosReales();
+  else if(filtro === 'activos') lista = alumnos.filter(a=>a.estado!=='Baja');
+  else lista = alumnos.slice();
+
+  if(!lista.length){ showToast('No hay alumnos para exportar','error'); return; }
+
+  function doExport(){
+    const headers = ['Alumno','Carrera','Año','Estado','Deuda','Cuota','Teléfono','Observaciones'];
+    const rows = lista.map(a => [
+      a.nombre||'', a.carrera||'', a.anio||'', a.estado||'',
+      a.deuda||0, a.cuota||0, a.tel||'', a.observaciones||''
+    ]);
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws['!cols'] = [{wch:30},{wch:18},{wch:6},{wch:12},{wch:12},{wch:12},{wch:14},{wch:30}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Alumnos');
+    XLSX.writeFile(wb, `alumnos_${filtro}_${new Date().toISOString().slice(0,10)}.xlsx`);
+    showToast(`Excel exportado · ${lista.length} alumnos`);
+  }
+  if(typeof XLSX === 'undefined'){
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = doExport;
+    s.onerror = () => showToast('No se pudo cargar la librería para exportar','error');
+    document.head.appendChild(s);
+  } else {
+    doExport();
+  }
+}
+
 function _normalizarTelArg(raw){
   if(!raw) return null;
   let s = String(raw).replace(/[\s\-().+]/g,'').trim();
@@ -5231,16 +5309,13 @@ function _doExportWpp(filtro){
   filas.sort((a,b)=>a.nombre.localeCompare(b.nombre));
 
   const bom = '\uFEFF'; // BOM para que Excel/Google Contacts no tenga problemas de encoding
+  // OJO: este CSV se mantiene con COMA (no ";") a propósito — es el formato
+  // que espera Google Contacts/la agenda del teléfono para importar
+  // ("Name,Phone Number"), no un CSV para abrir en Excel.
   const csv = bom + 'Name,Phone Number\r\n' +
     filas.map(f=>`"${f.nombre.replace(/"/g,'""')}","${f.tel}"`).join('\r\n');
 
-  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url;
-  a.download = `Contactos_ISCM_${filtro}_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  descargarArchivo(`Contactos_ISCM_${filtro}_${new Date().toISOString().slice(0,10)}.csv`, csv, 'text/csv;charset=utf-8;');
 
   let msg = `Exportados ${filas.length} contactos`;
   if(sinTel.length) msg += ` · ${sinTel.length} sin teléfono`;
@@ -8530,11 +8605,8 @@ function exportarBecasCSV(){
 function exportarBecasJSON(){
   if(!BECAS_SOCIO.length && !HIJOS_PROF.length){ showToast('No hay becas para exportar','error'); return; }
   const data = { socio: BECAS_SOCIO, hijos: HIJOS_PROF };
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
-  a.download = 'becas_ISCM.json';
-  a.click();
-  showToast('JSON exportado: becas_ISCM.json');
+  const nombreFinal = descargarArchivo('becas_ISCM.json', JSON.stringify(data,null,2), 'application/json');
+  showToast('JSON exportado: '+nombreFinal);
 }
 
 function exportarBecasExcel(){
@@ -8705,10 +8777,15 @@ function becaAplicarImport(filas){
 }
 
 function becaCSVaMatriz(texto){
-  // Parser simple de CSV a matriz de filas/columnas, soporta comillas y comas dentro de campos
+  // Parser simple de CSV a matriz de filas/columnas, soporta comillas y
+  // campos entre comillas. Detecta automáticamente si el separador es ";"
+  // (el que usa ahora exportarBecasCSV) o "," (archivos viejos o de otro
+  // origen), para poder reimportar ambos sin romper nada.
   const filas = [];
   let fila = [], campo = '', dentroComillas = false;
   const t = texto.replace(/^\uFEFF/, '');
+  const muestra = t.split('\n')[0] || '';
+  const sep = (muestra.split(';').length > muestra.split(',').length) ? ';' : ',';
   for(let i=0;i<t.length;i++){
     const c = t[i];
     if(dentroComillas){
@@ -8718,7 +8795,7 @@ function becaCSVaMatriz(texto){
       } else campo += c;
     } else {
       if(c === '"') dentroComillas = true;
-      else if(c === ','){ fila.push(campo); campo=''; }
+      else if(c === sep){ fila.push(campo); campo=''; }
       else if(c === '\n'){ fila.push(campo); filas.push(fila); fila=[]; campo=''; }
       else if(c === '\r'){ /* ignorar */ }
       else campo += c;
@@ -8827,14 +8904,43 @@ function becaProcesarImport(input){
   input.value = '';
 }
 
+// Si el nombre de archivo ya termina en una fecha (AAAA-MM-DD, con cualquier
+// separador antes), lo deja igual; si no, le agrega la fecha de hoy antes de
+// la extensión. Así los módulos que ya arman su propio nombre con fecha
+// (backups, exportaciones con fecha en el nombre) no terminan con la fecha
+// duplicada.
+function _nombreConFechaSiFalta(nombre){
+  const m = /^(.*?)(\.[a-zA-Z0-9]+)?$/.exec(nombre);
+  const base = m[1], ext = m[2] || '';
+  if(/\d{4}-\d{2}-\d{2}$/.test(base)) return nombre;
+  const hoy = new Date().toISOString().slice(0,10);
+  return `${base}_${hoy}${ext}`;
+}
+
+// Función auxiliar única para descargar un archivo generado en el navegador
+// (reemplaza el código de Blob + URL.createObjectURL que estaba repetido en
+// cada módulo). Agrega la fecha de hoy al nombre si todavía no la tiene.
+function descargarArchivo(nombre, contenido, tipo){
+  const nombreFinal = _nombreConFechaSiFalta(nombre);
+  const blob = new Blob([contenido], {type: tipo});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nombreFinal;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  return nombreFinal;
+}
+
 function descargarCSV(nombre, headers, rows){
   const bom = '\uFEFF';
-  const csv = bom + [headers, ...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
-  a.download = nombre;
-  a.click();
-  showToast('CSV exportado: '+nombre);
+  // Separador ";" (en vez de ","): los CSV con coma los abre mal Excel en
+  // español de Argentina. Se mantienen el BOM y el escape de comillas.
+  const csv = bom + [headers, ...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(';')).join('\n');
+  const nombreFinal = descargarArchivo(nombre, csv, 'text/csv;charset=utf-8');
+  showToast('CSV exportado: '+nombreFinal);
 }
 
 // ── 3. DASHBOARD: panel de becas ─────────────────────────────
@@ -8970,7 +9076,7 @@ function renderAcuerdos(){
   const tbody = document.getElementById('tbody-acuerdos');
   if(!tbody) return;
   if(!data.length){
-    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">Sin acuerdos de pago activos</td></tr>';
+    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">'+(acuerdos.length?'No hay acuerdos que coincidan con los filtros':'Sin acuerdos de pago activos')+'</td></tr>';
     return;
   }
   data.sort((a,b)=>(a.carrera||'').localeCompare(b.carrera||'') || a.nombre.localeCompare(b.nombre));
@@ -8985,14 +9091,14 @@ function renderAcuerdos(){
       : '';
     const grupo = i===0 || data[i-1].carrera!==a.carrera ? '<tr><td colspan="9" class="mini-group-cell"><div class="mini-group">'+miniEsc(a.carrera||'Sin carrera')+' · '+data.filter(x=>x.carrera===a.carrera).length+'</div></td></tr>' : '';
     return grupo+'<tr>'
-      +'<td style="font-weight:600">'+a.nombre+'</td>'
-      +'<td>'+a.carrera+'</td>'
-      +'<td>'+a.anio+'</td>'
+      +'<td style="font-weight:600">'+miniEsc(a.nombre)+'</td>'
+      +'<td>'+miniEsc(a.carrera||'Sin carrera')+'</td>'
+      +'<td>'+miniEsc(a.anio||'—')+'</td>'
       +'<td>'+fmt(a.acuerdo.monto||0)+'</td>'
       +'<td>'+fmt(a.deuda)+diffStr+'</td>'
       +'<td style="'+(est==='vencido'?'color:#c0392b;font-weight:600':'')+'">'+miniFechaLimite(a.acuerdo.fecha)+'</td>'
-      +'<td><span class="badge '+(est==='ok'?'pagado':est==='riesgo'?'acuerdo':'debe')+'">'+estLabel+'</span></td>'
-      +'<td style="font-size:12px;color:#666;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(a.acuerdo.detalle||'—')+'</td>'
+      +'<td><span class="badge '+(est==='ok'?'pagado':est==='riesgo'?'riesgo':'debe')+'">'+estLabel+'</span></td>'
+      +'<td style="font-size:12px;color:#666;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(a.acuerdo.detalle?miniEsc(a.acuerdo.detalle):'—')+'</td>'
       +'<td style="white-space:nowrap">'
         +'<button class="btn sm" onclick="openEdit('+a.id+')" style="font-size:11px"><i class="ti ti-edit"></i>Editar</button> '
         +'<button class="btn sm icon-only" title="Más acciones" aria-label="Más acciones del acuerdo" onclick="miniAcuerdoMenu('+a.id+',this,event)"><i class="ti ti-dots-vertical"></i></button>'
@@ -9164,9 +9270,12 @@ function renderCobranza(){
   const tableHeader = document.getElementById('cob-table-header');
   if(tableHeader) tableHeader.innerHTML = `
     <span style="font-size:13px;font-weight:600"><i class="ti ti-calendar-stats"></i>Facturación mensual</span>
-    <button id="btn-cob-edit" class="${cobEditMode?'btn success':'btn'}" onclick="toggleCobEdit()">
-      ${cobEditMode?'<i class="ti ti-check"></i>Guardar':'<i class="ti ti-edit"></i>Editar datos'}
-    </button>`;
+    <div style="display:flex;gap:8px">
+      <button class="btn" onclick="cobExportarExcel()"><i class="ti ti-file-spreadsheet"></i>Exportar</button>
+      <button id="btn-cob-edit" class="${cobEditMode?'btn success':'btn'}" onclick="toggleCobEdit()">
+        ${cobEditMode?'<i class="ti ti-check"></i>Guardar':'<i class="ti ti-edit"></i>Editar datos'}
+      </button>
+    </div>`;
 
   // Estilos para inputs editables
   const inputStyle = `border:none;background:#fffbe6;border-bottom:1px dashed #aaa;font-size:13px;text-align:right;width:130px;padding:2px 4px;border-radius:3px;color:#1a1a1a;font-family:inherit`;
@@ -9272,6 +9381,41 @@ function renderCobranza(){
       </div>
     </div>`;
   }).join('');
+}
+// Exporta a Excel exactamente el cuadro de Facturación mensual que se ve en
+// pantalla (mismas columnas y misma fila de totales).
+function cobExportarExcel(){
+  function doExport(){
+    const headers = ['Mes','Pronto Pago (Galicia)','Pago Mis Cuentas','Efectivo (InstiWeb)','Débito Automático','Total del mes','Var. %'];
+    let prevTotal = 0;
+    const rows = COBRANZA_DATA.map((r,i) => {
+      const total = (r.pp||0)+(r.pmc||0)+(r.ef||0)+(r.da||0);
+      const varPct = (i===0 || prevTotal===0) ? '' : Math.round((total-prevTotal)/prevTotal*10000)/100;
+      if(total>0) prevTotal = total;
+      return [r.mes, r.pp||0, r.pmc||0, r.ef||0, r.da||0, total, varPct];
+    });
+    const totalPP = COBRANZA_DATA.reduce((s,r)=>s+(r.pp||0),0);
+    const totalPMC = COBRANZA_DATA.reduce((s,r)=>s+(r.pmc||0),0);
+    const totalEF = COBRANZA_DATA.reduce((s,r)=>s+(r.ef||0),0);
+    const totalDA = COBRANZA_DATA.reduce((s,r)=>s+(r.da||0),0);
+    rows.push(['TOTAL', totalPP, totalPMC, totalEF, totalDA, totalPP+totalPMC+totalEF+totalDA, '']);
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws['!cols'] = [{wch:12},{wch:18},{wch:16},{wch:16},{wch:16},{wch:14},{wch:10}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Facturación mensual');
+    XLSX.writeFile(wb, `facturacion_mensual_${new Date().toISOString().slice(0,10)}.xlsx`);
+    showToast('Excel exportado');
+  }
+  if(typeof XLSX === 'undefined'){
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = doExport;
+    s.onerror = () => showToast('No se pudo cargar la librería para exportar','error');
+    document.head.appendChild(s);
+  } else {
+    doExport();
+  }
 }
 // ── FIN COBRANZA ───────────────────────────────────────────────
 
@@ -12577,13 +12721,7 @@ function provExportarExcel(){
 
 function provExportarJSON(){
   if(!proveedores.length){ showToast('No hay proveedores para exportar','error'); return; }
-  const blob = new Blob([JSON.stringify(proveedores, null, 2)], {type:'application/json;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `Proveedores_ISCM_${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  descargarArchivo(`Proveedores_ISCM_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(proveedores, null, 2), 'application/json;charset=utf-8;');
   showToast(`JSON exportado · ${proveedores.length} facturas`);
 }
 
@@ -12592,19 +12730,14 @@ function provExportarCSV(){
   const headers = [...PROV_EXPORT_HEADERS, 'Link Factura'];
   const esc = (v) => `"${String(v==null?'':v).replace(/"/g,'""')}"`;
   const bom = '\uFEFF';
+  // Separador ";" (antes ","): Excel en español de Argentina abre mal el CSV con coma.
   const rows = proveedores.map(p=>[
     p.origen||'', p.nombre, p.precio||0, p.facturaEnviada||'SI',
     p.nFactura||'', provFechaDDMMYYYY(p.fechaVencimiento), p.pagado||'NO',
     provFechaDDMMYYYY(p.fechaPago), p.observaciones||'', p.linkFactura||''
-  ].map(esc).join(','));
-  const csv = bom + headers.map(esc).join(',') + '\r\n' + rows.join('\r\n');
-  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `Proveedores_ISCM_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  ].map(esc).join(';'));
+  const csv = bom + headers.map(esc).join(';') + '\r\n' + rows.join('\r\n');
+  descargarArchivo(`Proveedores_ISCM_${new Date().toISOString().slice(0,10)}.csv`, csv, 'text/csv;charset=utf-8;');
   showToast(`CSV exportado · ${proveedores.length} facturas`);
 }
 
@@ -13138,11 +13271,7 @@ function presupGenerarDocumento(fmt){
 
   if(fmt==='word'){
     const html = `<html><head><meta charset="utf-8"><style>${estilos}</style></head><body>${body}</body></html>`;
-    const blob = new Blob([html],{type:'application/msword'});
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href=url; a.download=nombreArchivo+'.doc'; a.click();
-    URL.revokeObjectURL(url);
+    descargarArchivo(nombreArchivo+'.doc', html, 'application/msword');
     showToast('Word descargado');
   } else {
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
@@ -13672,6 +13801,64 @@ function debToggleAll(abrir){
   window._debOpenMonths = abrir ? new Set(claves) : new Set();
   window._debOpenDays = abrir ? new Set(rows.map(debClaveDia)) : new Set();
   debRender();
+}
+
+// Aplica los mismos filtros que están puestos en pantalla (buscador, estado,
+// motivo, mes, día) sobre una lista de filas de débitos. La usan debRender
+// (para pintar la lista) y debExportarExcel (para exportar sólo lo que el
+// usuario ya está viendo).
+function debFilasFiltradas(rows){
+  const q = (document.getElementById('deb-search').value || '').trim().toLowerCase();
+  const filEstado = document.getElementById('deb-fil-estado').value;
+  const filMotivo = document.getElementById('deb-fil-motivo');
+  const filMes = document.getElementById('deb-fil-periodo-mes');
+  const filDia = document.getElementById('deb-fil-periodo-dia');
+  const filMotivoVal = filMotivo ? filMotivo.value : '';
+  const filMesVal = filMes ? filMes.value : '';
+  const filDiaVal = filDia ? filDia.value : '';
+
+  let filtradas = rows;
+  if(q) filtradas = filtradas.filter(r =>
+    r.identificador.toLowerCase().includes(q) ||
+    (r.referencia||'').toLowerCase().includes(q) ||
+    (r.motivoTexto||'').toLowerCase().includes(q)
+  );
+  if(filEstado) filtradas = filtradas.filter(r => r.estado === filEstado);
+  if(filMotivoVal) filtradas = filtradas.filter(r => r.motivoCodigo === filMotivoVal);
+  if(filMesVal) filtradas = filtradas.filter(r => r.periodoMes === filMesVal);
+  if(filDiaVal) filtradas = filtradas.filter(r => String(r.periodoDia) === filDiaVal);
+  return filtradas;
+}
+
+// Exporta a Excel (.xlsx) exactamente lo que se ve en pantalla con los
+// filtros actuales — incluye período (mes/día, vía los filtros ya
+// existentes) y, si se elige el filtro "Rechazados", exporta sólo esos.
+function debExportarExcel(){
+  const filas = debFilasFiltradas(debCargar());
+  if(!filas.length){ showToast('No hay registros para exportar con los filtros actuales','error'); return; }
+  function doExport(){
+    const headers = ['Identificador','Fecha','Referencia','Importe','Estado','Motivo de rechazo'];
+    const rows = filas.map(r => [
+      r.identificador, r.fecha, r.referencia, r.importe,
+      r.estado === 'rechazado' ? 'Rechazado' : 'Aceptado',
+      r.motivoTexto || ''
+    ]);
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws['!cols'] = [{wch:14},{wch:12},{wch:16},{wch:12},{wch:12},{wch:34}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Débitos');
+    XLSX.writeFile(wb, `debitos_${new Date().toISOString().slice(0,10)}.xlsx`);
+    showToast(`Excel exportado · ${filas.length} registros`);
+  }
+  if(typeof XLSX === 'undefined'){
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = doExport;
+    s.onerror = () => showToast('No se pudo cargar la librería para exportar','error');
+    document.head.appendChild(s);
+  } else {
+    doExport();
+  }
 }
 
 function debRender(){
@@ -16066,6 +16253,7 @@ function mostrarPPError(msg){
 
   <div class="rm-actions">
     <button class="btn" onclick="rmImprimir()"><i class="ti ti-printer"></i>Imprimir / PDF</button>
+    <button class="btn" onclick="rmExportarExcel()"><i class="ti ti-file-spreadsheet"></i>Exportar</button>
   </div>
 </div>
 
@@ -17303,6 +17491,45 @@ function rmEditCell(cellEl, field){
 function rmCloseEdit(cellEl){
   const inp = cellEl.querySelector('input');
   if(inp) inp.blur();
+}
+
+// Exporta a Excel el mismo cuadro que se ve en pantalla (concepto/valor,
+// con los totales calculados), para el período cargado actualmente.
+function rmExportarExcel(){
+  function doExport(){
+    const parsed = rmParsePeriodo(rmData.periodo||'');
+    const fechaFin = parsed.fechaNum || parsed.fechaCierre || '';
+    const totalFact = (parseFloat(rmData.arancel_mensual)||0) + (parseFloat(rmData.arancel_pef)||0);
+    const totalBanco = (parseFloat(rmData.cuenta_corriente)||0) + (parseFloat(rmData.saldo_fima)||0);
+    const rows = [
+      [`Saldo alumnos al ${fechaFin}`, parseFloat(rmData.saldo_alumnos)||0],
+      ['Arancel mensual', parseFloat(rmData.arancel_mensual)||0],
+      ['Arancel PEF', parseFloat(rmData.arancel_pef)||0],
+      ['Total facturación', totalFact],
+      ['Cuenta corriente', parseFloat(rmData.cuenta_corriente)||0],
+      ['Saldo FIMA', parseFloat(rmData.saldo_fima)||0],
+      ['Total banco', totalBanco],
+      ['Intereses FIMA', parseFloat(rmData.intereses_fima)||0],
+    ];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([
+      [`Resumen Mensual — ${(rmData.periodo||'').toUpperCase()}`], [],
+      ['Concepto','Valor'], ...rows
+    ]);
+    ws['!cols'] = [{wch:34},{wch:16}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Resumen mensual');
+    XLSX.writeFile(wb, `resumen_mensual_${(rmData.periodo||'periodo').replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`);
+    showToast('Excel exportado');
+  }
+  if(typeof XLSX === 'undefined'){
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = doExport;
+    s.onerror = () => showToast('No se pudo cargar la librería para exportar','error');
+    document.head.appendChild(s);
+  } else {
+    doExport();
+  }
 }
 
 function rmImprimir(){
@@ -18991,11 +19218,7 @@ function asistGenerarDocumento(grupos, fmt, nombreArchivo){
 
   if(fmt === 'word'){
     const html = `<html><head><meta charset="utf-8"><style>${estilos}</style></head><body>${body}</body></html>`;
-    const blob = new Blob([html],{type:'application/msword'});
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href=url; a.download=nombreArchivo+'.doc'; a.click();
-    URL.revokeObjectURL(url);
+    descargarArchivo(nombreArchivo+'.doc', html, 'application/msword');
     showToast(`Word descargado`);
 
   } else {
@@ -19940,12 +20163,7 @@ function bonosPrint(){
     data = []; save(); render(); bpClose('bp-modal-cfg'); aviso('Todo vacío','info');
   };
 
-  // ── Exportaciones ──
-  function bajar(txt, nombre, tipo){
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([txt], {type:tipo}));
-    a.download = nombre; a.click(); URL.revokeObjectURL(a.href);
-  }
+  // ── Exportaciones ── (usa la función global descargarArchivo, ver fuera de este módulo)
   function cargarXLSX(){
     if(window.XLSX) return Promise.resolve();
     return new Promise((ok, err) => {
@@ -19960,12 +20178,13 @@ function bonosPrint(){
     const rows = [['Docente','Días','Bono','Par','Estado','Valor','Nota']];
     data.forEach(t => t.bonos.forEach(b =>
       rows.push([t.name, t.days, b.n, cfg.offset ? b.n+cfg.offset : '', LBL[b.st], cfg.valor, t.note])));
-    bajar('\uFEFF' + rows.map(r => r.map(c => '"' + String(c==null?'':c).replace(/"/g,'""') + '"').join(';')).join('\n'),
-      'bonos-profesores.csv', 'text/csv');
+    descargarArchivo('bonos-profesores.csv',
+      '\uFEFF' + rows.map(r => r.map(c => '"' + String(c==null?'':c).replace(/"/g,'""') + '"').join(';')).join('\n'),
+      'text/csv');
     aviso('CSV descargado');
   };
   window.bpBackup = () => {
-    bajar(JSON.stringify({cfg, data}, null, 2), 'bonos-profesores-backup.json', 'application/json');
+    descargarArchivo('bonos-profesores-backup.json', JSON.stringify({cfg, data}, null, 2), 'application/json');
     aviso('Copia descargada');
   };
   window.bpXlsx = async () => {
@@ -20414,16 +20633,8 @@ function bonosPrint(){
       };
 
       ieSetStatus('impexp-export-status', 'Generando archivo…', false);
-      const blob = new Blob([JSON.stringify(paquete, null, 2)], {type:'application/json'});
-      const url = URL.createObjectURL(blob);
       const fecha = new Date().toISOString().slice(0,10);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `iscm-backup-${fecha}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      descargarArchivo(`iscm-backup-${fecha}.json`, JSON.stringify(paquete, null, 2), 'application/json');
       ieSetStatus('impexp-export-status', 'Listo: se descargó el archivo de backup.', false);
     }catch(e){
       console.error('impExpExportar error', e);
