@@ -42,8 +42,12 @@ body{font-family:system-ui,sans-serif;font-size:14px;background:#f5f5f0;color:#1
 .btn.success:hover{background:#219a52}
 .btn.warn{background:#e67e22;color:#fff;border-color:#e67e22}
 .btn.warn:hover{background:#d35400}
-.btn.danger{background:#c0392b;color:#fff;border-color:#c0392b}
-.btn.danger:hover{background:#a93226}
+.btn.danger,.btn.peligro{background:#fff;color:#c0392b;border-color:#e3a9a3}
+.btn.danger:hover,.btn.peligro:hover{background:#fbeaea;border-color:#c0392b}
+.page-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.page-title{margin:0;font-size:18px;color:#1a1a2e;display:flex;align-items:center;gap:8px;font-weight:700}
+.page-count{font-size:12px;font-weight:600;color:#fff;background:#4b3fb0;border-radius:10px;padding:1px 8px}
+.page-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
 .btn.sm{font-size:12px;padding:3px 10px;height:32px}
 .btn.icon-only{padding:3px 8px;min-width:32px;justify-content:center}
 .estado-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
@@ -576,9 +580,9 @@ img, svg{max-width:100%}
         const agregados = [...mapNuevo.keys()].filter(id => !mapAnt.has(id)).map(id => _auditEtiqueta(mapNuevo.get(id)));
         const modificados = [...mapNuevo.keys()].filter(id => mapAnt.has(id) && JSON.stringify(mapAnt.get(id)) !== JSON.stringify(mapNuevo.get(id))).map(id => _auditEtiqueta(mapNuevo.get(id)));
         const partes = [];
-        if (eliminados.length) partes.push('🗑 eliminado: ' + _auditListaCorta(eliminados));
-        if (agregados.length) partes.push('➕ agregado: ' + _auditListaCorta(agregados));
-        if (modificados.length) partes.push('✏️ modificado: ' + _auditListaCorta(modificados));
+        if (eliminados.length) partes.push('eliminado: ' + _auditListaCorta(eliminados));
+        if (agregados.length) partes.push('agregado: ' + _auditListaCorta(agregados));
+        if (modificados.length) partes.push('modificado: ' + _auditListaCorta(modificados));
         return partes.length ? partes.join(' · ') : 'Guardado sin cambios detectables';
       }
       if (anterior.length !== nuevo.length) {
@@ -733,7 +737,7 @@ img, svg{max-width:100%}
         console.warn("Backup automático: sin permiso para este usuario/rol.", e);
       } else {
         console.error("Backup automático falló:", e);
-        _bkAviso('⚠️ No se pudo generar el backup automático de hoy. Avisá a un administrador.', 'error');
+        _bkAviso('No se pudo generar el backup automático de hoy. Avisá a un administrador.', 'error');
       }
     }
   }
@@ -1428,6 +1432,22 @@ img, svg{max-width:100%}
 
   <!-- TAB ALUMNOS -->
   <div id="tab-alumnos" style="display:none">
+    <div class="page-head">
+      <h2 class="page-title"><i class="ti ti-user-check"></i>Alumnos actuales <span class="page-count" id="alu-count"></span></h2>
+      <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-impexp')" onmouseleave="ddHide('dd-impexp')">
+        <button class="btn"><i class="ti ti-arrows-exchange"></i>Importar / Exportar ▾</button>
+        <div class="tab-dropdown" id="dd-impexp">
+          <div class="dd-sec">Importar</div>
+          <button class="dd-item" onclick="abrirRestaurarDeudas();ddHide('dd-impexp')" title="Restaurar deudas desde el Excel exportado previamente"><i class="ti ti-refresh"></i>Restaurar deudas</button>
+          <button class="dd-item" onclick="abrirImportarCaja();ddHide('dd-impexp')" title="Marcar cuotas como pagadas desde el Reporte de Caja"><i class="ti ti-file-import"></i>Caja</button>
+          <button class="dd-item" onclick="abrirImportCBUs();ddHide('dd-impexp')" title="Asignar CBUs masivamente desde una lista de alumnos"><i class="ti ti-building-bank"></i>CBUs</button>
+          <div class="dd-sep"></div>
+          <div class="dd-sec">Exportar</div>
+          <button class="dd-item" onclick="exportarDeudaXLSX();ddHide('dd-impexp')" title="Exportar tabla para pegar en Alumnos con deuda ISCM"><i class="ti ti-file-spreadsheet"></i>Excel de deudas</button>
+          <button class="dd-item" onclick="exportarContactosWpp(this);ddHide('dd-impexp')" title="Exportar teléfonos de activos e inactivos para WhatsApp"><i class="ti ti-brand-whatsapp"></i>Contactos para WhatsApp</button>
+        </div>
+      </div>
+    </div>
     <div class="controls">
       <input type="text" id="search" placeholder="Buscar alumno..." oninput="renderTable()">
       <select id="fil-carrera" onchange="renderTable()">
@@ -1459,19 +1479,6 @@ img, svg{max-width:100%}
       <button class="btn" onclick="clearFilters()"><i class="ti ti-x"></i>Limpiar</button>
       <button class="btn" id="btn-mas-filtros" onclick="toggleMoreFilters()"><i class="ti ti-filter"></i>Más filtros</button>
 
-      <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-impexp')" onmouseleave="ddHide('dd-impexp')">
-        <button class="btn"><i class="ti ti-arrows-exchange"></i>Importar / Exportar ▾</button>
-        <div class="tab-dropdown" id="dd-impexp">
-          <div class="dd-sec">Importar</div>
-          <button class="dd-item" onclick="abrirRestaurarDeudas();ddHide('dd-impexp')" title="Restaurar deudas desde el Excel exportado previamente"><i class="ti ti-refresh"></i>Restaurar deudas</button>
-          <button class="dd-item" onclick="abrirImportarCaja();ddHide('dd-impexp')" title="Marcar cuotas como pagadas desde el Reporte de Caja"><i class="ti ti-file-import"></i>Caja</button>
-          <button class="dd-item" onclick="abrirImportCBUs();ddHide('dd-impexp')" title="Asignar CBUs masivamente desde una lista de alumnos"><i class="ti ti-building-bank"></i>CBUs</button>
-          <div class="dd-sep"></div>
-          <div class="dd-sec">Exportar</div>
-          <button class="dd-item" onclick="exportarDeudaXLSX();ddHide('dd-impexp')" title="Exportar tabla para pegar en Alumnos con deuda ISCM"><i class="ti ti-file-spreadsheet"></i>Excel de deudas</button>
-          <button class="dd-item" onclick="exportarContactosWpp(this);ddHide('dd-impexp')" title="Exportar teléfonos de activos e inactivos para WhatsApp"><i class="ti ti-brand-whatsapp"></i>Contactos para WhatsApp</button>
-        </div>
-      </div>
     </div>
 
     <div class="estado-chips" id="estado-chips"></div>
@@ -1512,6 +1519,7 @@ img, svg{max-width:100%}
 
   <!-- TAB ALUMNOS INACTIVOS -->
   <div id="tab-inactivos" style="display:none">
+  <div class="page-head"><h2 class="page-title"><i class="ti ti-user-off"></i>Alumnos inactivos</h2></div>
     <div class="info-box" style="margin-bottom:12px">
       <strong>Alumnos Inactivos</strong>: alumnos que se dieron de baja. Podés registrar pagos de deuda pendiente, agregar observaciones o reactivarlos si vuelven a inscribirse.
     </div>
@@ -1808,6 +1816,7 @@ img, svg{max-width:100%}
 
   <!-- TAB COBRANZA -->
   <div id="tab-cobranza" style="display:none">
+  <div class="page-head"><h2 class="page-title"><i class="ti ti-file-invoice"></i>Facturación</h2></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px" id="cob-stats"></div>
 
     <!-- Tabla mensual resumen -->
@@ -1914,6 +1923,7 @@ img, svg{max-width:100%}
 
   <!-- TAB CONTROL CAJA -->
   <div id="tab-caja" style="display:none">
+  <div class="page-head"><h2 class="page-title"><i class="ti ti-cash"></i>Control de Caja</h2></div>
 
     <!-- Stats summary cards -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px" id="caja-stats"></div>
@@ -1981,6 +1991,7 @@ img, svg{max-width:100%}
             <h3><i class="ti ti-clipboard-list"></i>Movimientos</h3>
             <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
               <button class="btn sm" id="caja-btn-cerrar" onclick="cajaCerrarMes()" style="background:#1a4d2e;color:#fff;border-color:#1a4d2e" title="Archiva el mes actual y arranca el siguiente"><i class="ti ti-calendar-check"></i>Cerrar mes actual</button>
+              <button class="btn sm" onclick="cajaXlsAbrir()" title="Importar el Excel de Control de Caja y separarlo por meses"><i class="ti ti-file-import"></i>Importar Excel</button>
               <button class="btn sm" onclick="cajaHistAbrir()" title="Ver meses y años cerrados"><i class="ti ti-history"></i>Historial</button>
               <button class="btn sm danger" onclick="cajaLimpiar()"><i class="ti ti-trash"></i>Limpiar todo</button>
             </div>
@@ -2043,6 +2054,7 @@ img, svg{max-width:100%}
 
 <!-- TAB ACUERDOS -->
 <div id="tab-acuerdos" style="display:none">
+  <div class="page-head"><h2 class="page-title"><i class="ti ti-heart-handshake"></i>Acuerdos de pago</h2></div>
 
   <div id="acuerdos-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px"></div>
 
@@ -2055,7 +2067,7 @@ img, svg{max-width:100%}
       <option value="">Todos</option>
       <option value="ok">Al día con el acuerdo</option>
       <option value="riesgo">En riesgo (deuda subió)</option>
-      <option value="vencido">🔴 Fecha vencida</option>
+      <option value="vencido">Fecha vencida</option>
     </select>
   </div>
 
@@ -2073,12 +2085,12 @@ img, svg{max-width:100%}
 
 <!-- TAB BECAS -->
 <div id="tab-becas" style="display:none">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
-    <h2 style="margin:0;font-size:17px;color:#1a1a2e"><i class="ti ti-award"></i>Gestión de Becas</h2>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button onclick="abrirModalBecaReset()" class="btn" style="height:36px;font-size:13px;background:#fef3f2;border-color:#fecdca;color:#b42318;font-weight:600"><i class="ti ti-refresh"></i>Reiniciar becas socioeconómicas (ciclo nuevo)</button>
-      <button onclick="abrirModalBeca()" style="background:#1a1a2e;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;font-weight:600">Agregar alumno becado</button>
-    </div>
+  <div class="page-head">
+    <h2 class="page-title"><i class="ti ti-award"></i>Becas</h2>
+    <button class="btn primary" onclick="abrirModalBeca()"><i class="ti ti-plus"></i>Agregar alumno becado</button>
+  </div>
+  <div class="page-tools">
+      <button onclick="abrirModalBecaReset()" class="btn peligro"><i class="ti ti-refresh"></i>Reiniciar becas socioeconómicas (ciclo nuevo)</button>
   </div>
 
   <!-- Resumen por tipo -->
@@ -2357,7 +2369,7 @@ img, svg{max-width:100%}
       </div>
     </div>
     <div style="background:#fef3f2;border:1px solid #fecdca;border-radius:6px;padding:10px 14px;font-size:12px;color:#b42318;margin-top:14px">
-      ⚠️ También podés dejar campos en blanco para <strong>borrar</strong> el valor actual: marcá la casilla al lado del campo.
+      <i class="ti ti-alert-triangle" style="margin:0 4px 0 0"></i>También podés dejar campos en blanco para <strong>borrar</strong> el valor actual: marcá la casilla al lado del campo.
       <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="bm-clear-integrantes"> Borrar Integrantes</label>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="bm-clear-ingreso"> Borrar Ingreso total</label>
@@ -2410,9 +2422,11 @@ img, svg{max-width:100%}
 
 <!-- TAB PROVEEDORES -->
 <div id="tab-proveedores" style="display:none">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
-    <h2 style="margin:0;font-size:17px;color:#1a1a2e"><i class="ti ti-building"></i>Gestión de Proveedores</h2>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
+  <div class="page-head">
+    <h2 class="page-title"><i class="ti ti-truck"></i>Proveedores</h2>
+    <button class="btn primary" onclick="openNuevoProveedor()"><i class="ti ti-plus"></i>Agregar factura</button>
+  </div>
+  <div class="page-tools">
       <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-prov-impexp')" onmouseleave="ddHide('dd-prov-impexp')">
         <button class="btn" title="Importar o exportar proveedores"><i class="ti ti-arrows-exchange"></i>Importar / Exportar ▾</button>
         <div class="tab-dropdown" id="dd-prov-impexp">
@@ -2428,8 +2442,6 @@ img, svg{max-width:100%}
       <button class="btn" onclick="provCopiarAbrir()" title="Crear las facturas de este mes a partir de las del mes anterior"><i class="ti ti-copy"></i>Copiar mes anterior</button>
       <button class="btn" onclick="provBenefAbrir()" title="A quién le transfiere el banco por cada proveedor"><i class="ti ti-users"></i>Beneficiarios</button>
       <button class="btn" onclick="provExtAbrir()" title="Marcar facturas como pagadas desde el extracto bancario"><i class="ti ti-building-bank"></i>Conciliar extracto</button>
-      <button onclick="openNuevoProveedor()" style="background:#1a1a2e;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;font-weight:600"><i class="ti ti-plus"></i>Agregar factura</button>
-    </div>
   </div>
   <input type="file" id="prov-import-input" accept=".xlsx,.xls" style="display:none" onchange="provProcesarImport(this)">
   <!-- Stats Proveedores -->
@@ -2495,9 +2507,11 @@ img, svg{max-width:100%}
   </div>
 
 <div id="sub-bonos-alumnos">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
-    <h2 style="margin:0;font-size:17px;color:#1a1a2e"><i class="ti ti-ticket"></i>Bonos de contribución · Alumnos</h2>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+  <div class="page-head">
+    <h2 class="page-title"><i class="ti ti-ticket"></i>Bonos de contribución · Alumnos</h2>
+    <button class="btn primary" onclick="bonoAdd()"><i class="ti ti-plus"></i>Agregar bono</button>
+  </div>
+  <div class="page-tools">
       <button class="btn" id="bonos-undo" onclick="bonosUndo()" disabled><i class="ti ti-arrow-back-up"></i>Deshacer</button>
       <button class="btn" onclick="bonosSort()"><i class="ti ti-sort-ascending-letters"></i>Ordenar A–Z</button>
 
@@ -2515,8 +2529,6 @@ img, svg{max-width:100%}
       </div>
 
       <button class="btn" onclick="bonosOpenCfg()"><i class="ti ti-settings"></i>Ajustes</button>
-      <button onclick="bonoAdd()" style="background:#1a1a2e;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;font-weight:600"><i class="ti ti-plus"></i>Agregar bono</button>
-    </div>
   </div>
   <input type="file" id="bonos-file-xls" accept=".xlsx,.xls,.csv" style="display:none" onchange="bonosProcesarImportXLSX(this)">
 
@@ -2588,9 +2600,10 @@ Pérez, Juan | 1001"></textarea>
 <!-- ════════ SUB-PESTAÑA: BONOS DE PROFESORES ════════ -->
 <div id="sub-bonos-profes" style="display:none">
 
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
-    <h2 style="margin:0;font-size:17px;color:#1a1a2e"><i class="ti ti-school"></i>Bonos de contribución · Profesores</h2>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+  <div class="page-head">
+    <h2 class="page-title"><i class="ti ti-school"></i>Bonos de contribución · Profesores</h2>
+  </div>
+  <div class="page-tools">
       <button class="btn" id="bp-undo" disabled><i class="ti ti-arrow-back-up"></i>Deshacer</button>
       <button class="btn" onclick="bpSort()"><i class="ti ti-sort-ascending-letters"></i>Ordenar A–Z</button>
 
@@ -2608,7 +2621,6 @@ Pérez, Juan | 1001"></textarea>
       </div>
 
       <button class="btn" onclick="bpOpenCfg()"><i class="ti ti-settings"></i>Ajustes</button>
-    </div>
   </div>
 
   <div class="stats-row" id="bp-stats" style="margin-bottom:14px"></div>
@@ -2745,16 +2757,16 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
 <div id="tab-debitos" style="display:none">
 
   <!-- Header -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+  <div class="page-head">
     <div>
-      <h2 style="margin:0;font-size:17px;color:#1a1a2e"><i class="ti ti-file-alert"></i> Débitos (Reporte de Cobros)</h2>
+      <h2 class="page-title"><i class="ti ti-file-alert"></i>Débitos (Reporte de Cobros)</h2>
       <p style="font-size:12px;color:#888;margin:4px 0 0">Historial de cobros por débito/CBU, con motivo de rechazo, buscando por identificador.</p>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <button onclick="debAbrirImport()" class="btn primary"><i class="ti ti-file-import"></i>Subir CSV</button>
+    <button class="btn primary" onclick="debAbrirImport()"><i class="ti ti-file-import"></i>Subir CSV</button>
+  </div>
+  <div class="page-tools">
       <input type="file" id="deb-file-input" accept=".csv,.txt" style="display:none" onchange="debProcesarArchivo(this)">
-      <button onclick="debBorrarTodo()" class="btn" style="background:#fdecea;border-color:#f1b0b7;color:#842029" title="Borra todo el historial cargado"><i class="ti ti-trash"></i>Vaciar</button>
-    </div>
+      <button onclick="debBorrarTodo()" class="btn peligro" title="Borra todo el historial cargado"><i class="ti ti-trash"></i>Vaciar</button>
   </div>
 
   <!-- Stats -->
@@ -2824,7 +2836,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
       </div>
     </div>
     <div style="background:#f8f8f4;border:2px dashed #d0d0c8;border-radius:8px;padding:20px;text-align:center;cursor:pointer;margin-bottom:12px" onclick="document.getElementById('deb-file-input').click()">
-      <div style="font-size:28px;margin-bottom:8px">📄</div>
+      <div style="font-size:28px;margin-bottom:8px"><i class="ti ti-file-text" style="margin:0"></i></div>
       <div style="font-size:13px;font-weight:600;color:#1a1a2e">Hacer clic para elegir el archivo</div>
       <div style="font-size:11px;color:#888;margin-top:4px">Soporta .csv (separado por ;)</div>
     </div>
@@ -2884,16 +2896,17 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
 <div id="tab-conciliacion" style="display:none">
 
   <!-- Header -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
-    <h2 style="margin:0;font-size:17px;color:#1a1a2e"><i class="ti ti-building-bank"></i> Conciliación Bancaria</h2>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+  <div class="page-head">
+    <h2 class="page-title"><i class="ti ti-building-bank"></i>Conciliación Bancaria</h2>
+    <button class="btn primary" onclick="concAgregarFila()"><i class="ti ti-plus"></i>Agregar fila</button>
+  </div>
+  <div class="page-tools">
       <select id="conc-mes-sel" onchange="concCambiarMes()" style="font-size:13px;height:34px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;min-width:160px"></select>
       <select id="conc-fil-estado" onchange="concRender()" title="Filtrar por estado de conciliación">
         <option value="">Todos</option>
         <option value="No">Sin conciliar</option>
         <option value="Si">✓ Conciliados</option>
       </select>
-      <button onclick="concAgregarFila()" class="btn primary"><i class="ti ti-plus"></i>Agregar fila</button>
 
       <button class="btn" onclick="concAbrirNuevoMes()" title="Crear un mes nuevo"><i class="ti ti-calendar-plus"></i>Nuevo mes</button>
 
@@ -2922,7 +2935,6 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
       <input type="file" id="import-xlsx-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="concProcesarImport(this)">
       <input type="file" id="extracto-file-input" accept=".xlsx,.xls,.csv,.txt" style="display:none" onchange="concProcesarExtracto(this)">
 
-    </div>
   </div>
 
   <!-- Stats del mes -->
@@ -2969,7 +2981,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
       Las filas con datos se agregan al mes que corresponda según la fecha. Las filas ya existentes <strong>no se duplican</strong>.
     </div>
     <div style="background:#f8f8f4;border:2px dashed #d0d0c8;border-radius:8px;padding:20px;text-align:center;cursor:pointer;margin-bottom:12px" onclick="document.getElementById('import-xlsx-input').click()">
-      <div style="font-size:28px;margin-bottom:8px">📊</div>
+      <div style="font-size:28px;margin-bottom:8px"><i class="ti ti-chart-bar" style="margin:0"></i></div>
       <div style="font-size:13px;font-weight:600;color:#1a1a2e">Hacer clic para elegir el archivo</div>
       <div style="font-size:11px;color:#888;margin-top:4px">Soporta .xlsx (Excel) y .csv</div>
     </div>
@@ -3025,7 +3037,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
         <span style="color:#666">Comisión calculada:</span><span id="cf-p-comision" style="font-weight:600;color:#c0392b"></span>
         <span style="color:#666">Importe Neto:</span><span id="cf-p-neto" style="font-weight:600"></span>
         <span style="color:#666">Fecha acreditación:</span><span id="cf-p-acred" style="font-weight:600"></span>
-        <span id="cf-p-pasa-label" style="color:#e67e22;font-size:11px;display:none;grid-column:1/-1">⚠️ Pasa al mes siguiente</span>
+        <span id="cf-p-pasa-label" style="color:#e67e22;font-size:11px;display:none;grid-column:1/-1"><i class="ti ti-alert-triangle" style="margin:0 4px 0 0"></i>Pasa al mes siguiente</span>
       </div>
     </div>
 
@@ -3099,7 +3111,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
     </div>
     <div style="background:#f8f8f4;border:2px dashed #d0d0c8;border-radius:8px;padding:20px;text-align:center;cursor:pointer;margin-bottom:12px"
          onclick="document.getElementById('extracto-file-input').click()" id="extracto-drop-zone">
-      <div style="font-size:28px;margin-bottom:8px">🏦</div>
+      <div style="font-size:28px;margin-bottom:8px"><i class="ti ti-building-bank" style="margin:0"></i></div>
       <div style="font-size:13px;font-weight:600;color:#1a1a2e">Hacer clic para elegir el extracto</div>
       <div style="font-size:11px;color:#888;margin-top:4px">Soporta .csv (banco) o .xlsx</div>
     </div>
@@ -3232,7 +3244,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
          ondragover="event.preventDefault();this.style.background='#e8f5e8';this.style.borderColor='#1e8449'"
          ondragleave="this.style.background='#f4f8f4';this.style.borderColor='#27ae60'"
          ondrop="ppHandleDropTXT(event)">
-      <div style="font-size:28px;margin-bottom:6px">📋</div>
+      <div style="font-size:28px;margin-bottom:6px"><i class="ti ti-clipboard-list" style="margin:0"></i></div>
       <div style="font-size:13px;font-weight:600;color:#1e8449">Clic o arrastrá los TXT de Pronto Pago</div>
       <div style="font-size:11px;color:#888;margin-top:4px">DetalleRecaudacion-….TXT · PP….IPM · PPLDP….txt · PPQR….txt</div>
     </div>
@@ -3250,7 +3262,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
 
     <!-- Loading -->
     <div id="pp-loading" style="display:none;text-align:center;padding:20px">
-      <div style="font-size:24px;margin-bottom:8px">⏳</div>
+      <div style="font-size:24px;margin-bottom:8px"><i class="ti ti-hourglass" style="margin:0"></i></div>
       <div style="font-size:13px;color:#666" id="pp-loading-msg">Analizando PDFs...</div>
       <div style="margin-top:8px;height:4px;background:#e8e8e0;border-radius:2px;overflow:hidden">
         <div id="pp-loading-bar" style="height:100%;background:#8e44ad;border-radius:2px;width:0%;transition:width .4s"></div>
@@ -3304,13 +3316,13 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
     #tab-presupuestos .pp-ib{background:none;border:none;cursor:pointer;font-size:15px;color:#666;padding:2px 5px}
   </style>
 
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
-    <h2 style="margin:0;font-size:17px;color:#1a1a2e"><i class="ti ti-clipboard-list"></i>Presupuestos / Cotizaciones</h2>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button onclick="presupNuevo()" style="background:#1a1a2e;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;font-weight:600"><i class="ti ti-plus"></i>Nuevo presupuesto</button>
+  <div class="page-head">
+    <h2 class="page-title"><i class="ti ti-clipboard-list"></i>Presupuestos</h2>
+    <button class="btn primary" onclick="presupNuevo()"><i class="ti ti-plus"></i>Nuevo presupuesto</button>
+  </div>
+  <div class="page-tools">
       <button onclick="presupDuplicar()" class="pp-btn"><i class="ti ti-copy"></i>Duplicar</button>
       <button onclick="presupMenuExportar(this)" class="pp-btn"><i class="ti ti-file-export"></i>Exportar</button>
-    </div>
   </div>
 
   <!-- KPIs -->
@@ -3465,7 +3477,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
       Importa la hoja <strong>"Proveedores"</strong> del Excel de Tesorería ISCM, incluyendo los links de Google Drive adjuntos al N° de factura.
     </div>
     <div id="prov-import-drop" style="background:#f8f8f4;border:2px dashed #d0d0c8;border-radius:8px;padding:20px;text-align:center;cursor:pointer;margin-bottom:12px" onclick="document.getElementById('prov-import-input').click()">
-      <div style="font-size:28px;margin-bottom:8px">📊</div>
+      <div style="font-size:28px;margin-bottom:8px"><i class="ti ti-chart-bar" style="margin:0"></i></div>
       <div style="font-size:13px;font-weight:600;color:#1a1a2e">Hacer clic para elegir el archivo .xlsx</div>
       <div style="font-size:11px;color:#888;margin-top:4px">Se detectan automáticamente los encabezados y los links a Drive</div>
     </div>
@@ -3676,6 +3688,52 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
   </div>
 </div>
 
+<!-- MODAL IMPORTAR EXCEL CONTROL DE CAJA (por meses) -->
+<div class="overlay" id="modal-caja-xls">
+  <div class="modal" style="max-width:680px">
+    <h2><i class="ti ti-file-import"></i> Importar Excel de Control de Caja</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:14px">
+      Subí tu Excel de caja (columnas: <strong>Fecha, Descripción, Ingresos, Egresos, Observaciones</strong>). El sistema detecta los meses que haya y los separa: los meses anteriores quedan en el <strong>Historial</strong> y el último mes queda como <strong>mes en curso</strong>.
+    </p>
+    <div id="caja-xls-drop" style="background:#f8f8f4;border:2px dashed #d0d0c8;border-radius:8px;padding:24px;text-align:center;cursor:pointer;margin-bottom:12px;transition:border-color .2s"
+      onclick="document.getElementById('caja-xls-input').click()"
+      ondragover="event.preventDefault();this.style.borderColor='#27ae60'"
+      ondragleave="this.style.borderColor='#d0d0c8'"
+      ondrop="event.preventDefault();this.style.borderColor='#d0d0c8';cajaXlsArchivo(event.dataTransfer.files[0])">
+      <div style="font-size:28px;margin-bottom:6px">📂</div>
+      <div style="font-size:13px;color:#888">Arrastrá el archivo acá o hacé clic para seleccionarlo</div>
+      <div style="font-size:11px;color:#aaa;margin-top:4px">.xlsx</div>
+    </div>
+    <input type="file" id="caja-xls-input" accept=".xlsx,.xls,.xlsm" style="display:none" onchange="cajaXlsArchivo(this.files[0])">
+    <div id="caja-xls-preview" style="display:none;margin-bottom:14px">
+      <div id="caja-xls-info" style="font-size:13px;margin-bottom:8px"></div>
+      <div style="max-height:280px;overflow:auto;border:1px solid #e8e8e0;border-radius:6px">
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <thead><tr style="background:#f5f5f0;position:sticky;top:0">
+            <th style="text-align:left;padding:6px 8px">Mes</th>
+            <th style="text-align:right;padding:6px 8px">Mov.</th>
+            <th style="text-align:right;padding:6px 8px">Ingresos</th>
+            <th style="text-align:right;padding:6px 8px">Egresos</th>
+            <th style="text-align:right;padding:6px 8px">Saldo final</th>
+          </tr></thead>
+          <tbody id="caja-xls-tbody"></tbody>
+        </table>
+      </div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#555;margin-top:10px;cursor:pointer">
+        <input type="checkbox" id="caja-xls-sinicial" checked>
+        Agregar al inicio de cada mes una fila "Saldo inicial" con el saldo final del mes anterior
+      </label>
+      <div style="font-size:12px;color:#a04000;background:#fff4e5;border:1px solid #f5d9b0;border-radius:6px;padding:8px 10px;margin-top:10px">
+        ⚠ Esto <strong>reemplaza</strong> los movimientos actuales de caja y el historial de meses cerrados. Se guarda una copia de respaldo en este navegador antes de importar.
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal('modal-caja-xls');_cajaXls=null">Cancelar</button>
+      <button class="btn" id="caja-xls-aplicar" style="display:none;background:#1a4d2e;color:#fff;border-color:#1a4d2e" onclick="cajaXlsAplicar()"><i class="ti ti-check"></i>Importar por meses</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL IMPORTAR REPORTE DE CAJA -->
 <div class="overlay" id="modal-importar-caja">
   <div class="modal" style="max-width:620px">
@@ -3688,7 +3746,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
       ondragover="event.preventDefault();this.style.borderColor='#27ae60'"
       ondragleave="this.style.borderColor='#d0d0c8'"
       ondrop="event.preventDefault();this.style.borderColor='#d0d0c8';importarCajaFile(event.dataTransfer.files[0])">
-      <div style="font-size:28px;margin-bottom:6px">📂</div>
+      <div style="font-size:28px;margin-bottom:6px"><i class="ti ti-folder-open" style="margin:0"></i></div>
       <div style="font-size:13px;color:#888">Arrastrá el archivo acá o hacé clic para seleccionarlo</div>
       <div style="font-size:11px;color:#aaa;margin-top:4px">Formato: Reporte_de_Caja.xlsx exportado del sistema de facturación</div>
     </div>
@@ -3716,7 +3774,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
       ondragover="event.preventDefault();this.style.borderColor='#e65100'"
       ondragleave="this.style.borderColor='#d0d0c8'"
       ondrop="event.preventDefault();this.style.borderColor='#d0d0c8';restaurarDeudaFile(event.dataTransfer.files[0])">
-      <div style="font-size:28px;margin-bottom:6px">📂</div>
+      <div style="font-size:28px;margin-bottom:6px"><i class="ti ti-folder-open" style="margin:0"></i></div>
       <div style="font-size:13px;color:#888">Arrastrá el archivo acá o hacé clic para seleccionarlo</div>
       <div style="font-size:11px;color:#aaa;margin-top:4px">Formato: Excel exportado desde "Exportar Excel" del sistema</div>
     </div>
@@ -3817,7 +3875,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
            ondragover="event.preventDefault();this.style.borderColor='#1a1a2e'"
            ondragleave="this.style.borderColor='#d0d0c8'"
            ondrop="cbuHandleDrop(event)">
-        <div style="font-size:28px;margin-bottom:6px">📄</div>
+        <div style="font-size:28px;margin-bottom:6px"><i class="ti ti-file-text" style="margin:0"></i></div>
         <div style="font-size:13px;font-weight:600;color:#555">Arrastrá o hacé clic para elegir el archivo</div>
         <div style="font-size:11px;color:#888;margin-top:4px" id="cbu-file-name">Soporta .txt y .csv</div>
       </div>
@@ -3870,8 +3928,8 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
       <div class="field"><label>Email</label><input id="ed-email" placeholder="nombre@gmail.com" type="email"></div>
     </div>
     <div id="ed-contacto-links" style="display:none;gap:12px;margin-bottom:8px;font-size:12px">
-      <a id="ed-link-wa" href="#" target="_blank" style="color:#25d366;text-decoration:none;font-weight:500">📱 Abrir WhatsApp</a>
-      <a id="ed-link-mail" href="#" style="color:#2980b9;text-decoration:none;font-weight:500">✉️ Enviar email</a>
+      <a id="ed-link-wa" href="#" target="_blank" style="color:#25d366;text-decoration:none;font-weight:500"><i class="ti ti-brand-whatsapp" style="margin:0 4px 0 0"></i>Abrir WhatsApp</a>
+      <a id="ed-link-mail" href="#" style="color:#2980b9;text-decoration:none;font-weight:500"><i class="ti ti-mail" style="margin:0 4px 0 0"></i>Enviar email</a>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div class="field"><label>Carrera</label>
@@ -3901,7 +3959,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
     </div>
     <!-- Campos extra para Acuerdo de pago -->
     <div id="ed-acuerdo-fields" style="display:none;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:10px 12px;margin-bottom:4px">
-      <div style="font-size:12px;font-weight:700;color:#856404;margin-bottom:8px">📋 Detalle del acuerdo de pago</div>
+      <div style="font-size:12px;font-weight:700;color:#856404;margin-bottom:8px"><i class="ti ti-clipboard-list" style="margin:0 4px 0 0"></i>Detalle del acuerdo de pago</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div class="field" style="margin:0"><label>Monto acordado ($)</label><input id="ed-acuerdo-monto" type="number" step="0.01" placeholder="0" style="width:100%;height:32px;padding:0 8px;border-radius:5px;border:1px solid #d0d0c8;font-size:13px"></div>
         <div class="field" style="margin:0"><label>Fecha límite</label><input id="ed-acuerdo-fecha" type="date" style="width:100%;height:32px;padding:0 8px;border-radius:5px;border:1px solid #d0d0c8;font-size:13px"></div>
@@ -4071,7 +4129,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
       </label>
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
         <input type="radio" name="excedente-tipo" value="vuelto" onchange="pagoResumen()">
-        <span>💵 <strong>Vuelto en efectivo</strong> — se lo devolvemos, no afecta cuotas</span>
+        <span><i class="ti ti-cash" style="margin:0 4px 0 0"></i><strong>Vuelto en efectivo</strong> — se lo devolvemos, no afecta cuotas</span>
       </label>
     </div>
 
@@ -4166,9 +4224,9 @@ function _fbSyncIndicator(state, n){
   }
   clearTimeout(el._t);
   const sufijo = n > 1 ? ' (' + n + ')' : '';
-  if(state === 'saving'){ el.textContent='☁ Guardando…' + sufijo; el.style.background='rgba(255,255,255,0.15)'; el.style.color='#fff'; }
+  if(state === 'saving'){ el.textContent='Guardando…' + sufijo; el.style.background='rgba(255,255,255,0.15)'; el.style.color='#fff'; }
   else if(state === 'ok'){ el.textContent='✓ Sincronizado'; el.style.background='rgba(39,174,96,0.3)'; el.style.color='#a8f0c6'; el._t=setTimeout(()=>{ el.textContent=''; el.style.background=''; }, 2500); }
-  else if(state === 'err'){ el.textContent='⚠ Sin subir a la nube' + sufijo + ' — no cierres esta pestaña'; el.style.background='rgba(192,57,43,0.3)'; el.style.color='#f5c6c0'; }
+  else if(state === 'err'){ el.textContent='Sin subir a la nube' + sufijo + ' — no cierres esta pestaña'; el.style.background='rgba(192,57,43,0.3)'; el.style.color='#f5c6c0'; }
 }
 
 function _periodoValor(str){
@@ -4214,7 +4272,7 @@ async function load(){
         await window._fb.set(MES_KEY, localMesRaw);
         savedAlumnos = localAlumnos;
         savedMes = localMesRaw;
-        showToast(`✅ Se detectaron datos locales más recientes (${localMesRaw}) y se subieron a Firebase`);
+        showToast(`Se detectaron datos locales más recientes (${localMesRaw}) y se subieron a Firebase`);
         _fbSyncIndicator('ok');
       }
     }catch(e){
@@ -4496,6 +4554,7 @@ function renderTable(){
   const slice = filtered.slice((page-1)*PER_PAGE, page*PER_PAGE);
   document.getElementById('pager-info').textContent = `${total} alumnos · Página ${page} de ${pages}`;
   renderEstadoChips();
+  const _ac=document.getElementById('alu-count'); if(_ac) _ac.textContent=total;
   document.getElementById('btn-prev').disabled = page===1;
   document.getElementById('btn-next').disabled = page>=pages;
   const selCount = selected.size;
@@ -5001,9 +5060,9 @@ function importarCajaFile(file){
       // Resumen
       const info = document.getElementById('caja-preview-info');
       info.innerHTML =
-        `<strong style="color:#1a4d2e">✅ ${resultados.aplica.length} cuotas a marcar como pagadas</strong>`+
-        (resultados.yaEsta.length?` · <span style="color:#888">🔄 ${resultados.yaEsta.length} ya estaban pagadas</span>`:'') +
-        (resultados.sinMatch.length?` · <span style="color:#e67e22">⚠️ ${resultados.sinMatch.length} sin match</span>`:'');
+        `<strong style="color:#1a4d2e"><i class="ti ti-circle-check" style="margin:0 4px 0 0"></i>${resultados.aplica.length} cuotas a marcar como pagadas</strong>`+
+        (resultados.yaEsta.length?` · <span style="color:#888"><i class="ti ti-refresh" style="margin:0 4px 0 0"></i>${resultados.yaEsta.length} ya estaban pagadas</span>`:'') +
+        (resultados.sinMatch.length?` · <span style="color:#e67e22"><i class="ti ti-alert-triangle" style="margin:0 4px 0 0"></i>${resultados.sinMatch.length} sin match</span>`:'');
 
       const lista = document.getElementById('caja-preview-list');
       lista.innerHTML =
@@ -5093,7 +5152,7 @@ async function importarCajaAplicar(){
     closeModal('modal-importar-caja');
     _cajaData = null;
     btn.disabled=false; btn.innerHTML='<i class="ti ti-check"></i>Marcar como pagadas';
-    showToast(`✅ ${total} cuotas marcadas como pagadas`);
+    showToast(`${total} cuotas marcadas como pagadas`);
   } catch(err){
     btn.disabled=false; btn.innerHTML='<i class="ti ti-check"></i>Marcar como pagadas';
     showToast('Error: '+err.message,'error');
@@ -5176,14 +5235,14 @@ function restaurarDeudaFile(file){
       const totalMonto = matches.reduce((s,m)=>s+m.monto,0);
       const conContacto = matches.filter(tieneCambioContacto).length;
       document.getElementById('rest-preview-info').innerHTML =
-        `<strong style="color:#27ae60">✅ ${matches.length} alumnos encontrados</strong> · Total deuda: <strong>$${totalMonto.toLocaleString('es-AR',{minimumFractionDigits:2})}</strong>`+
-        (conContacto ? `<br><span style="color:#2980b9">📇 ${conContacto} con datos de contacto para actualizar (tel./obs./email)</span>` : '')+
-        (sinMatch.length ? `<br><span style="color:#e67e22">⚠️ ${sinMatch.length} no encontrados en el sistema</span>` : '');
+        `<strong style="color:#27ae60"><i class="ti ti-circle-check" style="margin:0 4px 0 0"></i>${matches.length} alumnos encontrados</strong> · Total deuda: <strong>$${totalMonto.toLocaleString('es-AR',{minimumFractionDigits:2})}</strong>`+
+        (conContacto ? `<br><span style="color:#2980b9"><i class="ti ti-address-book" style="margin:0 4px 0 0"></i>${conContacto} con datos de contacto para actualizar (tel./obs./email)</span>` : '')+
+        (sinMatch.length ? `<br><span style="color:#e67e22"><i class="ti ti-alert-triangle" style="margin:0 4px 0 0"></i>${sinMatch.length} no encontrados en el sistema</span>` : '');
 
       document.getElementById('rest-preview-list').innerHTML =
         matches.slice(0,50).map(m=>
           `<div style="padding:3px 0;border-bottom:1px solid #f0f0e8;display:flex;justify-content:space-between;gap:8px">
-            <span>${m.alumno.nombre}${tieneCambioContacto(m)?' <span style="color:#2980b9" title="Actualiza datos de contacto">📇</span>':''}</span>
+            <span>${m.alumno.nombre}${tieneCambioContacto(m)?' <span style="color:#2980b9" title="Actualiza datos de contacto"><i class="ti ti-address-book" style="margin:0"></i></span>':''}</span>
             <span style="color:#e65100;font-weight:500;white-space:nowrap">$${m.monto.toLocaleString('es-AR',{minimumFractionDigits:2})}</span>
           </div>`
         ).join('') +
@@ -5267,14 +5326,14 @@ async function restaurarDeudaAplicar(){
 
     closeModal('modal-restaurar-deudas');
     _restData = null;
-    btn.disabled = false; btn.textContent = '🔄 Restaurar deudas';
-    showToast(`✅ Deudas restauradas: ${total} alumnos`+(contactosActualizados?` · ${contactosActualizados} con datos de contacto actualizados`:''));
+    btn.disabled = false; btn.textContent = 'Restaurar deudas';
+    showToast(`Deudas restauradas: ${total} alumnos`+(contactosActualizados?` · ${contactosActualizados} con datos de contacto actualizados`:''));
 
   } catch(err) {
     console.error('Error restaurando deudas:', err);
     closeModal('modal-restaurar-deudas');
     _restData = null;
-    btn.disabled = false; btn.textContent = '🔄 Restaurar deudas';
+    btn.disabled = false; btn.textContent = 'Restaurar deudas';
     showToast('Error al guardar: ' + err.message, 'error');
   }
 }
@@ -5327,7 +5386,7 @@ function exportarDeudaXLSX(){
     XLSX.utils.book_append_sheet(wb, ws, 'Deuda alumnos 2026');
     const fecha = new Date().toLocaleDateString('es-AR').replace(/\//g,'-');
     XLSX.writeFile(wb, `Alumnos_deuda_ISCM_${fecha}.xlsx`);
-    showToast(`✅ Excel exportado con ${activos.length} alumnos`);
+    showToast(`Excel exportado con ${activos.length} alumnos`);
   }
 
   if(typeof XLSX === 'undefined'){
@@ -5385,9 +5444,9 @@ function exportarInactivosXLSX(){
     const fecha = new Date().toLocaleDateString('es-AR').replace(/\//g,'-');
     XLSX.writeFile(wb, `Inactivos_deuda_ISCM_${fecha}.xlsx`);
     if(duplicadosOmitidos>0){
-      showToast(`✅ Excel exportado con ${inactivos.length} inactivos · ⚠️ se omitieron ${duplicadosOmitidos} duplicado(s). Usá "Detectar duplicados" para limpiarlos.`);
+      showToast(`Excel exportado con ${inactivos.length} inactivos · se omitieron ${duplicadosOmitidos} duplicado(s). Usá "Detectar duplicados" para limpiarlos.`);
     } else {
-      showToast(`✅ Excel exportado con ${inactivos.length} inactivos`);
+      showToast(`Excel exportado con ${inactivos.length} inactivos`);
     }
   }
 
@@ -5441,7 +5500,7 @@ function toggleProvMoreFilters(){
   const btn = document.getElementById('btn-mas-filtros-prov');
   const abrir = els.length && els[0].style.display === 'none';
   els.forEach(el => { el.style.display = abrir ? '' : 'none'; });
-  if(btn) btn.textContent = abrir ? '☰ Menos filtros ▲' : '☰ Más filtros ▾';
+  if(btn) btn.textContent = abrir ? ' Menos filtros ▲' : ' Más filtros ▾';
 }
 
 // ── IMPORTAR PAGOS ────────────────────────────────────────────
@@ -5523,7 +5582,7 @@ function pagosProcesarArchivo(file){
       pagosIdxFecha   = -1;
 
       document.getElementById('pagos-col-config').style.display='';
-      pagosStatus('info', `📄 TXT leído: ${pagosFilasCrudas.length} registros (${cobrados} cobrados R10, ${rechazados} rechazados, ${noCobrados} sin cobrar). Elegí la opción y hacé clic en "Previsualizar".`);
+      pagosStatus('info', `TXT leído: ${pagosFilasCrudas.length} registros (${cobrados} cobrados R10, ${rechazados} rechazados, ${noCobrados} sin cobrar). Elegí la opción y hacé clic en "Previsualizar".`);
 
     } else {
       // ── Parsear CSV con separador ; ───────────────────────────
@@ -5542,7 +5601,7 @@ function pagosProcesarArchivo(file){
       document.getElementById('pagos-col-config').style.display='';
       const rechazados = pagosFilasCrudas.filter(r=>/R13|R15/i.test(r[pagosIdxObs]||'')).length;
       const cobrados = pagosFilasCrudas.length - rechazados;
-      pagosStatus('info', `📊 CSV leído: ${pagosFilasCrudas.length} registros (${cobrados} cobrados, ${rechazados} rechazados). Elegí la opción y hacé clic en "Previsualizar".`);
+      pagosStatus('info', `CSV leído: ${pagosFilasCrudas.length} registros (${cobrados} cobrados, ${rechazados} rechazados). Elegí la opción y hacé clic en "Previsualizar".`);
     }
   };
   reader.onerror = ()=> pagosStatus('err','Error al leer el archivo.');
@@ -5613,25 +5672,25 @@ function pagosPrevisualizar(){
 
     if(rechazado){
       // Rechazado por el banco - mostrar pero no marcar
-      const nombreAl = alumno ? alumno.nombre : '❓ Sin CBU en sistema';
+      const nombreAl = alumno ? alumno.nombre : 'Sin CBU en sistema';
       tr.className = 'skip';
-      tr.innerHTML = `<td><small style="font-family:monospace">${cbu}</small></td><td>${nombreAl}</td><td style="color:#c0392b">${fmt$(importePesos)}</td><td><span style="color:#c0392b;font-size:11px">⛔ Rechazado (R13)</span></td><td style="color:#aaa;font-style:italic">Sin acción</td>`;
+      tr.innerHTML = `<td><small style="font-family:monospace">${cbu}</small></td><td>${nombreAl}</td><td style="color:#c0392b">${fmt$(importePesos)}</td><td><span style="color:#c0392b;font-size:11px"><i class="ti ti-ban" style="margin:0 4px 0 0"></i>Rechazado (R13)</span></td><td style="color:#aaa;font-style:italic">Sin acción</td>`;
       pagosResultados.push({cbu, alumno, conceptosASaldar:[], rechazado:true});
     } else if(!alumno){
       tr.className = 'no-match';
-      tr.innerHTML = `<td><small style="font-family:monospace">${cbu}</small></td><td style="color:#c0392b">❌ CBU no encontrado</td><td>${fmt$(importePesos)}</td><td>—</td><td style="color:#c0392b">Ignorar</td>`;
+      tr.innerHTML = `<td><small style="font-family:monospace">${cbu}</small></td><td style="color:#c0392b"><i class="ti ti-circle-x" style="margin:0 4px 0 0"></i>CBU no encontrado</td><td>${fmt$(importePesos)}</td><td>—</td><td style="color:#c0392b">Ignorar</td>`;
       pagosResultados.push({cbu, alumno:null, conceptosASaldar:[], rechazado:false});
     } else {
       const pendientes = (alumno.conceptos||[]).filter(c=>!c.pagado);
       if(!pendientes.length){
         tr.className = 'skip';
-        tr.innerHTML = `<td><small style="font-family:monospace">${cbu}</small></td><td>✅ ${alumno.nombre}</td><td>${fmt$(importePesos)}</td><td><span style="font-size:11px;color:#27ae60">✔ Cobrado</span></td><td style="font-style:italic;color:#aaa">Sin deuda pendiente</td>`;
+        tr.innerHTML = `<td><small style="font-family:monospace">${cbu}</small></td><td><i class="ti ti-circle-check" style="margin:0 4px 0 0"></i>${alumno.nombre}</td><td>${fmt$(importePesos)}</td><td><span style="font-size:11px;color:#27ae60">✔ Cobrado</span></td><td style="font-style:italic;color:#aaa">Sin deuda pendiente</td>`;
         pagosResultados.push({cbu, alumno, conceptosASaldar:[], rechazado:false});
       } else {
         let conceptosASaldar = accion==='todos' ? pendientes : [pendientes[0]];
         const etiquetas = conceptosASaldar.map(c=>`${c.tipo}${c.mes?' ('+c.mes+')':''}`).join(', ');
         tr.className = 'match';
-        tr.innerHTML = `<td><small style="font-family:monospace">${cbu}</small></td><td>✅ ${alumno.nombre}</td><td>${fmt$(importePesos)}</td><td><span style="font-size:11px;color:#27ae60">✔ Cobrado</span></td><td style="color:#27ae60">Saldar: ${etiquetas}</td>`;
+        tr.innerHTML = `<td><small style="font-family:monospace">${cbu}</small></td><td><i class="ti ti-circle-check" style="margin:0 4px 0 0"></i>${alumno.nombre}</td><td>${fmt$(importePesos)}</td><td><span style="font-size:11px;color:#27ae60">✔ Cobrado</span></td><td style="color:#27ae60">Saldar: ${etiquetas}</td>`;
         pagosResultados.push({cbu, alumno, conceptosASaldar, rechazado:false});
       }
     }
@@ -6143,7 +6202,7 @@ function inacBulkEliminarFiltrados(){
   const label = filtrados.length===alumnos.filter(a=>a.estado==='Baja').length
     ? 'TODOS los alumnos inactivos'
     : `${filtrados.length} alumno${filtrados.length!==1?'s':''} del filtro actual`;
-  if(!confirm(`⚠️ ¿Eliminar definitivamente ${label}?\n\nEsta acción no se puede deshacer.`)) return;
+  if(!confirm(`¿Eliminar definitivamente ${label}?\n\nEsta acción no se puede deshacer.`)) return;
   const idsToRemove = new Set(filtrados.map(a=>a.id));
   alumnos = alumnos.filter(a=>!idsToRemove.has(a.id));
   inacSelected.clear();
@@ -6200,7 +6259,7 @@ function detectarInactivosDuplicados(){
 
   const cont = document.getElementById('dup-inac-list');
   if(dupInacGrupos.length===0){
-    cont.innerHTML = `<p style="color:#27ae60;padding:12px 0">✅ No se encontraron alumnos inactivos duplicados.</p>`;
+    cont.innerHTML = `<p style="color:#27ae60;padding:12px 0"><i class="ti ti-circle-check" style="margin:0 4px 0 0"></i>No se encontraron alumnos inactivos duplicados.</p>`;
   } else {
     cont.innerHTML = dupInacGrupos.map((g,gi)=>`
       <div style="border:1px solid #e8e8e0;border-radius:8px;padding:10px 12px;margin-bottom:10px">
@@ -6209,7 +6268,7 @@ function detectarInactivosDuplicados(){
           <label id="dup-opt-${gi}-${ai}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;background:${ai===0?'#eafaf1':'#fdecea'}">
             <input type="radio" name="dup-keep-${gi}" value="${ai}" ${ai===0?'checked':''} onchange="dupInacMarcarConservar(${gi})">
             <span style="flex:1">
-              <span id="dup-tag-${gi}-${ai}" style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:${ai===0?'#1a4d2e':'#a93226'}">${ai===0?'✅ Se conserva':'🗑️ Se elimina'}</span><br>
+              <span id="dup-tag-${gi}-${ai}" style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:${ai===0?'#1a4d2e':'#a93226'}">${ai===0?'<i class="ti ti-circle-check" style="margin:0 4px 0 0"></i>Se conserva':'<i class="ti ti-trash" style="margin:0 4px 0 0"></i>Se elimina'}</span><br>
               <b>${a.nombre}</b> — Carrera: ${a.carrera||'Sin asignar'} · Deuda: ${fmt(a.deuda||0)} · Cuotas: ${a.cuotasAdeudadas||0} · Obs: ${a.observaciones||'—'}
             </span>
           </label>
@@ -6232,7 +6291,7 @@ function dupInacMarcarConservar(gi){
     const conserva = ai===keepIdx;
     label.style.background = conserva ? '#eafaf1' : '#fdecea';
     tag.style.color = conserva ? '#1a4d2e' : '#a93226';
-    tag.textContent = conserva ? '✅ Se conserva' : '🗑️ Se elimina';
+    tag.textContent = conserva ? 'Se conserva' : 'Se elimina';
   });
 }
 
@@ -6251,7 +6310,7 @@ function eliminarInacDuplicadosSeleccionados(){
   buildCarreraFilter(); buildInactivosCarreraFilter();
   renderStats(); renderInactivosStats(); renderAlumnosActual(); renderInactivos();
   closeModal('modal-dup-inac');
-  showToast(`✅ Se eliminaron ${aEliminar.length} duplicado(s)`);
+  showToast(`Se eliminaron ${aEliminar.length} duplicado(s)`);
 }
 
 function changeInactivosPage(d){ inacPage+=d; renderInactivos(); }
@@ -6305,7 +6364,7 @@ function inacHandleFile(file){
   if(!file) return;
   const ext = file.name.split('.').pop().toLowerCase();
   const status = document.getElementById('inac-import-status');
-  status.textContent='⏳ Leyendo archivo...';
+  status.textContent='Leyendo archivo...';
   status.className='info'; status.style.display='block';
 
   if(ext==='csv'){
@@ -6317,13 +6376,13 @@ function inacHandleFile(file){
       const s=document.createElement('script');
       s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
       s.onload=()=>inacLeerXLSX(file);
-      s.onerror=()=>{ status.textContent='❌ No se pudo cargar la librería XLSX. Exportá como CSV e intentá de nuevo.'; status.className='err'; };
+      s.onerror=()=>{ status.textContent='No se pudo cargar la librería XLSX. Exportá como CSV e intentá de nuevo.'; status.className='err'; };
       document.head.appendChild(s);
     } else {
       inacLeerXLSX(file);
     }
   } else {
-    status.textContent='❌ Formato no soportado. Usá .xlsx, .xls o .csv';
+    status.textContent='Formato no soportado. Usá .xlsx, .xls o .csv';
     status.className='err';
   }
 }
@@ -6338,7 +6397,7 @@ function inacLeerXLSX(file){
       inacProcesarRows(rows, file.name);
     } catch(err){
       const status = document.getElementById('inac-import-status');
-      status.textContent='❌ Error al leer el archivo: '+err.message;
+      status.textContent='Error al leer el archivo: '+err.message;
       status.className='err';
     }
   };
@@ -6356,13 +6415,13 @@ function inacProcesarCSV(text, filename){
 function inacProcesarRows(rows, filename){
   const status = document.getElementById('inac-import-status');
   if(!rows || rows.length<2){
-    status.textContent='❌ El archivo está vacío o no tiene datos suficientes.';
+    status.textContent='El archivo está vacío o no tiene datos suficientes.';
     status.className='err'; return;
   }
   inacHeaders = rows[0].map(h=>String(h||'').trim());
   inacXLSXData = rows.slice(1).filter(r=>r.some(c=>c!==''&&c!==null&&c!==undefined));
 
-  status.textContent=`✅ Archivo cargado: ${filename}`;
+  status.textContent=`Archivo cargado: ${filename}`;
   status.className='ok';
 
   // Mostrar paso 2 de mapeo
@@ -6420,7 +6479,7 @@ function inacConfirmarImport(){
   const s2 = document.getElementById('inac-import-status2');
 
   if(iNombre===null){
-    s2.textContent='❌ El campo "Nombre / Apellido" es obligatorio para importar.';
+    s2.textContent='El campo "Nombre / Apellido" es obligatorio para importar.';
     s2.className='err'; s2.style.display='block'; return;
   }
 
@@ -6545,7 +6604,7 @@ function openEdit(id){
       const wa = document.getElementById('ed-link-wa');
       const mail = document.getElementById('ed-link-mail');
       if(wa){ wa.href=tel?`https://wa.me/${(()=>{ const n=_normalizarTelArg(tel); return n ? n.replace(/\D/g,'') : '54'+tel.replace(/\D/g,''); })()}`:'#'; wa.style.display=tel?'':'none'; }
-      if(mail){ mail.href=email?`mailto:${email}`:'#'; mail.style.display=email?'':'none'; mail.textContent=`✉️ ${email}`; }
+      if(mail){ mail.href=email?`mailto:${email}`:'#'; mail.style.display=email?'':'none'; mail.textContent=`${email}`; }
     } else {
       linksDiv.style.display='none';
     }
@@ -6787,7 +6846,7 @@ function eliminarSaldoFavor(){
   actualizarInfoPago(a);
   pagoResumen();
   renderAlumnosActual();
-  showToast(`🗑 Saldo a favor de ${fmt(montoAnterior)} eliminado`);
+  showToast(`Saldo a favor de ${fmt(montoAnterior)} eliminado`);
 }
 
 function actualizarInfoPago(a){
@@ -6956,12 +7015,12 @@ function pagoResumen(){
         box.innerHTML=`<span style="color:#155724">✦ Excedente <strong>${fmt(excedente)}</strong> → se guarda como saldo a favor (total: <strong>${totalFavor}</strong>). Se descuenta automáticamente en el próximo cierre de mes.</span>`;
       }
     } else {
-      box.innerHTML=`<span style="color:#155724">💵 Excedente <strong>${fmt(excedente)}</strong> → se devuelve como vuelto. No afecta cuotas futuras.</span>`;
+      box.innerHTML=`<span style="color:#155724"><i class="ti ti-cash" style="margin:0 4px 0 0"></i>Excedente <strong>${fmt(excedente)}</strong> → se devuelve como vuelto. No afecta cuotas futuras.</span>`;
     }
   } else {
     if(opts) opts.style.display='none';
     box.style.background='#fff3cd'; box.style.border='1px solid #ffc107';
-    box.innerHTML=`<span style="color:#856404">⚠️ El monto no cubre los conceptos. Falta: <strong>${fmt(-excedente)}</strong></span>`;
+    box.innerHTML=`<span style="color:#856404"><i class="ti ti-alert-triangle" style="margin:0 4px 0 0"></i>El monto no cubre los conceptos. Falta: <strong>${fmt(-excedente)}</strong></span>`;
   }
 }
 
@@ -6997,7 +7056,7 @@ function confirmarPago(){
     if(tipoExcedente === 'vuelto'){
       const notaVuelto = `Vuelto: ${fmt(excedente)}`;
       a.observaciones = (a.observaciones ? a.observaciones + ' | ' : '') + notaVuelto;
-      showToast(`💵 Vuelto de ${fmt(excedente)} registrado`);
+      showToast(`Vuelto de ${fmt(excedente)} registrado`);
     } else {
       // Excluir los conceptos recién saldados al buscar la próxima cuota
       const idxsSaldadosSet = new Set(idxsSaldar);
@@ -7284,7 +7343,7 @@ function renderIndicadores(){
       <div class="dash-card">
         <h3><i class="ti ti-alert-triangle"></i>Mayores deudores activos</h3>
         ${topDeudores.length===0
-          ? '<div style="color:#aaa;font-size:12px;text-align:center;padding:12px">Sin deudores activos 🎉</div>'
+          ? '<div style="color:#aaa;font-size:12px;text-align:center;padding:12px">Sin deudores activos </div>'
           : `<table class="dash-mini-table">
             <thead><tr><th>Alumno</th><th>Carrera</th><th style="text-align:right">Deuda</th></tr></thead>
             <tbody>${topDeudores.map(a=>`<tr class="clickable-row" onclick="openEdit(${a.id})" title="Abrir ficha de ${a.nombre}">
@@ -7306,7 +7365,7 @@ function renderIndicadores(){
             <td style="text-align:right;color:#555">${x.deben}</td>
             <td style="text-align:right;color:#c0392b;font-weight:600">${fmt(x.deuda)}</td>
             <td style="text-align:right;color:#888;font-size:11px">${totalDeuda>0?Math.round(x.deuda/totalDeuda*100):0}%</td>
-          </tr>`).join('') || '<tr><td colspan="4" style="color:#aaa;text-align:center;padding:8px">Sin deuda activa 🎉</td></tr>'}
+          </tr>`).join('') || '<tr><td colspan="4" style="color:#aaa;text-align:center;padding:8px">Sin deuda activa </td></tr>'}
           </tbody>
         </table>
         ${totalDeuda+inacDeuda>0?`<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;padding:8px 6px 0;border-top:1px solid #f0f0e8;margin-top:4px">
@@ -7414,7 +7473,7 @@ function openCierreMes(){
 
     ${topDeudores.length>0?`
     <div class="cierre-section">
-      <h4>⚠️ Alumnos con deuda (${deben.length} total — acumularán 1 cuota más)</h4>
+      <h4><i class="ti ti-alert-triangle" style="margin:0 4px 0 0"></i>Alumnos con deuda (${deben.length} total — acumularán 1 cuota más)</h4>
       <div class="cierre-deudores-list">
         ${topDeudores.map(a=>`<div class="cierre-deudor-row">
           <span style="font-weight:500">${a.nombre}</span>
@@ -7427,7 +7486,7 @@ function openCierreMes(){
 
     ${deudoresPorCarrera.length>0?`
     <div class="cierre-section">
-      <h4>🎓 Deuda por carrera</h4>
+      <h4><i class="ti ti-school" style="margin:0 4px 0 0"></i>Deuda por carrera</h4>
       ${deudoresPorCarrera.map(x=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid #f0f0e8">
         <span style="color:#555">${x.c}</span>
         <span><span style="color:#888">${x.count} alumno${x.count!==1?'s':''} · </span><strong style="color:#c0392b">${fmt(x.monto)}</strong></span>
@@ -7440,7 +7499,7 @@ function openCierreMes(){
     </div>`:''}
 
     <div class="cierre-section">
-      <div class="dash-alert info">ℹ️ Al confirmar: <strong>${alDia.length}</strong> alumnos al día y <strong>${deben.length}</strong> con deuda recibirán 1 cuota del nuevo mes.</div>
+      <div class="dash-alert info"><i class="ti ti-info-circle" style="margin:0 4px 0 0"></i>Al confirmar: <strong>${alDia.length}</strong> alumnos al día y <strong>${deben.length}</strong> con deuda recibirán 1 cuota del nuevo mes.</div>
     </div>
   `;
   document.getElementById('modal-cierre').classList.add('open');
@@ -7456,14 +7515,14 @@ function ejecutarCierre(){
   const nuevoEsEnero = nuevoMes.toLowerCase().includes('enero');
   if(esAntesDiciembre || nuevoEsEnero){
     const yearLabel = mes.match(/\d{4}/)?.[0] || new Date().getFullYear().toString();
-    const guardar = confirm(`⚠️ Estás pasando a ${nuevoMes}.\n\n¿Querés guardar un archivo del año ${yearLabel} antes de continuar?\n\nSi aceptás se guarda automáticamente. Si cancelás, el cierre se ejecuta igual pero sin archivar.`);
+    const guardar = confirm(`Estás pasando a ${nuevoMes}.\n\n¿Querés guardar un archivo del año ${yearLabel} antes de continuar?\n\nSi aceptás se guarda automáticamente. Si cancelás, el cierre se ejecuta igual pero sin archivar.`);
     if(guardar){
       const snap = anioSnapshot();
       snap.label = yearLabel;
       const lista = aniosCargar();
       lista.unshift(snap);
       aniosGuardar(lista);
-      showToast(`✅ Año ${yearLabel} archivado automáticamente`);
+      showToast(`Año ${yearLabel} archivado automáticamente`);
     }
   }
 
@@ -7500,9 +7559,9 @@ function ejecutarCierre(){
   renderStats();renderAlumnosActual();closeModal('modal-cierre');
   guardarAhora().then(ok=>{
     if(ok){
-      showToast(`✅ Cierre de ${nuevoMes} ejecutado y confirmado en la nube`);
+      showToast(`Cierre de ${nuevoMes} ejecutado y confirmado en la nube`);
     } else {
-      showToast(`⚠️ Cierre de ${nuevoMes} se aplicó en este dispositivo, pero NO se pudo confirmar en la nube. No cierres esta pestaña: revisá tu conexión y volvé a intentar (el ícono ⚠ arriba se pone verde cuando sincronice).`, 'error');
+      showToast(`Cierre de ${nuevoMes} se aplicó en este dispositivo, pero NO se pudo confirmar en la nube. No cierres esta pestaña: revisá tu conexión y volvé a intentar (el ícono arriba se pone verde cuando sincronice).`, 'error');
     }
   });
 }
@@ -7525,7 +7584,7 @@ function openCierreAnio(){
       <div class="cierre-kpi"><div class="cierre-kpi-val" style="color:#8e44ad">${porAnio['4°']}</div><div class="cierre-kpi-label">4° (se mantienen)</div></div>
     </div>
     <div class="cierre-section">
-      <div class="dash-alert info">ℹ️ Se promoverán <strong>${totalPromueven}</strong> alumnos activos al año siguiente. Si algún alumno repitió o no debe ascender, corregilo manualmente después desde su ficha (botón editar → campo Año).</div>
+      <div class="dash-alert info"><i class="ti ti-info-circle" style="margin:0 4px 0 0"></i>Se promoverán <strong>${totalPromueven}</strong> alumnos activos al año siguiente. Si algún alumno repitió o no debe ascender, corregilo manualmente después desde su ficha (botón editar → campo Año).</div>
     </div>
     <div class="cierre-section">
       <div class="dash-alert info">Antes de promover, se guarda automáticamente un archivo del ciclo actual en la sección <strong>Años</strong>, para que puedas consultarlo cuando quieras.</div>
@@ -7538,7 +7597,7 @@ function openCierreAnio(){
     +'<input type="checkbox" id="cierre-anio-caja-chk" '+(_esDic?'checked':'')+' style="margin-top:3px">'
     +'<span><strong>Cerrar también Control de Caja</strong> ('+cajaPeriodoLabel(_pc)+') y comenzar '+cajaPeriodoLabel(_sc)
     +' con el saldo final de '+cajaFmt(cajaSaldoActual())+'.</span></label>'
-    +(_esDic ? '' : '<div style="margin-top:8px;color:#b45309;font-size:12px">⚠️ Control de Caja está en <strong>'+cajaPeriodoLabel(_pc)+'</strong>, no en diciembre. Por eso la casilla está sin tildar: si la tildás, se cerrará ese mes y no diciembre.</div>');
+    +(_esDic ? '' : '<div style="margin-top:8px;color:#b45309;font-size:12px"><i class="ti ti-alert-triangle" style="margin:0 4px 0 0"></i>Control de Caja está en <strong>'+cajaPeriodoLabel(_pc)+'</strong>, no en diciembre. Por eso la casilla está sin tildar: si la tildás, se cerrará ese mes y no diciembre.</div>');
   document.getElementById('modal-cierre-anio').classList.add('open');
 }
 
@@ -7575,7 +7634,7 @@ function ejecutarCierreAnio(){
     const r = cajaCerrarMes(true);
     if(r) cajaMsg = ` · Caja: ${cajaPeriodoLabel(r.cerrado)} cerrado, comenzó ${cajaPeriodoLabel(r.nuevo)}`;
   }
-  showToast(`✅ Cierre de año ejecutado: ${promovidos} alumnos promovidos · Ciclo ${yearLabel} archivado en "Años"${cajaMsg}`);
+  showToast(`Cierre de año ejecutado: ${promovidos} alumnos promovidos · Ciclo ${yearLabel} archivado en "Años"${cajaMsg}`);
 }
 
 // ── Aranceles ─────────────────────────────────────────────────────────────────
@@ -7614,7 +7673,7 @@ function guardarBorrador(tipo){
   d[tipo] = { ...vals, _fecha: new Date().toLocaleString('es-AR') };
   localStorage.setItem(ARANCEL_DRAFT_KEY, JSON.stringify(d));
   actualizarEstadoBorradores();
-  showToast('💾 Borrador guardado. Los alumnos no fueron modificados.');
+  showToast('Borrador guardado. Los alumnos no fueron modificados.');
 }
 
 function descartarBorrador(){
@@ -7835,7 +7894,7 @@ function aplicarArancel(tipo){
   });
 
   const label = tipo==='ef123' ? 'Ed. Física 1°, 2° y 3°' : 'todas las carreras generales';
-  const msg = `¿Aplicar nuevo arancel a ${label}?\n\nBase nueva: ${fmt(newArancel.total)}\nAlumnos afectados: ${afectados.length}\n\n⚠️ Las cuotas ya generadas NO se modifican.\nEl nuevo valor se aplicará recién en el próximo cierre de mes.\n\nLos alumnos con beca se actualizarán proporcionalmente.`;
+  const msg = `¿Aplicar nuevo arancel a ${label}?\n\nBase nueva: ${fmt(newArancel.total)}\nAlumnos afectados: ${afectados.length}\n\nLas cuotas ya generadas NO se modifican.\nEl nuevo valor se aplicará recién en el próximo cierre de mes.\n\nLos alumnos con beca se actualizarán proporcionalmente.`;
   if(!confirm(msg)) return;
 
   let actualizados = 0;
@@ -7862,7 +7921,7 @@ function aplicarArancel(tipo){
   actualizarEstadoBorradores();
   previewAranceles();
   renderArancelHistorial();
-  showToast(`✅ Arancel guardado · ${actualizados} alumnos actualizados · Se aplica en el próximo cierre de mes`);
+  showToast(`Arancel guardado · ${actualizados} alumnos actualizados · Se aplica en el próximo cierre de mes`);
 }
 
 // ── Reserva de Vacante y Matrícula del ciclo lectivo ────────────────────────
@@ -7897,7 +7956,7 @@ function guardarMatricula(){
   const ef123   = parseFloat(document.getElementById('mat-ef123').value)||0;
   localStorage.setItem(MATRICULA_KEY, JSON.stringify({reserva, general, ef123}));
   previewMatricula();
-  showToast('✅ Reserva y Matrícula guardadas');
+  showToast('Reserva y Matrícula guardadas');
 }
 
 // Sugiere el monto al elegir "Matrícula" / "Cuota vacante" / "Diferencia" en la ficha de un alumno.
@@ -7952,8 +8011,8 @@ function corregirCuotaMesGenerado(){
   renderStats(); renderAlumnosActual();
   guardarAhora().then(ok=>{
     showToast(ok
-      ? `✅ Se corrigieron ${afectados.length} cuotas de "${mesObjetivo}" y se sincronizó con la nube`
-      : `⚠️ Se corrigieron ${afectados.length} cuotas de "${mesObjetivo}" en este dispositivo, pero no se pudo confirmar en la nube. Revisá tu conexión.`);
+      ? `Se corrigieron ${afectados.length} cuotas de "${mesObjetivo}" y se sincronizó con la nube`
+      : `Se corrigieron ${afectados.length} cuotas de "${mesObjetivo}" en este dispositivo, pero no se pudo confirmar en la nube. Revisá tu conexión.`);
   });
 }
 
@@ -8050,7 +8109,7 @@ function exportarBecasJSON(){
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
   a.download = 'becas_ISCM.json';
   a.click();
-  showToast('📥 JSON exportado: becas_ISCM.json');
+  showToast('JSON exportado: becas_ISCM.json');
 }
 
 function exportarBecasExcel(){
@@ -8070,7 +8129,7 @@ function exportarBecasExcel(){
     ws['!cols'] = [{wch:30},{wch:6},{wch:18},{wch:16},{wch:11},{wch:13},{wch:10},{wch:12},{wch:8},{wch:11},{wch:9},{wch:11},{wch:11},{wch:30}];
     XLSX.utils.book_append_sheet(wb, ws, 'Becas socioeconómicas');
     XLSX.writeFile(wb, 'becas_socioeconomicas.xlsx');
-    showToast(`✅ Excel exportado con ${BECAS_SOCIO.length} becas`);
+    showToast(`Excel exportado con ${BECAS_SOCIO.length} becas`);
   }
   if(typeof XLSX === 'undefined'){
     const s = document.createElement('script');
@@ -8217,7 +8276,7 @@ function becaAplicarImport(filas){
   }
   becaSave();
   renderBecas();
-  showToast(`✅ Importación completa: ${actualizadas} actualizada(s), ${agregadas} nueva(s) agregada(s)`);
+  showToast(`Importación completa: ${actualizadas} actualizada(s), ${agregadas} nueva(s) agregada(s)`);
 }
 
 function becaCSVaMatriz(texto){
@@ -8350,7 +8409,7 @@ function descargarCSV(nombre, headers, rows){
   a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
   a.download = nombre;
   a.click();
-  showToast('📥 CSV exportado: '+nombre);
+  showToast('CSV exportado: '+nombre);
 }
 
 // ── 3. DASHBOARD: panel de becas ─────────────────────────────
@@ -8378,7 +8437,7 @@ function checkBecaAlDarBaja(nombreAlumno){
   const key = normalizar(nombreAlumno);
   const idx = BECAS_SOCIO.findIndex(b=>normalizar(b.alumno)===key);
   if(idx<0) return true; // no tiene beca, proceder
-  const resp = confirm(`⚠️ ${nombreAlumno} tiene una beca activa registrada.\n¿Querés también eliminarlo del listado de Becas?`);
+  const resp = confirm(`${nombreAlumno} tiene una beca activa registrada.\n¿Querés también eliminarlo del listado de Becas?`);
   if(resp){ BECAS_SOCIO.splice(idx,1); becaSave(); }
   return true;
 }
@@ -8480,9 +8539,9 @@ function renderAcuerdos(){
     const deudaTotal = acuerdos.reduce((s,a)=>s+a.deuda,0);
     statsEl.innerHTML = [
       {label:'Total acuerdos',  val:total,           color:'#1a1a2e'},
-      {label:'✅ Al día',        val:ok,              color:'#27ae60'},
-      {label:'⚠️ En riesgo',    val:riesgo,          color:'#e67e22'},
-      {label:'🔴 Vencidos',     val:vencido,         color:'#c0392b'},
+      {label:'Al día',        val:ok,              color:'#27ae60'},
+      {label:'En riesgo',    val:riesgo,          color:'#e67e22'},
+      {label:'Vencidos',     val:vencido,         color:'#c0392b'},
       {label:'Deuda total',     val:fmt(deudaTotal), color:'#2980b9', sm:true},
     ].map(c=>'<div class="resumen-card" style="border-left:4px solid '+c.color+'">'
       +'<div style="font-size:12px;color:#666;margin-bottom:4px">'+c.label+'</div>'
@@ -8499,10 +8558,10 @@ function renderAcuerdos(){
   tbody.innerHTML = data.map(a=>{
     const est = estadoAcuerdo(a);
     const [estColor,estLabel] = est==='ok'
-      ? ['#27ae60','✅ Al día']
+      ? ['#27ae60','Al día']
       : est==='riesgo'
-      ? ['#e67e22','⚠️ En riesgo']
-      : ['#c0392b','🔴 Vencido'];
+      ? ['#e67e22','En riesgo']
+      : ['#c0392b','Vencido'];
     const diff = a.deuda - (a.acuerdo.monto||0);
     const diffStr = diff>0
       ? '<span style="color:#c0392b;font-size:11px"> (+'+fmt(diff)+')</span>'
@@ -8652,7 +8711,7 @@ let cobEditMode = false;
 function toggleCobEdit(){
   cobEditMode = !cobEditMode;
   const btn = document.getElementById('btn-cob-edit');
-  if(btn){ btn.textContent = cobEditMode ? '✅ Guardar' : '✏️ Editar datos'; btn.className = cobEditMode ? 'btn success' : 'btn'; }
+  if(btn){ btn.textContent = cobEditMode ? 'Guardar' : 'Editar datos'; btn.className = cobEditMode ? 'btn success' : 'btn'; }
   renderCobranza();
 }
 
@@ -9090,7 +9149,7 @@ function cajaVueltoActualizar(){
     const cuentas = sug.cuentas.map(c=>c.n+' de '+c.label).join(' + ');
     let dtxt = Math.abs(sug.diff)<0.005 ? 'justo' : (sug.diff>0 ? 'queda a favor '+cajaFmt(sug.diff) : 'queda en contra '+cajaFmt(-sug.diff));
     det.innerHTML = 'Con tus billetes: <strong>'+cuentas+'</strong> · '+dtxt
-      + (Math.abs(sug.diff)>500 ? ' <span style="color:#b45309">· ⚠️ Con el conteo actual no se llega a un vuelto parecido al exacto.</span>' : '');
+      + (Math.abs(sug.diff)>500 ? ' <span style="color:#b45309">· <i class="ti ti-alert-triangle" style="margin:0 4px 0 0"></i>Con el conteo actual no se llega a un vuelto parecido al exacto.</span>' : '');
   }
   cajaVueltoNetoRender();
 }
@@ -9672,6 +9731,156 @@ function cajaCargarXLSX(cb){
   s.onerror = ()=>showToast('No se pudo cargar la librería de Excel','error');
   document.head.appendChild(s);
 }
+// ── IMPORTAR EXCEL DE CONTROL DE CAJA (separado por meses) ──────
+let _cajaXls = null;
+
+function cajaXlsAbrir(){
+  _cajaXls = null;
+  document.getElementById('caja-xls-preview').style.display = 'none';
+  document.getElementById('caja-xls-aplicar').style.display = 'none';
+  document.getElementById('caja-xls-input').value = '';
+  document.getElementById('modal-caja-xls').classList.add('open');
+}
+
+function cajaXlsNorm(t){
+  return String(t==null?'':t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+}
+
+// Convierte un valor de celda de fecha (serie de Excel, Date o texto dd/mm/aaaa) a 'AAAA-MM-DD'
+function cajaXlsFecha(v){
+  if(v==null || v==='') return null;
+  const pad = n=>String(n).padStart(2,'0');
+  if(typeof v==='number'){
+    const d = XLSX.SSF.parse_date_code(v);
+    return d ? d.y+'-'+pad(d.m)+'-'+pad(d.d) : null;
+  }
+  if(v instanceof Date){
+    return v.getFullYear()+'-'+pad(v.getMonth()+1)+'-'+pad(v.getDate());
+  }
+  const t = String(v).trim();
+  let m = t.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if(m){ let y=+m[3]; if(y<100) y+=2000; return y+'-'+pad(+m[2])+'-'+pad(+m[1]); }
+  m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? m[1]+'-'+m[2]+'-'+m[3] : null;
+}
+
+function cajaXlsArchivo(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    cajaCargarXLSX(()=>{
+      try{
+        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+        let hoja=null, hdr=-1, cols=null, filas=null;
+        // Buscar la hoja y la fila de encabezados (Fecha / Ingresos / Egresos)
+        for(const nombre of wb.SheetNames){
+          const f = XLSX.utils.sheet_to_json(wb.Sheets[nombre], {header:1, raw:true, defval:null});
+          for(let i=0;i<Math.min(f.length,60);i++){
+            const n = f[i].map(cajaXlsNorm);
+            const iF=n.indexOf('fecha'), iI=n.findIndex(x=>x.startsWith('ingres')), iE=n.findIndex(x=>x.startsWith('egres'));
+            if(iF>=0 && iI>=0 && iE>=0){
+              cols = {fecha:iF, desc:n.findIndex(x=>x.startsWith('descrip')), ing:iI, egr:iE, obs:n.findIndex(x=>x.startsWith('observ'))};
+              hdr=i; hoja=nombre; filas=f; break;
+            }
+          }
+          if(hdr>=0) break;
+        }
+        if(hdr<0){ showToast('No encontré las columnas Fecha / Ingresos / Egresos en el Excel','error',5000); return; }
+
+        const porMes = {};
+        let omitidas=0, totalExcel=null, primera=true;
+        for(let i=hdr+1;i<filas.length;i++){
+          const r = filas[i];
+          if(!r || r.every(c=>c==null||c==='')) continue;
+          const txt = r.filter(c=>typeof c==='string').join(' ');
+          if(/total\s+saldo/i.test(txt)){
+            const nums = r.filter(c=>typeof c==='number');
+            if(nums.length) totalExcel = nums[nums.length-1];
+            continue;
+          }
+          const fecha = cajaXlsFecha(r[cols.fecha]);
+          let ing = cajaNum(r[cols.ing]), egr = cajaNum(r[cols.egr]);
+          if(ing<0){ egr += -ing; ing = 0; }
+          if(egr<0){ ing += -egr; egr = 0; }
+          if(!fecha){ if(ing||egr) omitidas++; continue; }
+          if(!ing && !egr) continue;   // filas sin importe (separadores, "Saldo actual" vacío, etc.)
+          const desc = cols.desc>=0 ? String(r[cols.desc]==null?'':r[cols.desc]).trim() : '';
+          const obs  = cols.obs>=0 ? String(r[cols.obs]==null?'':r[cols.obs]).trim() : '';
+          const mov = {fecha, desc: desc||'(sin descripción)', ingreso:ing, egreso:egr, obs};
+          if(primera){ if(/saldo/i.test(desc)) mov.saldoInicial = true; primera=false; }
+          (porMes[fecha.slice(0,7)] = porMes[fecha.slice(0,7)] || []).push(mov);
+        }
+        const periodos = Object.keys(porMes).sort();
+        if(!periodos.length){ showToast('No encontré movimientos con fecha en el Excel','error',5000); return; }
+        _cajaXls = {porMes, periodos, omitidas, totalExcel, hoja};
+        cajaXlsPreview();
+      }catch(err){
+        console.error(err);
+        showToast('No se pudo leer el Excel: '+err.message,'error',5000);
+      }
+    });
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function cajaXlsPreview(){
+  const d = _cajaXls; if(!d) return;
+  let saldo=0, totMov=0;
+  const filas = d.periodos.map((p,i)=>{
+    const t = cajaTotales(d.porMes[p]); saldo += t.saldo; totMov += d.porMes[p].length;
+    const ultimo = i===d.periodos.length-1;
+    return '<tr style="border-top:1px solid #f0f0e8">'
+      +'<td style="padding:6px 8px;font-weight:600">'+cajaEsc(cajaCap(cajaPeriodoLabel(p)))
+        +(ultimo?' <span style="font-size:10px;background:#d4edda;color:#155724;border-radius:4px;padding:1px 6px;margin-left:4px">mes en curso</span>':'')+'</td>'
+      +'<td style="padding:6px 8px;text-align:right">'+d.porMes[p].length+'</td>'
+      +'<td style="padding:6px 8px;text-align:right;color:#27ae60">'+cajaFmt(t.ing)+'</td>'
+      +'<td style="padding:6px 8px;text-align:right;color:#c0392b">'+cajaFmt(t.egr)+'</td>'
+      +'<td style="padding:6px 8px;text-align:right;font-weight:600">'+cajaFmt(saldo)+'</td>'
+      +'</tr>';
+  });
+  document.getElementById('caja-xls-tbody').innerHTML = filas.join('');
+  let info = '<strong>'+d.periodos.length+' meses</strong> ('+cajaPeriodoLabel(d.periodos[0])+' a '+cajaPeriodoLabel(d.periodos[d.periodos.length-1])+') · '+totMov+' movimientos · saldo final calculado <strong>'+cajaFmt(saldo)+'</strong>';
+  if(d.totalExcel!=null){
+    const ok = Math.abs(d.totalExcel-saldo)<0.5;
+    info += '<br><span style="color:'+(ok?'#155724':'#c0392b')+'">'+(ok?'✓ Coincide con el "Total saldo actual" del Excel':'⚠ El Excel dice '+cajaFmt(d.totalExcel)+' — revisá la diferencia')+'</span>';
+  }
+  if(d.omitidas) info += '<br><span style="color:#a04000">'+d.omitidas+' fila(s) con importe pero sin fecha válida se omitieron.</span>';
+  document.getElementById('caja-xls-info').innerHTML = info;
+  document.getElementById('caja-xls-preview').style.display = 'block';
+  document.getElementById('caja-xls-aplicar').style.display = '';
+}
+
+function cajaXlsAplicar(){
+  const d = _cajaXls; if(!d) return;
+  const conSI = document.getElementById('caja-xls-sinicial').checked;
+  const ult = d.periodos[d.periodos.length-1];
+  if(!confirm('Se van a reemplazar los movimientos de caja y el historial actual por los '+d.periodos.length+' meses del Excel (último mes en curso: '+cajaPeriodoLabel(ult)+').\n\n¿Continuar?')) return;
+  // Respaldo previo (por si hay que volver atrás)
+  try{
+    localStorage.setItem('iscm_caja_backup_preimport', JSON.stringify({
+      fecha:new Date().toISOString(), movimientos:cajaMovimientos, billetes:billetesQty, periodo:cajaPeriodo, hist:cajaHist
+    }));
+  }catch(e){}
+  const meses = []; let prev = null;
+  d.periodos.forEach(p=>{
+    const movs = JSON.parse(JSON.stringify(d.porMes[p]));
+    if(conSI && prev!==null && !movs.some(m=>m.saldoInicial)) movs.unshift(cajaMovSaldoInicial(p, prev));
+    prev = cajaTotales(movs).saldo;
+    meses.push({periodo:p, movimientos:movs});
+  });
+  const actual = meses.pop();   // el último mes queda abierto
+  cajaHist = {meses: meses.map(m=>({periodo:m.periodo, movimientos:m.movimientos, billetes:BILLETES_DENOM.map(()=>0), cerradoEn:new Date().toISOString()}))};
+  cajaMovimientos = actual.movimientos;
+  cajaPeriodo = actual.periodo;
+  cajaHistSave();
+  cajaSave();
+  renderCaja();
+  try{ dashRefrescarSiVisible(); }catch(e){}
+  closeModal('modal-caja-xls');
+  _cajaXls = null;
+  showToast('✓ Importados '+d.periodos.length+' meses. Los anteriores están en Historial','success',5000);
+}
+
 function cajaFilasMes(mes){
   const rows = [['Fecha','Descripción','Alumno','Ingresos','Egresos','Saldo','Observaciones']];
   let acum=0;
@@ -9782,7 +9991,7 @@ function gsSearch(q){
     normalizar(a.cbu||'').includes(ql) ||
     (a.conceptos||[]).some(c=> normalizar(conceptoLabel(c)).includes(ql))
   )).slice(0,6).forEach(a=>{
-    const icon = a.estado==='Al día'?'🟢':a.estado==='Acuerdo'?'🟡':'🔴';
+    const icon = a.estado==='Al día'?'<span style="color:#27ae60">●</span>':a.estado==='Acuerdo'?'<span style="color:#e0a800">●</span>':'<span style="color:#c0392b">●</span>';
     // Qué campo matcheó
     let hint = `${a.carrera} · ${a.anio} · ${a.estado}`;
     if(!normalizar(a.nombre).includes(ql)){
@@ -9792,7 +10001,7 @@ function gsSearch(q){
       else { const c=(a.conceptos||[]).find(c=>normalizar(conceptoLabel(c)).includes(ql)); if(c) hint=`Concepto: ${conceptoLabel(c)}`; }
     }
     if(a.deuda>0) hint += ` · ${fmt(a.deuda)}`;
-    results.push({ section:'🧑‍🎓 Alumnos', icon, title:a.nombre, sub:hint, action:()=>gsGoAlumno(a.id) });
+    results.push({ section:'Alumnos', icon, title:a.nombre, sub:hint, action:()=>gsGoAlumno(a.id) });
   });
 
   // ── Alumnos inactivos ───────────────────────────────────────
@@ -9806,7 +10015,7 @@ function gsSearch(q){
     if(!normalizar(a.nombre).includes(ql) && normalizar(a.observaciones||'').includes(ql))
       hint = `Obs: ${(a.observaciones||'').slice(0,50)}`;
     results.push({
-      section:'🚫 Inactivos', icon:'⚫', title:a.nombre, sub:hint,
+      section:'Inactivos', icon:'<span style="color:#555">●</span>', title:a.nombre, sub:hint,
       action:()=>{ switchTab('inactivos',document.querySelector('[onclick*=inactivos]')); document.getElementById('inac-search').value=a.nombre; renderInactivos(); gsClose(); }
     });
   });
@@ -9818,14 +10027,14 @@ function gsSearch(q){
     normalizar(p.obs||'').includes(ql) ||
     normalizar(p.descripcion||'').includes(ql)
   ).slice(0,4).forEach(p=>{
-    let hint = `${p.pagado==='SI'?'✓ Pagado':'⏳ Pendiente'}`;
+    let hint = `${p.pagado==='SI'?'✓ Pagado':'Pendiente'}`;
     if(p.precio) hint += ` · ${fmt(p.precio)}`;
     if(!normalizar(p.nombre||'').includes(ql)){
       if(normalizar(p.categoria||'').includes(ql)) hint = `Cat: ${p.categoria} · `+hint;
       else if(normalizar(p.obs||'').includes(ql)) hint = `Obs: ${(p.obs||'').slice(0,40)}`;
     }
     results.push({
-      section:'🏢 Proveedores', icon:p.pagado==='SI'?'✅':'⏳', title:p.nombre, sub:hint,
+      section:'Proveedores', icon:p.pagado==='SI'?'<i class="ti ti-circle-check" style="margin:0"></i>':'<i class="ti ti-hourglass" style="margin:0"></i>', title:p.nombre, sub:hint,
       action:()=>{ switchTab('proveedores',document.querySelector('[onclick*=proveedores]')); document.getElementById('prov-search').value=p.nombre; renderProveedores(); gsClose(); }
     });
   });
@@ -9841,7 +10050,7 @@ function gsSearch(q){
     let hint = `${fecha} · ${m.ingreso>0?'↑ '+cajaFmt(m.ingreso):'↓ '+cajaFmt(m.egreso)}`;
     if(al) hint += ` · ${al.nombre}`;
     results.push({
-      section:'💰 Caja', icon:m.ingreso>0?'↑':'↓', title:m.desc||'Movimiento', sub:hint,
+      section:'Caja', icon:m.ingreso>0?'↑':'↓', title:m.desc||'Movimiento', sub:hint,
       action:()=>{ switchTab('caja',document.querySelector('[onclick*=\'caja\']')); gsClose(); }
     });
   });
@@ -9849,11 +10058,11 @@ function gsSearch(q){
   // ── Becas ───────────────────────────────────────────────────
   const matchBecas = [
     ...BECAS_SOCIO.filter(b=> normalizar(b.alumno||'').includes(ql)||normalizar(b.carrera||'').includes(ql)||normalizar(b.ciudad||'').includes(ql)).slice(0,3).map(b=>({
-      section:'🎓 Becas', icon:'📋', title:b.alumno, sub:`Beca socioeconómica · ${b.carrera} · ${b.ciudad||''}`,
+      section:'Becas', icon:'<i class="ti ti-clipboard-list" style="margin:0"></i>', title:b.alumno, sub:`Beca socioeconómica · ${b.carrera} · ${b.ciudad||''}`,
       action:()=>{ switchTab('becas',document.querySelector('[onclick*=becas]')); document.getElementById('beca-search').value=b.alumno; renderBecas(); gsClose(); }
     })),
     ...HIJOS_PROF.filter(h=> normalizar(h.hijo||'').includes(ql)||normalizar(h.profesor||'').includes(ql)).slice(0,2).map(h=>({
-      section:'🎓 Becas', icon:'👨‍👧', title:h.hijo, sub:`Hijo/a de profesor · ${h.profesor}`,
+      section:'Becas', icon:'<i class="ti ti-user" style="margin:0"></i>', title:h.hijo, sub:`Hijo/a de profesor · ${h.profesor}`,
       action:()=>{ switchTab('becas',document.querySelector('[onclick*=becas]')); document.getElementById('beca-search').value=h.hijo; renderBecas(); gsClose(); }
     })),
   ];
@@ -9868,7 +10077,7 @@ function gsSearch(q){
     let hint = `N° ${b.numero||'—'} · ${b.rindio?'✓ Rendido':'Pendiente de rendir'}`;
     if(al) hint += ` · ${al.carrera}`;
     results.push({
-      section:'🎫 Bonos · Alumnos', icon:b.rindio?'✅':'🕓', title:b.alumno||'(sin alumno)', sub:hint,
+      section:'Bonos · Alumnos', icon:b.rindio?'<i class="ti ti-circle-check" style="margin:0"></i>':'<i class="ti ti-clock" style="margin:0"></i>', title:b.alumno||'(sin alumno)', sub:hint,
       action:()=>{ switchTab('bonos',document.querySelector('[onclick*=bonos]')); if(typeof bpSub==='function') bpSub('alumnos'); gsClose(); }
     });
   });
@@ -9886,7 +10095,7 @@ function gsSearch(q){
     let hint = `${(d.bonos||[]).length} bono${(d.bonos||[]).length!==1?'s':''} · ${pag} pagado${pag!==1?'s':''}, ${pend} pendiente${pend!==1?'s':''}`;
     if(!normalizar(d.name||'').includes(ql) && normalizar(d.note||'').includes(ql)) hint = `Nota: ${(d.note||'').slice(0,50)}`;
     results.push({
-      section:'🎫 Bonos · Profesores', icon:'👨‍🏫', title:d.name, sub:hint,
+      section:'Bonos · Profesores', icon:'<i class="ti ti-user" style="margin:0"></i>', title:d.name, sub:hint,
       action:()=>{ switchTab('bonos',document.querySelector('[onclick*=bonos]')); window.bpSub('profes'); const q2=document.getElementById('bp-q'); if(q2){ q2.value=d.name; q2.dispatchEvent(new Event('input')); } gsClose(); }
     });
   });
@@ -9900,7 +10109,7 @@ function gsSearch(q){
     (p.itemsPub||[]).some(i=>normalizar(i.descripcion||'').includes(ql))
   ).slice(0,3).forEach(p=>{
     results.push({
-      section:'📋 Presupuestos', icon:'📄', title:p.titulo||'Sin título',
+      section:'Presupuestos', icon:'<i class="ti ti-file-text" style="margin:0"></i>', title:p.titulo||'Sin título',
       sub:`${p.cliente||''} · ${fmt(p.total||0)}`,
       action:()=>{ switchTab('presupuestos',document.querySelector('[onclick*=presupuestos]')); presupInit(); gsClose(); }
     });
@@ -9914,7 +10123,7 @@ function gsSearch(q){
       normalizar(fmtFecha(f.fecha)||'').includes(ql)
     ).slice(0,2).forEach(f=>{
       results.push({
-        section:'🏦 Conciliación', icon:'🏦', title:`${f.metodo||'—'} · ${fmtFecha(f.fecha)}`,
+        section:'Conciliación', icon:'<i class="ti ti-building-bank" style="margin:0"></i>', title:`${f.metodo||'—'} · ${fmtFecha(f.fecha)}`,
         sub:`${mes} · ${fmt(f.bruto||0)}${f.obs?' · '+f.obs:''}`,
         action:()=>{ switchTab('conciliacion',document.querySelector('[onclick*=conciliacion]')); gsClose(); }
       });
@@ -10049,7 +10258,7 @@ function validarCuotaEdit(){
   const esValida = cuotasValidas.some(cv => Math.abs(cuota - cv) / Math.max(cv, 1) < 0.02);
   if(!esValida){
     const opciones = cuotasValidas.filter(c=>c>0).map(c=>'$'+c.toLocaleString('es-AR')).join(' · ');
-    showToast('⚠️ Cuota $'+cuota.toLocaleString('es-AR')+' no coincide con ningún valor reconocido. Esperados: '+opciones, 'warn');
+    showToast('Cuota $'+cuota.toLocaleString('es-AR')+' no coincide con ningún valor reconocido. Esperados: '+opciones, 'warn');
   }
 }
 
@@ -10181,7 +10390,7 @@ function becaBulkEliminar(){
   becaSeleccionadas.clear();
   becaSave();
   renderBecas();
-  showToast(`🗑 ${n} beca(s) eliminada(s)`);
+  showToast(`${n} beca(s) eliminada(s)`);
 }
 
 function abrirBecaBulkEdit(){
@@ -10241,7 +10450,7 @@ function aplicarBecaBulkEdit(){
   const n = becaSeleccionadas.size;
   becaSeleccionadas.clear();
   renderBecas();
-  showToast(`✅ ${n} beca/s actualizadas correctamente`);
+  showToast(`${n} beca/s actualizadas correctamente`);
 }
 // ── FIN BECAS BULK ──────────────────────────────────────────────
 
@@ -10411,8 +10620,8 @@ function renderBecas(){
         const badge = pctPct>=70?'#c0392b':pctPct>=50?'#e67e22':'#27ae60';
         const existe = alumnoActivoExiste(b.alumno);
         const rowStyle = existe ? '' : 'background:#fff8f8;opacity:0.75';
-        const orphanBadge = existe ? '' : `<span title="Este alumno no está en el padrón activo" style="margin-left:6px;font-size:10px;background:#fecaca;color:#b91c1c;padding:1px 6px;border-radius:8px;font-weight:700">⚠ sin padrón</span>`;
-        const noPagoBadge = b.suspendida ? `<span style="margin-left:6px;font-size:10px;background:#fde68a;color:#92400e;padding:1px 6px;border-radius:8px;font-weight:700" title="El próximo cierre de mes le va a asignar la cuota completa, sin beca">⚠ sin beca próx. cierre</span>` : '';
+        const orphanBadge = existe ? '' : `<span title="Este alumno no está en el padrón activo" style="margin-left:6px;font-size:10px;background:#fecaca;color:#b91c1c;padding:1px 6px;border-radius:8px;font-weight:700"><i class="ti ti-alert-triangle" style="margin:0 4px 0 0"></i>sin padrón</span>`;
+        const noPagoBadge = b.suspendida ? `<span style="margin-left:6px;font-size:10px;background:#fde68a;color:#92400e;padding:1px 6px;border-radius:8px;font-weight:700" title="El próximo cierre de mes le va a asignar la cuota completa, sin beca"><i class="ti ti-alert-triangle" style="margin:0 4px 0 0"></i>sin beca próx. cierre</span>` : '';
 
         // Estado actual cruzado con alumnos[]
         const alumnoData = alumnos.find(a=>normalizar(a.nombre)===normalizar(b.alumno));
@@ -10478,7 +10687,7 @@ function renderBecas(){
         const pct = Math.round(h.pct*100);
         return `<tr>
           <td><strong>${h.profesor}</strong></td>
-          <td>${h.hijo}${h.suspendida?'<span style="margin-left:6px;font-size:10px;background:#fde68a;color:#92400e;padding:1px 6px;border-radius:8px;font-weight:700" title="El próximo cierre de mes le va a asignar la cuota completa, sin descuento">⚠ sin desc. próx. cierre</span>':''}</td>
+          <td>${h.hijo}${h.suspendida?'<span style="margin-left:6px;font-size:10px;background:#fde68a;color:#92400e;padding:1px 6px;border-radius:8px;font-weight:700" title="El próximo cierre de mes le va a asignar la cuota completa, sin descuento"><i class="ti ti-alert-triangle" style="margin:0 4px 0 0"></i>sin desc. próx. cierre</span>':''}</td>
           <td style="text-align:center"><span style="background:#b8860b;color:#fff;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600">${pct}%</span></td>
           <td style="text-align:center">
             <label style="display:inline-flex;align-items:center;cursor:pointer;gap:4px" title="No pagó la cuota del mes anterior: el próximo cierre de mes le carga la cuota completa (sin descuento)">
@@ -10606,7 +10815,7 @@ function becaProgramarReset(){
   if(!fecha){ showToast('Elegí una fecha primero','error'); return; }
   localStorage.setItem('iscm_becas_reset_fecha', fecha);
   if(window._fb) window._fb.set('iscm_becas_reset_fecha', fecha).catch(()=>{});
-  showToast(`📅 Reinicio de becas programado para el ${becaFormatearFecha(fecha)}`);
+  showToast(`Reinicio de becas programado para el ${becaFormatearFecha(fecha)}`);
   document.getElementById('modal-beca-reset').style.display = 'none';
 }
 
@@ -10620,7 +10829,7 @@ function becaCancelarProgramacion(){
 function becaResetearAhora(){
   const total = BECAS_SOCIO.length;
   if(total === 0){ showToast('No hay becas socioeconómicas cargadas para borrar','error'); document.getElementById('modal-beca-reset').style.display='none'; return; }
-  const conf = confirm(`⚠️ Esto va a borrar TODAS las becas socioeconómicas cargadas (${total} en total), para que se vuelvan a pedir en el ciclo nuevo. Los hijos/as de profesores/as NO se tocan.\n\nEsta acción no se puede deshacer. ¿Confirmás?`);
+  const conf = confirm(`Esto va a borrar TODAS las becas socioeconómicas cargadas (${total} en total), para que se vuelvan a pedir en el ciclo nuevo. Los hijos/as de profesores/as NO se tocan.\n\nEsta acción no se puede deshacer. ¿Confirmás?`);
   if(!conf) return;
   BECAS_SOCIO.length = 0;
   localStorage.removeItem('iscm_becas_reset_fecha');
@@ -10628,7 +10837,7 @@ function becaResetearAhora(){
   if(window._fb) window._fb.set('iscm_becas_reset_fecha', null).catch(()=>{});
   renderBecas();
   document.getElementById('modal-beca-reset').style.display = 'none';
-  showToast(`🗑 Se borraron ${total} beca(s) socioeconómica(s). Listo para el ciclo nuevo.`);
+  showToast(`Se borraron ${total} beca(s) socioeconómica(s). Listo para el ciclo nuevo.`);
 }
 
 // Se fija si hay un reinicio programado y si ya se cumplió la fecha; si es así, lo ejecuta.
@@ -10648,7 +10857,7 @@ function becaVerificarResetProgramado(){
     becaSave();
     if(window._fb) window._fb.set('iscm_becas_reset_fecha', null).catch(()=>{});
     if(typeof renderBecas === 'function' && document.getElementById('tab-becas')) renderBecas();
-    setTimeout(()=>{ showToast(`📅 Reinicio automático de becas: se borraron ${total} beca(s) socioeconómica(s) (programado para el ${becaFormatearFecha(fecha)})`); }, 1000);
+    setTimeout(()=>{ showToast(`Reinicio automático de becas: se borraron ${total} beca(s) socioeconómica(s) (programado para el ${becaFormatearFecha(fecha)})`); }, 1000);
   } catch(e){ console.warn('becaVerificarResetProgramado error', e); }
 }
 
@@ -10708,7 +10917,7 @@ function becaToggleNoPago(idx){
   becaSave();
   renderBecas();
   showToast(b.suspendida
-    ? `⚠ ${b.alumno}: el próximo cierre de mes le va a cargar la cuota completa (sin beca)`
+    ? `${b.alumno}: el próximo cierre de mes le va a cargar la cuota completa (sin beca)`
     : `✔ ${b.alumno}: vuelve a tener su beca normal`);
 }
 
@@ -10719,7 +10928,7 @@ function hijoToggleNoPago(idx){
   becaSave();
   renderBecas();
   showToast(h.suspendida
-    ? `⚠ ${h.hijo}: el próximo cierre de mes le va a cargar la cuota completa (sin descuento)`
+    ? `${h.hijo}: el próximo cierre de mes le va a cargar la cuota completa (sin descuento)`
     : `✔ ${h.hijo}: vuelve a tener su descuento normal`);
 }
 
@@ -10809,8 +11018,8 @@ function provSemaforoHtml(p){
   if(p.pagado==='SI' || p.esperando || !p.fechaVencimiento) return '';
   const hoy = new Date(provHoyLocalISO()+'T12:00:00');
   const dias = Math.round((new Date(p.fechaVencimiento+'T12:00:00') - hoy) / 86400000);
-  if(dias < 0) return `<span title="Vencida hace ${-dias} día(s)" style="margin-right:4px">🔴</span>`;
-  if(dias <= 7) return `<span title="Vence ${dias===0?'hoy':'en '+dias+' día(s)'}" style="margin-right:4px">🟡</span>`;
+  if(dias < 0) return `<span title="Vencida hace ${-dias} día(s)" style="margin-right:4px"><span style="color:#c0392b">●</span></span>`;
+  if(dias <= 7) return `<span title="Vence ${dias===0?'hoy':'en '+dias+' día(s)'}" style="margin-right:4px"><span style="color:#e0a800">●</span></span>`;
   return '';
 }
 
@@ -10958,14 +11167,14 @@ function provExtAbrir(){
   ['prov-ext-resultado','prov-ext-error'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('btn-prov-ext-aplicar').style.display = 'none';
   document.getElementById('prov-ext-file').value = '';
-  document.getElementById('prov-ext-drop').innerHTML = `<div style="font-size:28px;margin-bottom:8px">🏦</div>
+  document.getElementById('prov-ext-drop').innerHTML = `<div style="font-size:28px;margin-bottom:8px"><i class="ti ti-building-bank" style="margin:0"></i></div>
     <div style="font-size:13px;font-weight:600;color:#1a1a2e">Hacer clic para elegir el extracto</div>
     <div style="font-size:11px;color:#888;margin-top:4px">Soporta .csv (banco) o .xlsx</div>`;
   document.getElementById('modal-prov-extracto').classList.add('open');
 }
 function provExtError(msg){
   const el = document.getElementById('prov-ext-error');
-  el.textContent = '⚠️ ' + msg; el.style.display = 'block';
+  el.textContent = '' + msg; el.style.display = 'block';
   document.getElementById('prov-ext-resultado').style.display = 'none';
   document.getElementById('btn-prov-ext-aplicar').style.display = 'none';
 }
@@ -10974,7 +11183,7 @@ function provExtArchivo(input){
   document.getElementById('prov-ext-error').style.display = 'none';
   const ext = file.name.split('.').pop().toLowerCase();
   const listo = rows => {
-    document.getElementById('prov-ext-drop').innerHTML = `<div style="font-size:22px;margin-bottom:6px">✅</div>
+    document.getElementById('prov-ext-drop').innerHTML = `<div style="font-size:22px;margin-bottom:6px"><i class="ti ti-circle-check" style="margin:0"></i></div>
       <div style="font-size:13px;font-weight:600;color:#27ae60">${cajaEsc(file.name)}</div>
       <div style="font-size:11px;color:#888;margin-top:4px">${rows.length} filas detectadas</div>`;
     provExtAnalizar(rows);
@@ -11297,7 +11506,7 @@ function renderProveedores(){
       <td style="font-weight:600;color:#1a1a2e">${provFmt(p.precio)}</td>
       <td>${factBadge}</td>
       <td class="factura-cell${p.linkFactura?' has-link':''}" style="font-size:12px" onmouseenter="showFacturaPopup(event,${p.id})" onmouseleave="startHidePopup()" onclick="${p.linkFactura?`abrirFacturaLink(${p.id})`:''}">
-        ${p.esperando ? '<span class="badge debe" style="background:#fff3cd;color:#8a6d00">Esperando factura</span>' : (p.nFactura||'—')}${p.linkFactura?' 📎':''}</td>
+        ${p.esperando ? '<span class="badge debe" style="background:#fff3cd;color:#8a6d00">Esperando factura</span>' : (p.nFactura||'—')}${p.linkFactura?' <i class="ti ti-paperclip" style="margin:0"></i>':''}</td>
       <td style="font-size:12px">${provSemaforoHtml(p)}${fmtFecha(p.fechaVencimiento)}</td>
       <td>${p.esperando ? '<span class="badge" style="background:#f1f1ec;color:#888">—</span>' : pagBadge}</td>
       <td style="font-size:12px">${fmtFecha(p.fechaPago)}</td>
@@ -11582,7 +11791,7 @@ function showFacturaPopup(e, id) {
     btnAbrir.href = p.linkFactura;
     btnAbrir.style.display = 'inline-block';
   } else {
-    body.innerHTML = '<div class="fp-no-link"><span style="font-size:28px">📄</span><span>Sin adjunto — editá la fila para agregar un link</span></div>';
+    body.innerHTML = '<div class="fp-no-link"><span style="font-size:28px"><i class="ti ti-file-text" style="margin:0"></i></span><span>Sin adjunto — editá la fila para agregar un link</span></div>';
     btnAbrir.style.display = 'none';
   }
   posicionarPopup(e, popup);
@@ -11804,7 +12013,7 @@ function provRenderPreviewImport(){
   const totalNuevas = provImportPendingNuevas.length;
   const totalConf = provImportPendingConflictos.length;
   document.getElementById('prov-import-stats').innerHTML =
-    `📄 <strong>${totalNuevas + totalConf}</strong> filas leídas del Excel · ` +
+    `<i class="ti ti-file-text" style="margin:0 4px 0 0"></i><strong>${totalNuevas + totalConf}</strong> filas leídas del Excel · ` +
     `<span style="color:#1a7a3c">${totalNuevas} nuevas</span> · ` +
     `<span style="color:${totalConf>0?'#c0392b':'#888'}">${totalConf} ya existen</span>`;
 
@@ -11837,7 +12046,7 @@ function provRenderPreviewImport(){
       <td style="padding:5px 8px;border-bottom:1px solid #f0f0ea">${r.nFactura||'—'}</td>
       <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #f0f0ea">${provFmt(r.precio)}</td>
       <td style="padding:5px 8px;text-align:center;border-bottom:1px solid #f0f0ea">${r.pagado==='SI'?'✓':'—'}</td>
-      <td style="padding:5px 8px;text-align:center;border-bottom:1px solid #f0f0ea;font-size:10px">${r.linkFactura?'📎 Factura':'—'}</td>
+      <td style="padding:5px 8px;text-align:center;border-bottom:1px solid #f0f0ea;font-size:10px">${r.linkFactura?'<i class="ti ti-paperclip" style="margin:0 4px 0 0"></i>Factura':'—'}</td>
     </tr>`;
   }).join('');
 }
@@ -11876,7 +12085,7 @@ function provConfirmarImport(){
   saveProv();
   renderProveedores();
   document.getElementById('modal-import-prov').classList.remove('open');
-  showToast(`✅ Importación completa · ${nuevos} nuevas, ${actualizados} actualizadas, ${omitidos} omitidas`);
+  showToast(`Importación completa · ${nuevos} nuevas, ${actualizados} actualizadas, ${omitidos} omitidas`);
 }
 
 // ── Exportar Proveedores ─────────────────────────────────────────
@@ -11916,7 +12125,7 @@ function provExportarExcel(){
     XLSX.utils.book_append_sheet(wb, ws, 'Proveedores');
     const fecha = new Date().toLocaleDateString('es-AR').replace(/\//g,'-');
     XLSX.writeFile(wb, `Proveedores_ISCM_${fecha}.xlsx`);
-    showToast(`✅ Excel exportado · ${proveedores.length} facturas`);
+    showToast(`Excel exportado · ${proveedores.length} facturas`);
   }
   if(typeof XLSX === 'undefined'){
     const s = document.createElement('script');
@@ -11938,7 +12147,7 @@ function provExportarJSON(){
   a.download = `Proveedores_ISCM_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
-  showToast(`✅ JSON exportado · ${proveedores.length} facturas`);
+  showToast(`JSON exportado · ${proveedores.length} facturas`);
 }
 
 function provExportarCSV(){
@@ -11959,7 +12168,7 @@ function provExportarCSV(){
   a.download = `Proveedores_ISCM_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
-  showToast(`✅ CSV exportado · ${proveedores.length} facturas`);
+  showToast(`CSV exportado · ${proveedores.length} facturas`);
 }
 
 // ── FIN PROVEEDORES ───────────────────────────────────────────
@@ -12329,12 +12538,12 @@ function presupMenuExportar(anchorEl){
     <button onclick="presupGenerarDocumento('word');document.getElementById('presup-export-menu').remove()"
       style="display:flex;align-items:center;gap:9px;width:100%;padding:8px 12px;background:none;border:none;cursor:pointer;border-radius:7px;font-size:13px;color:#1a1a2e;text-align:left;transition:background .1s"
       onmouseenter="this.style.background='#f5f5f0'" onmouseleave="this.style.background=''">
-      <span style="font-size:16px">📄</span>Exportar Word (.doc)
+      <span style="font-size:16px"><i class="ti ti-file-text" style="margin:0"></i></span>Exportar Word (.doc)
     </button>
     <button onclick="presupGenerarDocumento('pdf');document.getElementById('presup-export-menu').remove()"
       style="display:flex;align-items:center;gap:9px;width:100%;padding:8px 12px;background:none;border:none;cursor:pointer;border-radius:7px;font-size:13px;color:#1a1a2e;text-align:left;transition:background .1s"
       onmouseenter="this.style.background='#f5f5f0'" onmouseleave="this.style.background=''">
-      <span style="font-size:16px">🖨️</span>Exportar PDF
+      <span style="font-size:16px"><i class="ti ti-printer" style="margin:0"></i></span>Exportar PDF
     </button>`;
 
   document.body.appendChild(menu);
@@ -12482,7 +12691,7 @@ function presupGenerarDocumento(fmt){
     const a    = document.createElement('a');
     a.href=url; a.download=nombreArchivo+'.doc'; a.click();
     URL.revokeObjectURL(url);
-    showToast('📄 Word descargado');
+    showToast('Word descargado');
   } else {
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
       <title>${titulo}</title>
@@ -12494,7 +12703,7 @@ function presupGenerarDocumento(fmt){
     if(!win){ showToast('Habilitá las ventanas emergentes para generar el PDF','error'); return; }
     win.document.write(html);
     win.document.close();
-    showToast('🖨️ Se abrió la ventana de impresión — guardá como PDF');
+    showToast('Se abrió la ventana de impresión — guardá como PDF');
   }
 }
 
@@ -12612,7 +12821,7 @@ async function feriadosSincronizarFirebase(){
 function feriadoAgregar(){
   const inp = document.getElementById('fer-nueva');
   const f = inp ? inp.value : '';
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(f)){ showToast('⚠ Elegí una fecha', 'error'); return; }
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(f)){ showToast('Elegí una fecha', 'error'); return; }
   if(feriadosCfg.quitados.includes(f)) feriadosCfg.quitados = feriadosCfg.quitados.filter(x=>x!==f);
   else if(!FERIADOS_AR.has(f)) feriadosCfg.extra.push(f);
   inp.value = '';
@@ -13275,7 +13484,7 @@ function concRender(){
       const comision = f.comisionManual!=null ? f.comisionManual : calcComision(bruto, f.metodo);
       const neto     = calcNeto(bruto, comision);
       const acred    = f.acreditado!=null ? f.acreditado : neto;
-      const pasaMes  = f.pasaMesSig ? '⚠️ ' : '';
+      const pasaMes  = f.pasaMesSig ? '<i class="ti ti-alert-triangle" style="margin:0 4px 0 0;color:#e67e22"></i>' : '';
       const concBadge = f.conciliado==='Si'
         ? '<span class="badge pagado">✓ Sí</span>'
         : '<span class="badge debe">✗ No</span>';
@@ -13452,12 +13661,12 @@ function concExportarXLSX(todoElHistorial){
         XLSX.utils.book_append_sheet(wb, hojaParaMes(ym), nombreHoja);
       });
       XLSX.writeFile(wb, `Conciliacion_Bancaria_ISCM_Historial_${fecha}.xlsx`);
-      showToast(`✅ Excel exportado · ${meses.length} mes/es`);
+      showToast(`Excel exportado · ${meses.length} mes/es`);
     } else {
       if(!concMesActual || !(concData[concMesActual]||[]).length){ showToast('No hay movimientos en este mes para exportar','error'); return; }
       XLSX.utils.book_append_sheet(wb, hojaParaMes(concMesActual), nombreMes(concMesActual).slice(0,31));
       XLSX.writeFile(wb, `Conciliacion_Bancaria_ISCM_${concMesActual}_${fecha}.xlsx`);
-      showToast(`✅ Excel exportado · ${nombreMes(concMesActual)}`);
+      showToast(`Excel exportado · ${nombreMes(concMesActual)}`);
     }
   }
 
@@ -13516,7 +13725,7 @@ function concExportarPDF(){
     .stat .v{font-size:15px;font-weight:700;color:#1a1a2e}
     @media print{ body{padding:10mm} }
   </style></head><body>
-    <h1>🏦 Conciliación Bancaria — ${nombreMes(concMesActual)}</h1>
+    <h1>Conciliación Bancaria — ${nombreMes(concMesActual)}</h1>
     <div class="sub">ISCM — Gestión de Tesorería · Exportado el ${new Date().toLocaleDateString('es-AR')}</div>
     <div class="stats">
       <div class="stat"><div class="l">Recaudado bruto</div><div class="v">${fmtN(tBruto)}</div></div>
@@ -13543,7 +13752,7 @@ function concExportarPDF(){
   if(!w){ showToast('El navegador bloqueó la ventana de impresión. Habilitá pop-ups.','error'); return; }
   w.document.open(); w.document.write(html); w.document.close();
   w.onload = () => { w.focus(); w.print(); };
-  showToast('📄 Generando PDF — usá "Guardar como PDF" en el diálogo de impresión');
+  showToast('Generando PDF — usá "Guardar como PDF" en el diálogo de impresión');
 }
 
 // ── AGREGAR / EDITAR FILA ────────────────────────────────────
@@ -13608,7 +13817,7 @@ function cfGuardar(){
   if(!fecha) errores.push('fecha de cobro');
   if(!metodo) errores.push('método de pago');
   if(brutoRaw==='' || brutoRaw===null) errores.push('importe bruto');
-  if(errores.length){ showToast('⚠ Completá: ' + errores.join(', '), 'error'); return; }
+  if(errores.length){ showToast('Completá: ' + errores.join(', '), 'error'); return; }
 
   const manualStr = document.getElementById('cf-comision-manual').value;
   const acredStr  = document.getElementById('cf-acreditado').value;
@@ -13691,7 +13900,7 @@ function concAbrirNuevoMes(){
 }
 function concCrearMes(){
   const ym = document.getElementById('nuevo-mes-input').value;
-  if(!ym){ showToast('⚠ Seleccioná un mes.', 'error'); return; }
+  if(!ym){ showToast('Seleccioná un mes.', 'error'); return; }
   if(!concData[ym]) concData[ym]=[];
   concGuardar();
   concMesActual = ym;
@@ -13701,7 +13910,7 @@ function concCrearMes(){
 }
 
 function concEliminarMes(){
-  if(!concMesActual || !concData[concMesActual]){ showToast('⚠ No hay un mes seleccionado.', 'error'); return; }
+  if(!concMesActual || !concData[concMesActual]){ showToast('No hay un mes seleccionado.', 'error'); return; }
   const ym = concMesActual;
   const nFilas = (concData[ym]||[]).length;
   const msg = nFilas>0
@@ -13725,7 +13934,7 @@ function concEliminarMes(){
 
   concRefrescarSelector();
   concRender();
-  showToast(`🗑️ Mes ${nombreMes(ym)} eliminado`, 'success');
+  showToast(`Mes ${nombreMes(ym)} eliminado`, 'success');
 }
 
 // ── TASAS ─────────────────────────────────────────────────────
@@ -14082,7 +14291,7 @@ function mapearMetodo(raw){
 
 function mostrarImportError(msg){
   const el = document.getElementById('import-error');
-  el.textContent = '⚠️ ' + msg;
+  el.textContent = '' + msg;
   el.style.display = 'block';
 }
 
@@ -14102,7 +14311,7 @@ function mostrarImportPreview(filas){
     const c=f.comisionManual!=null?f.comisionManual:calcComision(b,f.metodo);
     const n=b-c;
     const mesLabel = f.pasaMesSig
-      ? `<span style="color:#e67e22;font-size:10px" title="Cobrado en ${fmtFecha(f.fecha)}, se acredita en ${nombreMes(f._mesDestino)}">⚠️ →${f._mesDestino?.slice(5,7)}</span>`
+      ? `<span style="color:#e67e22;font-size:10px" title="Cobrado en ${fmtFecha(f.fecha)}, se acredita en ${nombreMes(f._mesDestino)}"><i class="ti ti-alert-triangle" style="margin:0 4px 0 0"></i>→${f._mesDestino?.slice(5,7)}</span>`
       : '';
     tbody.innerHTML += `<tr>
       <td style="padding:4px 8px;border-bottom:1px solid #f0f0f0;white-space:nowrap">${fmtFecha(f.fecha)} ${mesLabel}</td>
@@ -14170,7 +14379,7 @@ function concProcesarExtracto(input){
 
   // Feedback inmediato: mostrar nombre del archivo en el drop zone
   const dz = document.getElementById('extracto-drop-zone');
-  dz.innerHTML = `<div style="font-size:22px;margin-bottom:6px">📄</div>
+  dz.innerHTML = `<div style="font-size:22px;margin-bottom:6px"><i class="ti ti-file-text" style="margin:0"></i></div>
     <div style="font-size:13px;font-weight:600;color:#1a1a2e">${file.name}</div>
     <div style="font-size:11px;color:#888;margin-top:4px">Leyendo archivo...</div>`;
 
@@ -14185,7 +14394,7 @@ function concProcesarExtracto(input){
         const firstLine = text.split(/\r?\n/)[0];
         const sep = firstLine.includes(';') ? ';' : firstLine.includes('\t') ? '\t' : ',';
         const lines = text.split(/\r?\n/).map(l => l.split(sep).map(c => c.replace(/^"|"$/g,'').trim()));
-        dz.innerHTML = `<div style="font-size:22px;margin-bottom:6px">✅</div>
+        dz.innerHTML = `<div style="font-size:22px;margin-bottom:6px"><i class="ti ti-circle-check" style="margin:0"></i></div>
           <div style="font-size:13px;font-weight:600;color:#27ae60">${file.name}</div>
           <div style="font-size:11px;color:#888;margin-top:4px">${lines.length} filas detectadas</div>`;
         extractoCargarColumnas(lines);
@@ -14201,20 +14410,20 @@ function concProcesarExtracto(input){
       leerXLSXExtracto(file);
     } else {
       // Intentar cargar la librería con timeout
-      dz.innerHTML = `<div style="font-size:22px;margin-bottom:6px">⏳</div>
+      dz.innerHTML = `<div style="font-size:22px;margin-bottom:6px"><i class="ti ti-hourglass" style="margin:0"></i></div>
         <div style="font-size:13px;font-weight:600;color:#1a1a2e">Cargando librería Excel...</div>`;
       const s = document.createElement('script');
       s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
       s.onload = () => { leerXLSXExtracto(file); };
       s.onerror = () => {
-        mostrarExtractoError('⚠️ No se pudo cargar la librería para .xlsx. Exportá el extracto del banco como CSV (separado por coma o punto y coma) y subilo en ese formato.');
+        mostrarExtractoError('No se pudo cargar la librería para .xlsx. Exportá el extracto del banco como CSV (separado por coma o punto y coma) y subilo en ese formato.');
         resetDropZone();
       };
       // Timeout por si el script carga pero no dispara onload/onerror
       setTimeout(() => {
         if(typeof XLSX !== 'undefined') { leerXLSXExtracto(file); }
         else {
-          mostrarExtractoError('⚠️ El archivo .xlsx no se pudo procesar. Exportá el extracto como CSV desde tu banco y subilo en ese formato.');
+          mostrarExtractoError('El archivo .xlsx no se pudo procesar. Exportá el extracto como CSV desde tu banco y subilo en ese formato.');
           resetDropZone();
         }
       }, 6000);
@@ -14228,7 +14437,7 @@ function concProcesarExtracto(input){
 
 function resetDropZone(){
   document.getElementById('extracto-drop-zone').innerHTML = `
-    <div style="font-size:28px;margin-bottom:8px">🏦</div>
+    <div style="font-size:28px;margin-bottom:8px"><i class="ti ti-building-bank" style="margin:0"></i></div>
     <div style="font-size:13px;font-weight:600;color:#1a1a2e">Hacer clic para elegir otro archivo</div>
     <div style="font-size:11px;color:#888;margin-top:4px">Soporta .csv o .xlsx</div>`;
   document.getElementById('extracto-file-input').value = '';
@@ -14240,7 +14449,7 @@ function leerXLSXExtracto(file){
     try {
       const rows = extractoXlsxARows(e.target.result);
       const dz = document.getElementById('extracto-drop-zone');
-      dz.innerHTML = `<div style="font-size:22px;margin-bottom:6px">✅</div>
+      dz.innerHTML = `<div style="font-size:22px;margin-bottom:6px"><i class="ti ti-circle-check" style="margin:0"></i></div>
         <div style="font-size:13px;font-weight:600;color:#27ae60">${file.name}</div>
         <div style="font-size:11px;color:#888;margin-top:4px">${rows.length} filas detectadas</div>`;
       extractoCargarColumnas(rows);
@@ -14545,7 +14754,7 @@ function extractoAnalizar(){
       const ajusteMonto = cambio ? Math.abs(cambio.comisionNueva - cambio.comisionAnterior) : 0;
       const resaltar = ajusteMonto > 100;
       estadoHtml = resaltar
-        ? `<span style="color:#e67e22;font-weight:700" title="Ajuste de comisión > $100 — revisar">⚠ ajuste grande</span>`
+        ? `<span style="color:#e67e22;font-weight:700" title="Ajuste de comisión > $100 — revisar"><i class="ti ti-alert-triangle" style="margin:0 4px 0 0"></i>ajuste grande</span>`
         : `<span style="color:#27ae60;font-weight:600">✓ ajustado</span>`;
       if(filas.length === 1){
         const f = filas[0].fila;
@@ -14625,7 +14834,7 @@ function extractoAplicar(){
 
 function mostrarExtractoError(msg){
   const el = document.getElementById('extracto-error');
-  el.textContent = '⚠️ ' + msg;
+  el.textContent = '' + msg;
   el.style.display = 'block';
 }
 
@@ -14687,7 +14896,7 @@ function ppCargarPDFs(fileList){
   files.forEach(file => {
     const item = document.createElement('div');
     item.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f8f8f4;border-radius:6px;margin-bottom:4px;font-size:12px';
-    item.innerHTML = `<span style="font-size:16px">📄</span><span style="flex:1">${file.name}</span><span id="pp-status-${loaded}" style="color:#888">Leyendo...</span>`;
+    item.innerHTML = `<span style="font-size:16px"><i class="ti ti-file-text" style="margin:0"></i></span><span style="flex:1">${file.name}</span><span id="pp-status-${loaded}" style="color:#888">Leyendo...</span>`;
     document.getElementById('pp-archivos-items').appendChild(item);
 
     const idx = loaded++;
@@ -14721,7 +14930,7 @@ function ppCargarTXTs(fileList){
   files.forEach(file => {
     const item = document.createElement('div');
     item.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f4f8f4;border-radius:6px;margin-bottom:4px;font-size:12px';
-    item.innerHTML = `<span style="font-size:16px">📋</span><span style="flex:1">${file.name}</span><span id="pp-txt-status-${loaded}" style="color:#888">Leyendo...</span>`;
+    item.innerHTML = `<span style="font-size:16px"><i class="ti ti-clipboard-list" style="margin:0"></i></span><span style="flex:1">${file.name}</span><span id="pp-txt-status-${loaded}" style="color:#888">Leyendo...</span>`;
     document.getElementById('pp-archivos-items').appendChild(item);
 
     const idx = loaded++;
@@ -14984,10 +15193,10 @@ function ppProcesarTXTs(){
 
   ppMostrarPreview(ppFusionarLiquidaciones(liquidaciones));
   if(sinMovimientos.length){
-    showToast(`ℹ️ Sin operaciones (se omiten): ${sinMovimientos.join(' · ')}`, 'success');
+    showToast(`Sin operaciones (se omiten): ${sinMovimientos.join(' · ')}`, 'success');
   }
   if(erroresTotales.length){
-    showToast(`⚠️ ${erroresTotales.length} archivo/s no se pudieron leer (se importó el resto). Revisá: ${erroresTotales.join(' · ')}`, 'error');
+    showToast(`${erroresTotales.length} archivo/s no se pudieron leer (se importó el resto). Revisá: ${erroresTotales.join(' · ')}`, 'error');
   }
 }
 // ── FIN PARSERS TXT ─────────────────────────────────────────────
@@ -15035,7 +15244,7 @@ async function ppProcesarPDFs(){
 
     ppMostrarPreview(liquidaciones);
     if(erroresTotales.length){
-      showToast(`⚠️ ${erroresTotales.length} bloque/s no se pudieron leer (se importó el resto). Revisá: ${erroresTotales.join(' · ')}`, 'error');
+      showToast(`${erroresTotales.length} bloque/s no se pudieron leer (se importó el resto). Revisá: ${erroresTotales.join(' · ')}`, 'error');
     }
   });
 }
@@ -15077,13 +15286,13 @@ function ppMostrarPreview(liquidaciones){
 
     const metodos = ['QR','Link de Pago','Boca de Pago','Pago Mis Cuentas'];
     const pasaMesHtml = pasaMes
-      ? `<div style="color:#e67e22;font-size:11px;margin-top:4px">⚠️ La acreditación cae en ${nombreMes(mesAcred)} → se crea la fila en ese mes</div>`
+      ? `<div style="color:#e67e22;font-size:11px;margin-top:4px"><i class="ti ti-alert-triangle" style="margin:0 4px 0 0"></i>La acreditación cae en ${nombreMes(mesAcred)} → se crea la fila en ese mes</div>`
       : '';
 
     cont.innerHTML += `
     <div style="background:#f8f8f4;border:1px solid #d8c8f0;border-radius:8px;padding:12px 14px;margin-bottom:10px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-        <span style="font-size:18px">${liq.medio==='QR'?'📱':liq.medio==='Link de Pago'?'🔗':'🏪'}</span>
+        <span style="font-size:18px">${liq.medio==='QR'?'<i class="ti ti-qrcode" style="margin:0"></i>':liq.medio==='Link de Pago'?'<i class="ti ti-link" style="margin:0"></i>':'<i class="ti ti-building-store" style="margin:0"></i>'}</span>
         <div>
           <div style="font-weight:600;font-size:13px;color:#6c3483">${liq.medio}</div>
           <div style="font-size:11px;color:#888">Rendición ${fmtFecha(liq.fecha_rendicion)} → Acreditación ${fmtFecha(fechaAcred)}</div>
@@ -15103,8 +15312,8 @@ function ppMostrarPreview(liquidaciones){
           <div style="font-weight:700;color:#27ae60">${fmtN(netoCalc)}</div>
         </div>
       </div>
-      ${liq._avisoBruto ? '<div style="color:#c0392b;font-size:11px;margin-bottom:8px">⚠️ ' + liq._avisoBruto + '</div>' : ''}
-      ${liq._soloDetalle ? '<div style="color:#e67e22;font-size:11px;margin-bottom:8px">ℹ️ Este archivo no informa la comisión: se calcula con la tasa configurada. Para usar la comisión real, cargá el DetalleRecaudacion.</div>' : ''}
+      ${liq._avisoBruto ? '<div style="color:#c0392b;font-size:11px;margin-bottom:8px"><i class="ti ti-alert-triangle" style="margin:0 4px 0 0"></i>' + liq._avisoBruto + '</div>' : ''}
+      ${liq._soloDetalle ? '<div style="color:#e67e22;font-size:11px;margin-bottom:8px"><i class="ti ti-info-circle" style="margin:0 4px 0 0"></i>Este archivo no informa la comisión: se calcula con la tasa configurada. Para usar la comisión real, cargá el DetalleRecaudacion.</div>' : ''}
       <div style="display:flex;align-items:center;gap:8px;font-size:12px">
         <label style="color:#666;white-space:nowrap">Método en conciliación:</label>
         <select onchange="ppFilasParsed[${i}].metodo=this.value" style="height:28px;border-radius:5px;border:1px solid #d0d0c8;font-size:12px;padding:0 6px">
@@ -15187,18 +15396,18 @@ function ppImportar(){
   ppCerrarModal();
   concRender();
 
-  let msg = `✅ ${importadas} fila/s cargadas desde los mails de Pronto Pago.`;
+  let msg = `${importadas} fila/s cargadas desde los mails de Pronto Pago.`;
   if(actualizadas) msg += `\n• ${actualizadas} fila/s existentes actualizadas con la comisión real del Detalle`;
   if(omitidas) msg += `\n• ${omitidas} omitidas (ya existían)`;
   const pasanMes = ppFilasParsed.filter(f=>f.pasaMes);
-  if(pasanMes.length) msg += `\n\n⚠️ ${pasanMes.length} liquidación/es caen en el mes siguiente → se crearon en ${[...new Set(pasanMes.map(f=>nombreMes(f.mesAcred)))].join(', ')}.`;
-  if(avisos.length) msg += `\n\n⚠️ Para revisar:\n• ` + avisos.join('\n• ');
+  if(pasanMes.length) msg += `\n\n${pasanMes.length} liquidación/es caen en el mes siguiente → se crearon en ${[...new Set(pasanMes.map(f=>nombreMes(f.mesAcred)))].join(', ')}.`;
+  if(avisos.length) msg += `\n\nPara revisar:\n• ` + avisos.join('\n• ');
   alert(msg);
 }
 
 function mostrarPPError(msg){
   const el = document.getElementById('pp-error');
-  el.textContent = '⚠️ ' + msg;
+  el.textContent = '' + msg;
   el.style.display = 'block';
 }
 
@@ -15570,7 +15779,7 @@ function mostrarPPError(msg){
     ondragleave="this.style.background=''"
     ondrop="archDropHandler(event)"
     onclick="document.getElementById('arch-file-input').click()">
-    <div style="font-size:32px;margin-bottom:8px">📄</div>
+    <div style="font-size:32px;margin-bottom:8px"><i class="ti ti-file-text" style="margin:0"></i></div>
     <div>Arrastrá archivos aquí o <strong>hacé clic</strong> para seleccionar</div>
     <div style="font-size:11px;margin-top:4px;color:#aaa">PDF, Word, Excel, imágenes · máx 700 KB por archivo</div>
   </div>
@@ -15898,7 +16107,7 @@ function loginOk(silent=false){
   // Si el superadmin le reinició la contraseña, sugerir cambiarla
   if(sesionActual._mustChange){
     setTimeout(()=>{
-      showToast('💡 Tu contraseña fue reiniciada. Podés cambiarla desde "Mi cuenta".');
+      showToast('Tu contraseña fue reiniciada. Podés cambiarla desde "Mi cuenta".');
       openMiCuenta();
     }, 800);
   }
@@ -15931,7 +16140,7 @@ function cerrarSesionPorInactividad(){
   ls.style.display = 'flex';
   ls.style.opacity = '1';
   document.body.style.overflow = 'hidden';
-  document.getElementById('login-err').textContent = '⏱ Sesión cerrada por inactividad (30 min).';
+  document.getElementById('login-err').textContent = 'Sesión cerrada por inactividad (30 min).';
   document.getElementById('login-user').value = '';
   document.getElementById('login-pass').value = '';
 }
@@ -15959,7 +16168,7 @@ async function _iniciarSesionDesdeFirebase(user){
   if(ts && (Date.now() - ts) > INACTIVIDAD_MS){
     sessionStorage.removeItem('iscm_actividad_ts');
     await window._auth.signOut().catch(()=>{});
-    document.getElementById('login-err').textContent = '⏱ Sesión cerrada por inactividad (30 min).';
+    document.getElementById('login-err').textContent = 'Sesión cerrada por inactividad (30 min).';
     return;
   }
 
@@ -16017,7 +16226,7 @@ function aplicarRol(){
   if(topbar){
     const badge = document.createElement('span');
     badge.style.cssText = 'background:#e67e22;color:#fff;font-size:10px;padding:3px 8px;border-radius:10px;font-weight:700;margin-left:8px';
-    badge.textContent = '👁 Solo lectura';
+    badge.textContent = 'Solo lectura';
     topbar.querySelector('h1')?.appendChild(badge);
   }
 }
@@ -16196,7 +16405,7 @@ async function renderUsuarios(){
     return;
   }
   const rolLabel = r => r==='superadmin'?'Superadministrador':r==='admin'?'Administrador':'Lector - solo lectura';
-  const rolIcon  = r => r==='superadmin'?'⭐':r==='admin'?'🔧':'👁';
+  const rolIcon  = r => r==='superadmin'?'<i class="ti ti-star" style="margin:0"></i>':r==='admin'?'<i class="ti ti-tool" style="margin:0"></i>':'<i class="ti ti-eye" style="margin:0"></i>';
   const esc = s => String(s||'').replace(/'/g,"\\'");
   el.innerHTML = `<div style="font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Usuarios existentes</div>` +
   otros.map(u=>`
@@ -16254,7 +16463,7 @@ async function usuarioResetPass(uid, nombre){
     showToast(e.message || 'No se pudo reiniciar la contraseña', 'error'); return;
   }
   alert(`Contraseña temporal para ${nombre}:\n\n${tempPass}\n\nAnotala ahora: no se va a volver a mostrar.`);
-  showToast(`✅ Contraseña de "${nombre}" reiniciada`);
+  showToast(`Contraseña de "${nombre}" reiniciada`);
 }
 
 async function usuarioCambiarRol(uid, rolActual){
@@ -16277,7 +16486,7 @@ async function usuarioCambiarRol(uid, rolActual){
     if(nuevo !== rolActual){
       try{
         await window._cf.cambiarRolUsuario({uid, rol: nuevo});
-        showToast(`✅ Rol → ${labels[nuevo]}`);
+        showToast(`Rol → ${labels[nuevo]}`);
       }catch(e){
         showToast(e.message || 'No se pudo cambiar el rol', 'error');
       }
@@ -16333,7 +16542,7 @@ async function guardarMiNombre(){
   const rolLabel = sesionActual.rol==='superadmin'?'Superadministrador':sesionActual.rol==='admin'?'Administrador':'Lector';
   document.getElementById('mi-cuenta-info').innerHTML =
     `<strong>${nuevoNombre}</strong> <span style="color:#888">(${sesionActual.user})</span> · <span style="font-size:11px;color:#888">${rolLabel}</span>`;
-  showToast('✅ Nombre actualizado a "'+nuevoNombre+'"');
+  showToast('Nombre actualizado a "'+nuevoNombre+'"');
 }
 
 async function guardarMiUsuario(){
@@ -16353,7 +16562,7 @@ async function guardarMiUsuario(){
   const rolLabel = sesionActual.rol==='superadmin'?'Superadministrador':sesionActual.rol==='admin'?'Administrador':'Lector';
   document.getElementById('mi-cuenta-info').innerHTML =
     `<strong>${sesionActual.nombre}</strong> <span style="color:#888">(${nuevoUser})</span> · <span style="font-size:11px;color:#888">${rolLabel}</span>`;
-  showToast('✅ Usuario actualizado a "'+nuevoUser+'". La próxima vez, iniciá sesión con ese usuario.');
+  showToast('Usuario actualizado a "'+nuevoUser+'". La próxima vez, iniciá sesión con ese usuario.');
 }
 
 async function guardarMiCuenta(){
@@ -16375,7 +16584,7 @@ async function guardarMiCuenta(){
   try{ await window._cf.confirmarPasswordCambiada(); }catch(e){ console.warn('No se pudo limpiar debeCambiarPass', e); }
   if(sesionActual) sesionActual._mustChange = false;
   document.getElementById('mc-nueva').value='';
-  showToast('✅ Contraseña actualizada');
+  showToast('Contraseña actualizada');
 }
 
 // ── Verificación en dos pasos (TOTP) ─────────────────────────────────────
@@ -16420,7 +16629,7 @@ async function mfaConfirmar(){
   }
   _mfaSecretoPendiente = null;
   mfaRenderEstado();
-  showToast('✅ Verificación en dos pasos activada');
+  showToast('Verificación en dos pasos activada');
 }
 
 async function mfaDesactivar(){
@@ -16677,7 +16886,7 @@ function anioGuardarActual(){
   lista.unshift(snap); // más reciente primero
   aniosGuardar(lista);
   renderAnios();
-  showToast(`✅ Año "${snap.label}" guardado correctamente`);
+  showToast(`Año "${snap.label}" guardado correctamente`);
 }
 
 function anioEliminar(){
@@ -16685,7 +16894,7 @@ function anioEliminar(){
   const lista = aniosCargar();
   const a = lista.find(x=>x.id===_anioViendoId);
   const msg = (a&&a.tipo==='cierre-anio')
-    ? '⚠️ Este es un archivo de un Cierre de año (registro oficial de la promoción de alumnos). ¿Seguro que querés eliminarlo?'
+    ? 'Este es un archivo de un Cierre de año (registro oficial de la promoción de alumnos). ¿Seguro que querés eliminarlo?'
     : '¿Eliminar este archivo guardado?';
   if(!confirm(msg)) return;
   const nuevaLista = lista.filter(x=>x.id!==_anioViendoId);
@@ -16718,8 +16927,8 @@ function renderAnios(){
     const saldoColor = (s.saldoCaja||0)>=0?'#27ae60':'#c0392b';
     const esCierreAnio = a.tipo==='cierre-anio';
     const badge = esCierreAnio
-      ? `<span style="background:#e8d5f5;color:#5b2c8d;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.03em;white-space:nowrap">🎓 CIERRE DE AÑO</span>`
-      : `<span style="background:#e9ecef;color:#495057;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.03em;white-space:nowrap">💾 GUARDADO MANUAL</span>`;
+      ? `<span style="background:#e8d5f5;color:#5b2c8d;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.03em;white-space:nowrap"><i class="ti ti-school" style="margin:0 4px 0 0"></i>CIERRE DE AÑO</span>`
+      : `<span style="background:#e9ecef;color:#495057;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.03em;white-space:nowrap"><i class="ti ti-device-floppy" style="margin:0 4px 0 0"></i>GUARDADO MANUAL</span>`;
     return `<div class="resumen-card" style="margin-bottom:12px;cursor:pointer;transition:box-shadow .15s${esCierreAnio?';border-left:4px solid #5b2c8d':''}" onclick="anioVerDetalle(${a.id})" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.10)'" onmouseout="this.style.boxShadow=''">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
         <div>
@@ -16767,7 +16976,7 @@ function anioVerDetalle(id){
   const a = lista.find(x=>x.id===id);
   if(!a) return;
 
-  document.getElementById('modal-anio-titulo').textContent = `${a.tipo==='cierre-anio'?'🎓':'🗂'} ${a.label}`;
+  document.getElementById('modal-anio-titulo').textContent = `${a.tipo==='cierre-anio'?'<i class="ti ti-school" style="margin:0"></i>':'<i class="ti ti-folders" style="margin:0"></i>'} ${a.label}`;
 
   // Alumnos del snapshot
   const alumnosSnap = a.alumnos||[];
@@ -17020,13 +17229,13 @@ function archRender(){
 function archActualizarBreadcrumb(){
   const el = document.getElementById('arch-breadcrumb');
   if(!el) return;
-  let parts = `<span onclick="archNavBreadcrumb(-1)" style="cursor:pointer;color:#2980b9;font-weight:600">🏠 Inicio</span>`;
+  let parts = `<span onclick="archNavBreadcrumb(-1)" style="cursor:pointer;color:#2980b9;font-weight:600"><i class="ti ti-home" style="margin:0 4px 0 0"></i>Inicio</span>`;
   _archPath.forEach((id, idx)=>{
     const c = (_archMeta.carpetas||[]).find(x=>x.id===id);
     const isLast = idx === _archPath.length-1;
     parts += `<span style="color:#aaa;margin:0 4px">›</span>`;
-    if(isLast) parts += `<span style="color:#1a1a2e;font-weight:600">📂 ${c?c.nombre:'…'}</span>`;
-    else parts += `<span onclick="archNavBreadcrumb(${idx})" style="cursor:pointer;color:#2980b9;font-weight:600">📂 ${c?c.nombre:'…'}</span>`;
+    if(isLast) parts += `<span style="color:#1a1a2e;font-weight:600"><i class="ti ti-folder-open" style="margin:0 4px 0 0"></i>${c?c.nombre:'…'}</span>`;
+    else parts += `<span onclick="archNavBreadcrumb(${idx})" style="cursor:pointer;color:#2980b9;font-weight:600"><i class="ti ti-folder-open" style="margin:0 4px 0 0"></i>${c?c.nombre:'…'}</span>`;
   });
   el.innerHTML = parts;
 }
@@ -17036,7 +17245,7 @@ function archCardCarpeta(c, nItems){
   const fecha = c.fecha ? new Date(c.fecha).toLocaleDateString('es-AR') : '';
   return `<div class="arch-card" onclick="archNavCarpeta('${c.id}')">
     <button class="arch-card-menu" onclick="event.stopPropagation();archCtxMenu(event,'carpeta','${c.id}')">⋯</button>
-    <div class="arch-card-icon">📁</div>
+    <div class="arch-card-icon"><i class="ti ti-folder" style="margin:0"></i></div>
     <div class="arch-card-name">${c.nombre}</div>
     <div class="arch-card-meta">${nItems} elemento${nItems!==1?'s':''} · ${fecha}</div>
   </div>`;
@@ -17056,18 +17265,18 @@ function archCardArchivo(a){
 
 function archIcono(tipo, nombre){
   if(!tipo && nombre) tipo = nombre.split('.').pop().toLowerCase();
-  if(!tipo) return '📄';
+  if(!tipo) return '<i class="ti ti-file-text" style="margin:0"></i>';
   tipo = tipo.toLowerCase();
-  if(tipo==='pdf'||tipo==='application/pdf') return '📕';
-  if(['doc','docx'].includes(tipo)||tipo.includes('word')) return '📘';
-  if(['xls','xlsx'].includes(tipo)||tipo.includes('excel')||tipo.includes('spreadsheet')) return '📗';
-  if(['ppt','pptx'].includes(tipo)||tipo.includes('presentation')) return '📙';
-  if(['jpg','jpeg','png','gif','webp','svg','bmp'].includes(tipo)||tipo.startsWith('image/')) return '🖼️';
-  if(['mp4','mov','avi','mkv'].includes(tipo)||tipo.startsWith('video/')) return '🎬';
-  if(['mp3','wav','ogg'].includes(tipo)||tipo.startsWith('audio/')) return '🎵';
-  if(['zip','rar','7z','tar','gz'].includes(tipo)) return '🗜️';
-  if(['txt','md','csv'].includes(tipo)||tipo.startsWith('text/')) return '📄';
-  return '📄';
+  if(tipo==='pdf'||tipo==='application/pdf') return '<i class="ti ti-file-type-pdf" style="margin:0"></i>';
+  if(['doc','docx'].includes(tipo)||tipo.includes('word')) return '<i class="ti ti-file-type-doc" style="margin:0"></i>';
+  if(['xls','xlsx'].includes(tipo)||tipo.includes('excel')||tipo.includes('spreadsheet')) return '<i class="ti ti-file-spreadsheet" style="margin:0"></i>';
+  if(['ppt','pptx'].includes(tipo)||tipo.includes('presentation')) return '<i class="ti ti-presentation" style="margin:0"></i>';
+  if(['jpg','jpeg','png','gif','webp','svg','bmp'].includes(tipo)||tipo.startsWith('image/')) return '<i class="ti ti-photo" style="margin:0"></i>';
+  if(['mp4','mov','avi','mkv'].includes(tipo)||tipo.startsWith('video/')) return '<i class="ti ti-movie" style="margin:0"></i>';
+  if(['mp3','wav','ogg'].includes(tipo)||tipo.startsWith('audio/')) return '<i class="ti ti-music" style="margin:0"></i>';
+  if(['zip','rar','7z','tar','gz'].includes(tipo)) return '<i class="ti ti-file-zip" style="margin:0"></i>';
+  if(['txt','md','csv'].includes(tipo)||tipo.startsWith('text/')) return '<i class="ti ti-file-text" style="margin:0"></i>';
+  return '<i class="ti ti-file-text" style="margin:0"></i>';
 }
 
 function archFmtBytes(b){
@@ -17083,20 +17292,20 @@ function archCtxMenu(e, tipo, id){
   const esAdmin = sesionActual && (sesionActual.rol === 'admin' || sesionActual.rol === 'superadmin');
   let items = '';
   if(tipo === 'carpeta'){
-    items += `<div class="arch-ctx-item" onclick="archNavCarpeta('${id}')">📂 Abrir</div>`;
+    items += `<div class="arch-ctx-item" onclick="archNavCarpeta('${id}')"><i class="ti ti-folder-open" style="margin:0 4px 0 0"></i>Abrir</div>`;
     if(esAdmin){
       items += `<hr class="arch-ctx-sep">
-        <div class="arch-ctx-item" onclick="archRenombrar('carpeta','${id}')">✏️ Renombrar</div>
-        <div class="arch-ctx-item" style="color:#c0392b" onclick="archEliminarCarpeta('${id}')">🗑 Eliminar carpeta</div>`;
+        <div class="arch-ctx-item" onclick="archRenombrar('carpeta','${id}')"><i class="ti ti-pencil" style="margin:0 4px 0 0"></i>Renombrar</div>
+        <div class="arch-ctx-item" style="color:#c0392b" onclick="archEliminarCarpeta('${id}')"><i class="ti ti-trash" style="margin:0 4px 0 0"></i>Eliminar carpeta</div>`;
     }
   } else {
-    items += `<div class="arch-ctx-item" onclick="archAbrirVisor('${id}')">👁 Ver</div>`;
+    items += `<div class="arch-ctx-item" onclick="archAbrirVisor('${id}')"><i class="ti ti-eye" style="margin:0 4px 0 0"></i>Ver</div>`;
     items += `<div class="arch-ctx-item" onclick="archDescargarPorId('${id}')"><i class="ti ti-download"></i>Descargar</div>`;
-    items += `<div class="arch-ctx-item" onclick="archCompartirPorId('${id}')">🔗 Copiar enlace</div>`;
+    items += `<div class="arch-ctx-item" onclick="archCompartirPorId('${id}')"><i class="ti ti-link" style="margin:0 4px 0 0"></i>Copiar enlace</div>`;
     if(esAdmin){
       items += `<hr class="arch-ctx-sep">
-        <div class="arch-ctx-item" onclick="archRenombrar('archivo','${id}')">✏️ Renombrar</div>
-        <div class="arch-ctx-item" style="color:#c0392b" onclick="archEliminarArchivo('${id}')">🗑 Eliminar</div>`;
+        <div class="arch-ctx-item" onclick="archRenombrar('archivo','${id}')"><i class="ti ti-pencil" style="margin:0 4px 0 0"></i>Renombrar</div>
+        <div class="arch-ctx-item" style="color:#c0392b" onclick="archEliminarArchivo('${id}')"><i class="ti ti-trash" style="margin:0 4px 0 0"></i>Eliminar</div>`;
     }
   }
   const menu = document.getElementById('arch-ctx-menu');
@@ -17133,7 +17342,7 @@ async function archCrearCarpeta(){
   document.getElementById('modal-arch-carpeta').style.display = 'none';
   await archSave();
   archRender();
-  showToast('📂 Carpeta creada');
+  showToast('Carpeta creada');
 }
 
 async function archEliminarCarpeta(id){
@@ -17155,7 +17364,7 @@ async function archEliminarCarpeta(id){
   if(_archPath.includes(id)) _archPath = _archPath.slice(0, _archPath.indexOf(id));
   await archSaveMeta();
   archRender();
-  showToast('🗑 Carpeta eliminada');
+  showToast('Carpeta eliminada');
 }
 
 // ── Renombrar ─────────────────────────────────────────────────
@@ -17184,7 +17393,7 @@ async function archConfirmarRenombrar(){
   _archRenTarget = null;
   await archSave();
   archRender();
-  showToast('✅ Nombre actualizado');
+  showToast('Nombre actualizado');
 }
 
 // ── Subir archivos ────────────────────────────────────────────
@@ -17213,7 +17422,7 @@ async function archProcesarFiles(files){
       showToast(`"${file.name}" supera 700 KB — omitido (límite de Firestore)`, 'error');
       err++; continue;
     }
-    prog.textContent = `⬆️ Subiendo ${file.name}…`;
+    prog.textContent = `Subiendo ${file.name}…`;
     try{
       const b64 = await archFileToB64(file);
       const id = 'f_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
@@ -17233,7 +17442,7 @@ async function archProcesarFiles(files){
     }
   }
   prog.style.display = 'none';
-  if(ok) showToast(`✅ ${ok} archivo${ok!==1?'s':''} subido${ok!==1?'s':''}`);
+  if(ok) showToast(`${ok} archivo${ok!==1?'s':''} subido${ok!==1?'s':''}`);
   archRender();
 }
 
@@ -17252,7 +17461,7 @@ async function archAbrirVisor(id){
   if(!meta){ showToast('Archivo no encontrado','error'); return; }
   // Cargar data desde su documento propio
   const body = document.getElementById('arch-visor-body');
-  body.innerHTML = '<div style="text-align:center;padding:40px;color:#888">⏳ Cargando…</div>';
+  body.innerHTML = '<div style="text-align:center;padding:40px;color:#888"><i class="ti ti-hourglass" style="margin:0 4px 0 0"></i>Cargando…</div>';
   document.getElementById('modal-arch-visor').style.display = 'flex';
   let fileData = null;
   try{
@@ -17313,7 +17522,7 @@ async function archGuardarEdicion(){
   const idx = (_archMeta.archivos||[]).findIndex(x=>x.id===_archVisorActual.id);
   if(idx >= 0) _archMeta.archivos[idx] = { ..._archMeta.archivos[idx] }; // sin cambios en meta
   await archSaveMeta();
-  showToast('💾 Cambios guardados');
+  showToast('Cambios guardados');
   archRender();
 }
 
@@ -17326,7 +17535,7 @@ function archDescargar(){
 async function archDescargarPorId(id){
   const meta = (_archMeta.archivos||[]).find(x=>x.id===id);
   if(!meta){ showToast('Archivo no encontrado','error'); return; }
-  showToast('⏳ Descargando...');
+  showToast('Descargando...');
   try{
     const doc = await window._fb.get(ARCH_FILE_PFX + id);
     const data = doc?.data;
@@ -17355,7 +17564,7 @@ async function archCompartirPorId(id){
     if(!data){ showToast('No se pudo cargar el archivo','error'); return; }
     if(navigator.clipboard){
       navigator.clipboard.writeText(data).then(()=>{
-        showToast('🔗 Data URL copiada al portapapeles');
+        showToast('Data URL copiada al portapapeles');
       }).catch(()=> showToast('No se pudo copiar','error'));
     } else {
       showToast('Portapapeles no disponible en este navegador','error');
@@ -17375,7 +17584,7 @@ async function archEliminarArchivo(id){
   _archMeta.archivos = (_archMeta.archivos||[]).filter(x=>x.id!==id);
   await archSaveMeta();
   archRender();
-  showToast('🗑 Archivo eliminado');
+  showToast('Archivo eliminado');
 }
 
 // Cerrar ctx menu al hacer clic fuera
@@ -17774,7 +17983,7 @@ function asistCargarAlumno(){
   if(regActual){
     // Cargar el registro existente directamente
     _asistMaterias = regActual.materias.map(m=>({...m}));
-    showToast(`📂 Registro existente de ${periodo} cargado para edición`);
+    showToast(`Registro existente de ${periodo} cargado para edición`);
   } else if(regsPrevios.length > 0){
     // Hay registros previos: copiar estructura (materias + clasesDadas) pero limpiar asistencia
     const ultimo = regsPrevios[0];
@@ -17785,7 +17994,7 @@ function asistCargarAlumno(){
     }));
     const btnCopiar = document.getElementById('btn-copiar-mes');
     if(btnCopiar) btnCopiar.style.display = '';
-    showToast(`📋 Materias copiadas desde "${ultimo.periodo}" — completá la asistencia`, 'info', 4000);
+    showToast(`Materias copiadas desde "${ultimo.periodo}" — completá la asistencia`, 'info', 4000);
   } else {
     // Sin historial: cargar desde el plan de estudios
     const plan = PLAN_ESTUDIOS[_asistCarrera] || {};
@@ -17797,8 +18006,8 @@ function asistCargarAlumno(){
 
   // Info del alumno
   const infoExtra = regsPrevios.length > 0 && !regActual
-    ? ` · <span style="color:#3730a3;font-size:11px">📋 Materias copiadas de "${regsPrevios[0].periodo}"</span>`
-    : regActual ? ` · <span style="color:#0d6e3f;font-size:11px">✏️ Editando registro existente</span>` : '';
+    ? ` · <span style="color:#3730a3;font-size:11px"><i class="ti ti-clipboard-list" style="margin:0 4px 0 0"></i>Materias copiadas de "${regsPrevios[0].periodo}"</span>`
+    : regActual ? ` · <span style="color:#0d6e3f;font-size:11px"><i class="ti ti-pencil" style="margin:0 4px 0 0"></i>Editando registro existente</span>` : '';
   document.getElementById('asist-alumno-info').style.display = 'block';
   document.getElementById('asist-alumno-info').innerHTML =
     `<strong>${_asistAlumno.nombre}</strong> · ${_asistAlumno.carrera} ${_asistAlumno.anio} · Período: <strong>${periodo}</strong>${infoExtra}`;
@@ -17876,7 +18085,7 @@ function _asistCopiarDesde(reg){
     clasesAsistidas: ''
   }));
   asistRenderTabla();
-  showToast(`📋 Materias copiadas desde "${reg.periodo}" — completá la asistencia`);
+  showToast(`Materias copiadas desde "${reg.periodo}" — completá la asistencia`);
 }
 
 // ── Render tabla ──────────────────────────────────────────────
@@ -17931,7 +18140,7 @@ function asistActualizarTotales(){
   pctEl.textContent = totalDadas > 0 ? pct.toFixed(2)+'%' : '—';
   pctEl.style.color = pct>=75?'#27ae60':pct>=50?'#e67e22':'#c0392b';
   document.getElementById('asist-total-estado').textContent =
-    totalDadas > 0 ? (pct>=75?'✅ Regular':'⚠️ En riesgo') : '';
+    totalDadas > 0 ? (pct>=75?'Regular':'En riesgo') : '';
 }
 
 // ── Quitar materia ────────────────────────────────────────────
@@ -17985,7 +18194,7 @@ function asistConfirmarAgregar(nombre, anio){
   _asistMaterias.push({ nombre, clasesDadas: '', clasesAsistidas: '' });
   document.getElementById('modal-asist-materia').style.display = 'none';
   asistRenderTabla();
-  showToast(`➕ "${nombre}" agregada`);
+  showToast(`"${nombre}" agregada`);
 }
 
 // ── Guardar registro ──────────────────────────────────────────
@@ -18014,7 +18223,7 @@ async function asistGuardar(){
     _asistData.push(registro);
   }
   await asistSave();
-  showToast('💾 Registro guardado');
+  showToast('Registro guardado');
   asistRenderPreview();
 }
 
@@ -18132,7 +18341,7 @@ async function asistEliminarReg(id){
   await asistSave();
   asistVerRegistros();
   asistRenderPreview();
-  showToast('🗑 Registro eliminado');
+  showToast('Registro eliminado');
 }
 
 function asistMenuExportar(tipo, ref, anchorEl){
@@ -18149,8 +18358,8 @@ function asistMenuExportar(tipo, ref, anchorEl){
     padding:6px;min-width:170px;animation:fadeIn .12s ease`;
 
   const items = [
-    { icon:'📄', label:'Exportar Word (.doc)', fmt:'word' },
-    { icon:'🖨️', label:'Exportar PDF',         fmt:'pdf'  }
+    { icon:'<i class="ti ti-file-text" style="margin:0"></i>', label:'Exportar Word (.doc)', fmt:'word' },
+    { icon:'<i class="ti ti-printer" style="margin:0"></i>', label:'Exportar PDF',         fmt:'pdf'  }
   ];
 
   menu.innerHTML = `
@@ -18276,7 +18485,7 @@ function asistGenerarDocumento(grupos, fmt, nombreArchivo){
     const a    = document.createElement('a');
     a.href=url; a.download=nombreArchivo+'.doc'; a.click();
     URL.revokeObjectURL(url);
-    showToast(`📄 Word descargado`);
+    showToast(`Word descargado`);
 
   } else {
     // PDF vía ventana de impresión
@@ -18299,7 +18508,7 @@ function asistGenerarDocumento(grupos, fmt, nombreArchivo){
     if(!win){ showToast('Habilitá las ventanas emergentes para generar el PDF','error'); return; }
     win.document.write(html);
     win.document.close();
-    showToast(`🖨️ Se abrió la ventana de impresión — guardá como PDF`);
+    showToast(`Se abrió la ventana de impresión — guardá como PDF`);
   }
 }
 
@@ -18374,7 +18583,7 @@ function bonoSetValorUnitario(val){
   const inp = document.getElementById('bono-valor-unitario');
   if(inp) inp.value = final;
   renderBonos();
-  if(typeof showToast==='function') showToast('💾 Valor por bono actualizado a '+fmt(final));
+  if(typeof showToast==='function') showToast('Valor por bono actualizado a '+fmt(final));
 }
 
 function bonoKeyAlumno(b){
@@ -18445,7 +18654,7 @@ function bonoCeldaDescuento(b, vistos){
       : '';
   }
   if(info.sinAlumno){
-    return `<span style="font-size:11px;color:#e67e22" title="Vinculá el bono a un alumno del padrón para calcular el monto">⚠️ ${Math.round(info.tierPct*100)}% (${info.count} bonos) · sin vincular</span>`;
+    return `<span style="font-size:11px;color:#e67e22" title="Vinculá el bono a un alumno del padrón para calcular el monto"><i class="ti ti-alert-triangle" style="margin:0 4px 0 0"></i>${Math.round(info.tierPct*100)}% (${info.count} bonos) · sin vincular</span>`;
   }
   const becaTxt = info.becaPct>0 ? ` · con beca ${Math.round(info.becaPct*100)}% aplicada` : '';
   const tip = `Curricular vigente: ${fmt(info.curricularBase)}${becaTxt} → base p/bono: ${fmt(info.curricularBecado)} · ${info.count} bonos rendidos = ${Math.round(info.tierPct*100)}% desc.`;
@@ -18586,7 +18795,7 @@ function bonoMarcarTodosSi(key){
   });
   saveBonos();
   renderBonos();
-  if(typeof showToast==='function') showToast(`✅ ${grupo.length} bono${grupo.length===1?'':'s'} marcado${grupo.length===1?'':'s'} como Sí`);
+  if(typeof showToast==='function') showToast(`${grupo.length} bono${grupo.length===1?'':'s'} marcado${grupo.length===1?'':'s'} como Sí`);
 }
 
 function bonoSetRindio(id, val){
@@ -18624,7 +18833,7 @@ function bonoDelete(id){
   bonos = bonos.filter(x=>x.id!==id);
   saveBonos();
   renderBonos();
-  if(typeof showToast==='function') showToast('🗑️ Bono eliminado');
+  if(typeof showToast==='function') showToast('Bono eliminado');
 }
 
 function bonosLimpiarFiltros(){
@@ -18702,7 +18911,7 @@ function bonosExportarXLSX(){
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Bonos');
   XLSX.writeFile(wb, `Bonos_contribucion_${bonoHoy()}.xlsx`);
-  if(typeof showToast==='function') showToast('📊 Excel descargado');
+  if(typeof showToast==='function') showToast('Excel descargado');
 }
 
 // ── Deshacer (Alumnos) ──────────────────────────────────────────
@@ -18892,7 +19101,7 @@ function bonosPrint(){
     </div>
     <a id="fp-abrir-btn" href="#" target="_blank" rel="noopener"
        style="display:none;background:#1a1a2e;color:#fff;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap">
-      🔗 Abrir en Drive
+      Abrir en Drive
     </a>
   </div>
   <div id="fp-body"></div>
@@ -19394,8 +19603,8 @@ function bonosPrint(){
     box.innerHTML = '<span class="bp-ok">'+lista.length+' docentes · '+(c.pagado+c.devuelto+c.pendiente)+' bonos</span><br>'+
       c.pagado+' pagados · '+c.devuelto+' devueltos · '+c.pendiente+' pendientes · recaudado '+money(c.pagado*cfg.valor)+
       '<ul>'+ej+'</ul>'+(lista.length>3 ? '<i>…y '+(lista.length-3)+' más</i>' : '')+
-      (dupes.length ? '<div class="bp-err">⚠ Bonos repetidos en la planilla:<br>'+dupes.slice(0,5).map(esc).join('<br>')+'</div>' : '')+
-      (errores.length ? '<div class="bp-err">⚠ Se saltean '+errores.length+' fila(s) sin bonos:<br>'+errores.slice(0,6).map(esc).join('<br>')+(errores.length>6?'<br>…':'')+'</div>' : '');
+      (dupes.length ? '<div class="bp-err"><i class="ti ti-alert-triangle" style="margin:0 4px 0 0"></i>Bonos repetidos en la planilla:<br>'+dupes.slice(0,5).map(esc).join('<br>')+'</div>' : '')+
+      (errores.length ? '<div class="bp-err"><i class="ti ti-alert-triangle" style="margin:0 4px 0 0"></i>Se saltean '+errores.length+' fila(s) sin bonos:<br>'+errores.slice(0,6).map(esc).join('<br>')+(errores.length>6?'<br>…':'')+'</div>' : '');
   }
   window.bpDoImp = () => {
     const {lista, dupes} = armarImport();
@@ -19824,7 +20033,7 @@ function bonosPrint(){
         if(window._impExpPendiente !== json) return;
         if(ultimoTs && ultimoTs > tsArchivo){
           htmlAviso = `<div style="margin-top:8px;padding:8px;border:1px solid #c0392b;border-radius:6px;color:#c0392b;background:#fdecea">
-            ⚠️ Este archivo es más viejo que los datos actuales; importarlo puede pisar información más nueva.
+            Este archivo es más viejo que los datos actuales; importarlo puede pisar información más nueva.
           </div>`;
         }
       }
