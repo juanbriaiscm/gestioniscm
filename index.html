@@ -1342,6 +1342,34 @@ img, svg{max-width:100%}
  #presup-form-area>div:has(>#presup-total-global){flex-wrap:wrap;gap:10px}
 }
 </style>
+<style>/* Mismos componentes, con ancho aprovechado en las PC de trabajo. */
+.desk-alumnos{table-layout:fixed;width:100%;min-width:1060px}.desk-alumnos th,.desk-alumnos td{padding:9px 10px;overflow-wrap:anywhere}.desk-alumnos .badge{overflow-wrap:normal}.desk-alumnos .deuda-conceptos{white-space:normal}.desk-alumnos .concepto-tag{max-width:100%;white-space:normal}.desk-student-year{display:block;font-size:11px;color:#888;margin-top:4px}
+.desk-obs-link{display:block;border:0;background:transparent;padding:4px 0 0;font:inherit;font-size:11px;color:#777;cursor:pointer;text-align:left}.desk-obs-link:hover{color:#1a1a2e;text-decoration:underline}.desk-sort-year{border:0;background:transparent;color:#777;font:inherit;font-size:10px;cursor:pointer;margin-left:5px}
+.desk-prov-no-obs table thead th:nth-child(8),.desk-prov-no-obs #tbody-prov td:nth-child(8){display:none}
+#tab-proveedores #tbody-prov td:nth-child(8){max-width:240px;white-space:normal;overflow-wrap:anywhere}
+.desk-filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;padding:14px}.desk-filter-field{display:flex;flex-direction:column;gap:5px;font-size:11px;color:#777}.desk-filter-field select{height:32px;width:100%;min-width:0;padding:0 8px;border:1px solid #d0d0c8;border-radius:6px;background:#fff;color:#333;font:inherit;font-size:12px}.desk-filter-field select.activo{border-color:#2d7a4f;background:#e8f5ee;color:#1a4d2e}
+#tab-becas .desk-beca-anio{display:none}
+#tab-becas.desk-becas-compact .desk-beca-anio{display:block}
+#tab-becas.desk-becas-compact th .desk-beca-anio{display:inline}
+#tab-becas.desk-becas-compact #tabla-becas-socio .desk-beca-extra{display:none}
+#tab-becas.desk-becas-compact #tabla-becas-socio{table-layout:fixed;width:100%;min-width:1100px}
+#tab-becas.desk-becas-compact #tabla-becas-socio th,#tab-becas.desk-becas-compact #tabla-becas-socio td{min-width:0!important;width:auto;padding:8px 7px;font-size:12px;white-space:normal;overflow-wrap:anywhere}
+#tab-becas.desk-becas-compact #tabla-becas-socio th{font-size:11px}
+#tab-becas.desk-becas-compact #tabla-becas-socio .beca-col-acciones{white-space:nowrap;position:static}
+#tab-becas:not(.desk-becas-compact) .desk-beca-detail-btn,#tab-becas:not(.desk-becas-compact) .desk-beca-detail{display:none}
+#tab-becas .desk-beca-detail[hidden]{display:none!important}
+#tab-becas #tabla-becas-socio .desk-beca-detail td{background:#fafaf7;padding:14px!important}
+.desk-beca-detail-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.desk-beca-dl{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 20px;margin:0}.desk-beca-dl dt{font-size:11px;color:#888;margin-bottom:4px}.desk-beca-dl dd{margin:0;font-size:12px;color:#333;white-space:normal;overflow-wrap:anywhere}.desk-beca-dl>div:last-child{grid-column:span 2}
+#sub-bonos-alumnos .desk-bonos-alumnos{table-layout:fixed;width:100%;min-width:1040px}
+#sub-bonos-alumnos .desk-bonos-alumnos th,#sub-bonos-alumnos .desk-bonos-alumnos td{padding:9px 8px}
+#sub-bonos-alumnos .desk-bonos-alumnos .bono-inp{min-width:0;width:100%;padding:0 5px}
+#sub-bonos-alumnos .desk-bonos-alumnos .bono-hint{white-space:normal}
+#sub-bonos-alumnos .desk-bono-group-action{white-space:normal;height:auto;min-height:28px;max-width:100%;font-size:11px;text-align:left}
+#sub-bonos-profes .ui-bonos-table table{table-layout:fixed;width:100%}
+#sub-bonos-profes .ui-bonos-table th:nth-child(1){width:23%}#sub-bonos-profes .ui-bonos-table th:nth-child(2){width:43%}#sub-bonos-profes .ui-bonos-table th:nth-child(3){width:7%}#sub-bonos-profes .ui-bonos-table th:nth-child(4){width:17%}#sub-bonos-profes .ui-bonos-table th:nth-child(5){width:10%}
+#sub-bonos-profes .ui-bonos-table .bp-name{white-space:normal;overflow-wrap:anywhere}#sub-bonos-profes .ui-bonos-table .bp-note{overflow-wrap:anywhere}.bp-bonos{min-width:0}
+@media(max-width:700px){.desk-beca-dl{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
 </head>
 <body data-tab="dashboard">
 
@@ -1546,17 +1574,17 @@ img, svg{max-width:100%}
     </div>
 
     <div class="table-wrap">
-      <table>
+      <table class="desk-alumnos"><colgroup><col style="width:36px"><col style="width:21%"><col style="width:16%"><col style="width:13%"><col style="width:23%"><col style="width:10%"><col style="width:170px"></colgroup>
         <thead>
           <tr>
             <th style="width:36px"><input type="checkbox" id="chk-all" onchange="toggleAll(this)"></th>
             <th>Alumno</th>
-            <th>Carrera</th>
-            <th>Año</th>
+            <th>Carrera / Año </th>
+            
             <th>Estado</th>
             <th>Deuda</th>
             <th>Cuota mensual</th>
-            <th>Observaciones</th>
+            
             <th style="text-align:right">Acciones</th>
           </tr>
         </thead>
@@ -1622,17 +1650,17 @@ img, svg{max-width:100%}
 
     <div id="inac-stats-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
     <div class="table-wrap">
-      <table>
+      <table class="desk-alumnos"><colgroup><col style="width:36px"><col style="width:23%"><col style="width:19%"><col style="width:8%"><col style="width:24%"><col style="width:10%"><col style="width:145px"></colgroup>
         <thead>
           <tr>
             <th style="width:36px"><input type="checkbox" id="inac-chk-all" onchange="inacToggleAll(this)" title="Seleccionar todos en esta página"></th>
             <th onclick="inacSort('nombre')" style="cursor:pointer;user-select:none">Alumno <span id="inac-sort-nombre"></span></th>
-            <th onclick="inacSort('carrera')" style="cursor:pointer;user-select:none">Carrera <span id="inac-sort-carrera"></span></th>
-            <th onclick="inacSort('anio')" style="cursor:pointer;user-select:none">Año <span id="inac-sort-anio"></span></th>
+            <th onclick="inacSort('carrera')" style="cursor:pointer;user-select:none">Carrera <span id="inac-sort-carrera"></span> / <button class="desk-sort-year" type="button" onclick="event.stopPropagation();inacSort('anio')" title="Ordenar por año">Año <span id="inac-sort-anio"></span></button></th>
+            
             <th>Estado</th>
             <th onclick="inacSort('deuda')" style="cursor:pointer;user-select:none">Deuda <span id="inac-sort-deuda"></span></th>
             <th onclick="inacSort('fechaBaja')" style="cursor:pointer;user-select:none">Fecha de baja <span id="inac-sort-fechaBaja"></span></th>
-            <th>Observaciones</th>
+            
             <th style="text-align:right">Acciones</th>
           </tr>
         </thead>
@@ -2136,7 +2164,7 @@ img, svg{max-width:100%}
 </div>
 
 <!-- TAB BECAS -->
-<div id="tab-becas" style="display:none">
+<div id="tab-becas" style="display:none" class="desk-becas-compact">
   <div class="page-head">
     <h2 class="page-title"><i class="ti ti-award"></i>Becas <span class="page-count" id="beca-count"></span></h2>
     <div class="mini-head-actions">      <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-becas-impexp')" onmouseleave="ddHide('dd-becas-impexp')">
@@ -2156,7 +2184,7 @@ img, svg{max-width:100%}
 <button class="btn primary" onclick="abrirModalBeca()"><i class="ti ti-plus"></i>Agregar alumno becado</button></div>
   </div>
   <!-- Resumen por tipo -->
-  <div id="beca-stats" hidden></div>
+  <div id="beca-stats" hidden=""></div>
 
   <!-- Resumen detallado (antes vivía en General ▸ Dashboard) -->
   <div class="dash-2col" id="beca-dash-resumen" style="margin-bottom:18px"></div>
@@ -2164,14 +2192,55 @@ img, svg{max-width:100%}
   <!-- Filtros becas: fila principal -->
   <div class="controls" style="margin-bottom:8px;gap:6px">
     <input type="text" id="beca-search" placeholder="Buscar alumno..." oninput="renderBecas()" style="flex:1;min-width:180px">
-    <select hidden aria-hidden="true" id="beca-fil-tipo" onchange="renderBecas()" style="height:34px;border-radius:6px;border:1px solid #d0d0c8;padding:0 8px;font-size:12px">
+    <select hidden="" aria-hidden="true" id="beca-fil-tipo" onchange="renderBecas()" style="height:34px;border-radius:6px;border:1px solid #d0d0c8;padding:0 8px;font-size:12px">
       <option value="">Todos los tipos</option>
       <option value="Beca">Beca socioeconómica</option>
       <option value="Hijo prof.">Hijo/a de profesor/a</option>
     </select>
-    <button class="btn" onclick="becaLimpiarFiltros()" style="height:34px;font-size:12px"><i class="ti ti-x"></i>Limpiar filtros</button>
+    <select id="beca-fil-anio" onchange="renderBecas()" aria-label="Año" title="Año"><option value="">Todos</option></select><select id="beca-fil-carrera" onchange="renderBecas()" aria-label="Carrera" title="Carrera"><option value="">Todas</option></select><button class="btn" onclick="becaLimpiarFiltros()" style="height:34px;font-size:12px"><i class="ti ti-x"></i>Limpiar filtros</button>
     <input type="file" id="beca-import-input" accept=".json,.csv,.xlsx,.xls" style="display:none" onchange="becaProcesarImport(this)">
-  </div>
+  <div class="mini-head-actions" role="group" aria-label="Vista de becas"><button type="button" class="btn primary" id="desk-beca-compact" aria-pressed="true" onclick="deskSetBecaView('compacta')">Compacta</button><button type="button" class="btn" id="desk-beca-complete" aria-pressed="false" onclick="deskSetBecaView('completa')">Completa</button></div></div><details class="ui-details" id="desk-beca-filters"><summary id="desk-beca-filters-title">Filtros de becas</summary><div class="desk-filter-grid"><label class="desk-filter-field"><span>Ciudad</span><select id="beca-fil-ciudad" onchange="renderBecas()" aria-label="Ciudad"><option value="">Todas</option></select></label><label class="desk-filter-field"><span>Integrantes</span><select id="beca-fil-integrantes" onchange="renderBecas()" aria-label="Integrantes">
+            <option value="">Todos</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5+">5 o más</option>
+          </select></label><label class="desk-filter-field"><span>Ingreso total</span><select id="beca-fil-ingreso" onchange="renderBecas()" aria-label="Ingreso total">
+            <option value="">Cualquiera</option>
+            <option value="0-1000000">≤ $1M</option>
+            <option value="1000000-3000000">$1M – $3M</option>
+            <option value="3000000-7000000">$3M – $7M</option>
+            <option value="7000000-99999999">&gt; $7M</option>
+          </select></label><label class="desk-filter-field"><span>Vivienda</span><select id="beca-fil-vivienda" onchange="renderBecas()" aria-label="Vivienda"><option value="">Cualquiera</option></select></label><label class="desk-filter-field"><span>Transporte</span><select id="beca-fil-transporte" onchange="renderBecas()" aria-label="Transporte"><option value="">Cualquiera</option></select></label><label class="desk-filter-field"><span>Salud</span><select id="beca-fil-salud" onchange="renderBecas()" aria-label="Salud"><option value="">Cualquiera</option></select></label><label class="desk-filter-field"><span>% aprobado</span><select id="beca-fil-pctaprobado" onchange="renderBecas()" aria-label="% aprobado">
+            <option value="">Cualquiera</option>
+            <option value="0-0.5">&lt; 50%</option>
+            <option value="0.5-0.7">50% – 70%</option>
+            <option value="0.7-0.9">70% – 90%</option>
+            <option value="0.9-1">≥ 90%</option>
+          </select></label><label class="desk-filter-field"><span>Beca anterior</span><select id="beca-fil-anterior" onchange="renderBecas()" aria-label="Beca anterior">
+            <option value="">Todos</option>
+            <option value="SI">SI</option>
+            <option value="NO">NO</option>
+          </select></label><label class="desk-filter-field"><span>Paga cuota</span><select id="beca-fil-paga" onchange="renderBecas()" aria-label="Paga cuota">
+            <option value="">Todos</option>
+            <option value="SI">SI</option>
+            <option value="NO">NO</option>
+          </select></label><label class="desk-filter-field"><span>% a aplicar</span><select id="beca-fil-pctaplicar" onchange="renderBecas()" aria-label="% a aplicar">
+            <option value="">Cualquiera</option>
+            <option value="0-0.4">≤ 40%</option>
+            <option value="0.4-0.6">40% – 60%</option>
+            <option value="0.6-0.8">60% – 80%</option>
+            <option value="0.8-1">&gt; 80%</option>
+          </select></label><label class="desk-filter-field"><span>Estado actual</span><select id="beca-fil-estado" onchange="renderBecas()" aria-label="Estado actual">
+            <option value="">Todos</option>
+            <option value="Al día">Al día</option>
+            <option value="Debe">Debe</option>
+            <option value="Acuerdo">Acuerdo</option>
+            <option value="Vacante">Vacante</option>
+            <option value="Matrícula">Matrícula</option>
+            <option value="Baja">Baja</option>
+          </select></label></div></details>
 
   <div class="estado-chips" id="beca-chips"></div>
   <!-- Barra edición masiva becas -->
@@ -2252,89 +2321,29 @@ img, svg{max-width:100%}
     }
   </style>
   <div class="table-wrap" style="margin-bottom:18px">
-    <table id="tabla-becas-socio" style="width:100%">
+    <table id="tabla-becas-socio" style="width:100%"><colgroup id="desk-beca-cols"></colgroup>
       <thead>
         <tr class="beca-thead-title">
           <th style="width:32px;min-width:32px;padding:6px 4px"><input type="checkbox" id="beca-chk-all" onchange="becaToggleAll(this.checked)" title="Seleccionar todas" style="cursor:pointer;accent-color:#2d7a4f"></th>
           <th style="min-width:130px">Alumno</th>
-          <th style="min-width:36px">Año</th>
-          <th style="min-width:100px">Carrera</th>
-          <th style="min-width:72px">Ciudad</th>
-          <th style="min-width:74px">Integrantes</th>
-          <th style="min-width:96px">Ingreso total</th>
-          <th style="min-width:66px">Vivienda</th>
-          <th style="min-width:80px">Transporte</th>
-          <th style="min-width:80px">Salud</th>
+          <th style="min-width:36px" class="desk-beca-extra">Año</th>
+          <th style="min-width:100px">Carrera <span class="desk-beca-anio">/ Año</span></th>
+          <th style="min-width:72px" class="desk-beca-extra">Ciudad</th>
+          <th style="min-width:74px" class="desk-beca-extra">Integrantes</th>
+          <th style="min-width:96px" class="desk-beca-extra">Ingreso total</th>
+          <th style="min-width:66px" class="desk-beca-extra">Vivienda</th>
+          <th style="min-width:80px" class="desk-beca-extra">Transporte</th>
+          <th style="min-width:80px" class="desk-beca-extra">Salud</th>
           <th style="min-width:78px">% aprobado</th>
-          <th style="min-width:62px">Beca ant.</th>
+          <th style="min-width:62px" class="desk-beca-extra">Beca ant.</th>
           <th style="min-width:76px">¿Paga cuota?</th>
           <th style="min-width:72px">% a aplicar</th>
           <th style="min-width:88px">Estado actual</th>
-          <th style="min-width:90px">Obs.</th>
-          <th style="min-width:78px" title="Marcá esto si el alumno no pagó la cuota del mes anterior: en el próximo cierre de mes va a recibir la cuota completa (sin beca) en lugar de la cuota becada.">No pagó mes ant.</th>
+          <th style="min-width:90px" class="desk-beca-extra">Obs.</th>
+          <th style="min-width:78px" title="Marcá esto si el alumno no pagó la cuota del mes anterior: en el próximo cierre de mes va a recibir la cuota completa (sin beca) en lugar de la cuota becada."><span title="No pagó el mes anterior">No pagó<br>mes ant.</span></th>
           <th class="beca-col-acciones" style="min-width:72px">Acciones</th>
         </tr>
-        <tr class="beca-thead-filters">
-          <th></th>
-          <th></th>
-          <th><select id="beca-fil-anio" onchange="renderBecas()"><option value="">Todos</option></select></th>
-          <th><select id="beca-fil-carrera" onchange="renderBecas()"><option value="">Todas</option></select></th>
-          <th><select id="beca-fil-ciudad" onchange="renderBecas()"><option value="">Todas</option></select></th>
-          <th><select id="beca-fil-integrantes" onchange="renderBecas()">
-            <option value="">Todos</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5+">5 o más</option>
-          </select></th>
-          <th><select id="beca-fil-ingreso" onchange="renderBecas()">
-            <option value="">Cualquiera</option>
-            <option value="0-1000000">≤ $1M</option>
-            <option value="1000000-3000000">$1M – $3M</option>
-            <option value="3000000-7000000">$3M – $7M</option>
-            <option value="7000000-99999999">> $7M</option>
-          </select></th>
-          <th><select id="beca-fil-vivienda" onchange="renderBecas()"><option value="">Cualquiera</option></select></th>
-          <th><select id="beca-fil-transporte" onchange="renderBecas()"><option value="">Cualquiera</option></select></th>
-          <th><select id="beca-fil-salud" onchange="renderBecas()"><option value="">Cualquiera</option></select></th>
-          <th><select id="beca-fil-pctaprobado" onchange="renderBecas()">
-            <option value="">Cualquiera</option>
-            <option value="0-0.5">< 50%</option>
-            <option value="0.5-0.7">50% – 70%</option>
-            <option value="0.7-0.9">70% – 90%</option>
-            <option value="0.9-1">≥ 90%</option>
-          </select></th>
-          <th><select id="beca-fil-anterior" onchange="renderBecas()">
-            <option value="">Todos</option>
-            <option value="SI">SI</option>
-            <option value="NO">NO</option>
-          </select></th>
-          <th><select id="beca-fil-paga" onchange="renderBecas()">
-            <option value="">Todos</option>
-            <option value="SI">SI</option>
-            <option value="NO">NO</option>
-          </select></th>
-          <th><select id="beca-fil-pctaplicar" onchange="renderBecas()">
-            <option value="">Cualquiera</option>
-            <option value="0-0.4">≤ 40%</option>
-            <option value="0.4-0.6">40% – 60%</option>
-            <option value="0.6-0.8">60% – 80%</option>
-            <option value="0.8-1">> 80%</option>
-          </select></th>
-          <th><select id="beca-fil-estado" onchange="renderBecas()">
-            <option value="">Todos</option>
-            <option value="Al día">Al día</option>
-            <option value="Debe">Debe</option>
-            <option value="Acuerdo">Acuerdo</option>
-            <option value="Vacante">Vacante</option>
-            <option value="Matrícula">Matrícula</option>
-            <option value="Baja">Baja</option>
-          </select></th>
-          <th></th>
-          <th></th>
-          <th class="beca-col-acciones"></th>
-        </tr>
+        
       </thead>
       <tbody id="tbody-becas-socio"></tbody>
     </table>
@@ -2600,16 +2609,16 @@ img, svg{max-width:100%}
 
   <!-- Planilla -->
   <div class="table-wrap" style="overflow:visible">
-    <table>
+    <table class="desk-bonos-alumnos"><colgroup><col style="width:90px"><col style="width:145px"><col style="width:28%"><col style="width:135px"><col style="width:145px"><col style="width:155px"><col style="width:42px"></colgroup>
       <thead>
         <tr>
-          <th style="width:130px">N° de bono</th>
-          <th style="width:160px">Fecha de entrega</th>
-          <th style="min-width:240px">Alumno</th>
-          <th style="width:180px">¿Rindió?</th>
-          <th style="width:160px">Fecha que rindió</th>
-          <th style="width:170px">Desc. por bonos</th>
-          <th style="width:46px"></th>
+          <th>N° de bono</th>
+          <th>Fecha de entrega</th>
+          <th>Alumno</th>
+          <th>¿Rindió?</th>
+          <th>Fecha que rindió</th>
+          <th>Desc. por bonos</th>
+          <th></th>
 
         </tr>
       </thead>
@@ -4619,18 +4628,16 @@ function renderTable(){
     const newCarrera = !prev || prev.carrera !== a.carrera;
     const newAnio    = !newCarrera && prev && prev.anio !== a.anio;
 
-    const sepCarrera = newCarrera ? `<tr><td colspan="9" style="padding:0;border:none"><div style="background:#1a1a2e;color:#fff;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:7px 14px;margin-top:${globalIdx===0?'0':'8px'}"> ${a.carrera}</div></td></tr>` : '';
-    const sepAnio    = newAnio    ? `<tr><td colspan="9" style="padding:0;border:none"><div style="background:#f0f4f8;color:#555;font-size:11px;font-weight:600;padding:4px 16px;border-left:3px solid #1a1a2e">${a.anio} año</div></td></tr>` : '';
+    const sepCarrera = newCarrera ? `<tr><td colspan="7" style="padding:0;border:none"><div style="background:#1a1a2e;color:#fff;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:7px 14px;margin-top:${globalIdx===0?'0':'8px'}"> ${a.carrera}</div></td></tr>` : '';
+    const sepAnio    = newAnio    ? `<tr><td colspan="7" style="padding:0;border:none"><div style="background:#f0f4f8;color:#555;font-size:11px;font-weight:600;padding:4px 16px;border-left:3px solid #1a1a2e">${a.anio} año</div></td></tr>` : '';
 
     const row = `<tr>
       <td><input type="checkbox" ${chk} onchange="toggleSel(${a.id},this)"></td>
-      <td style="font-weight:500">${a.nombre}</td>
-      <td style="color:#555">${a.carrera}</td>
-      <td style="color:#555">${a.anio}</td>
+      <td style="font-weight:500">${a.nombre}${deskObsLink(a,false)}</td>
+      <td style="color:#555">${a.carrera}<small class="desk-student-year">${a.anio||'—'}</small></td>
       <td><span class="badge ${badgeClass}">${a.estado}</span>${a.acuerdo&&a.estado==='Acuerdo'?`<div style="font-size:11px;color:#856404;margin-top:2px">${a.acuerdo.fecha?'Hasta: '+a.acuerdo.fecha.split('-').reverse().join('/'):''} ${a.acuerdo.monto?'· $'+a.acuerdo.monto.toLocaleString('es-AR'):''}</div>`:''}</td>
       <td style="max-width:240px"><div class="${a.deuda>0?'monto-deuda':'monto-ok'}">${a.deuda>0?fmt(a.deuda):'—'}</div><div class="deuda-conceptos">${tagsHtml}</div></td>
       <td style="color:#555">${fmt(a.cuota)}</td>
-      <td class="obs-txt-cell">${a.observaciones?`<span class="obs-txt" title="${String(a.observaciones).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}" onclick="editarObs(${a.id})">${String(a.observaciones).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span>`:''}</td>
       <td style="white-space:nowrap;text-align:right">
         <button class="btn ${a.estado==='Debe'?'warn':'primary'} sm" onclick="openPago(${a.id})"><i class="ti ti-credit-card"></i>Deuda / Pago</button>
         <button type="button" class="btn sm icon-only" onclick="abrirMenuAlumno(${a.id},this,event)" title="Más acciones" aria-label="Más acciones"><i class="ti ti-dots-vertical"></i></button>
@@ -4664,6 +4671,40 @@ function uiRestoreCalculator(){try{document.getElementById('ui-fact-calculadora'
 function uiToggleArchView(){const grid=document.getElementById('arch-grid'),list=!grid.classList.contains('ui-arch-list');try{localStorage.setItem('iscm_ui_archivos_lista',list?'1':'0');}catch(e){}uiApplyArchView(list);}
 function uiApplyArchView(value){let list=!!value;if(value===undefined){try{list=localStorage.getItem('iscm_ui_archivos_lista')==='1';}catch(e){}}
   document.getElementById('arch-grid').classList.toggle('ui-arch-list',list);const b=document.getElementById('ui-arch-view');b.innerHTML=list?'<i class="ti ti-layout-grid"></i>Vista de tarjetas':'<i class="ti ti-list"></i>Vista de lista';b.setAttribute('aria-pressed',list);
+}
+
+// Escritorio: preferencias de vista sin cambiar los datos de gestión.
+let _deskBecaView='compacta';
+try{if(localStorage.getItem('iscm_ui_becas_vista')==='completa')_deskBecaView='completa';}catch(e){}
+function deskObsLink(alumno,inactivo){
+  if(!String(alumno.observaciones||'').trim())return '';
+  return '<button type="button" class="desk-obs-link" title="'+miniEsc(alumno.observaciones)+'" onclick="'+(inactivo?'editarObsInactivo':'editarObs')+'('+alumno.id+')"><i class="ti ti-note"></i>Ver observación</button>';
+}
+function deskSetBecaView(view){
+  _deskBecaView=view==='completa'?'completa':'compacta';
+  try{localStorage.setItem('iscm_ui_becas_vista',_deskBecaView);}catch(e){}
+  deskApplyBecaView();
+}
+function deskApplyBecaView(){
+  const root=document.getElementById('tab-becas'),compact=_deskBecaView==='compacta';
+  root.classList.toggle('desk-becas-compact',compact);
+  for(const [id,active] of [['desk-beca-compact',compact],['desk-beca-complete',!compact]]){
+    const b=document.getElementById(id);b.classList.toggle('primary',active);b.setAttribute('aria-pressed',active);
+  }
+  const widths=compact?['32px','22%','19%','85px','85px','12%','75px','90px','170px']:Array(18).fill('');
+  document.getElementById('desk-beca-cols').innerHTML=widths.map(w=>'<col'+(w?' style="width:'+w+'"':'')+'>').join('');
+  root.querySelectorAll('.desk-beca-detail td').forEach(td=>td.colSpan=compact?9:18);
+  const ids=['ciudad','integrantes','ingreso','vivienda','transporte','salud','pctaprobado','anterior','paga','pctaplicar','estado'];
+  const count=ids.filter(id=>document.getElementById('beca-fil-'+id)?.value).length;
+  document.getElementById('desk-beca-filters-title').textContent='Filtros de becas'+(count?' · '+count+' aplicado'+(count===1?'':'s'):'');
+}
+function deskToggleBecaDetail(idx,button){
+  const row=document.getElementById('desk-beca-detail-'+idx);if(!row)return;
+  row.hidden=!row.hidden;button.setAttribute('aria-expanded',!row.hidden);button.textContent=row.hidden?'Detalle':'Ocultar';
+}
+function deskBecaDetailRow(b,idx){
+  const fields=[['Ciudad',b.ciudad],['Integrantes',b.integrantes],['Ingreso total',b.ingreso?'$'+Number(b.ingreso).toLocaleString('es-AR'):'—'],['Vivienda',b.vivienda],['Transporte',b.transporte],['Salud',b.salud],['Beca anterior',b.anterior],['Observaciones',b.obs]];
+  return '<tr class="desk-beca-detail" id="desk-beca-detail-'+idx+'" hidden><td colspan="'+(_deskBecaView==='compacta'?9:18)+'"><div class="desk-beca-detail-head"><strong>'+miniEsc(b.alumno)+'</strong><button type="button" class="btn sm" onclick="editarBecaSocio('+idx+')">Editar beca</button></div><dl class="desk-beca-dl">'+fields.map(([label,value])=>'<div><dt>'+label+'</dt><dd>'+miniEsc(value===0?0:(value||'—'))+'</dd></div>').join('')+'</dl></td></tr>';
 }
 
 function miniEsc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -6320,7 +6361,7 @@ function renderInactivos(){
   const esc = t => String(t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 
   if(!slice.length){
-    document.getElementById('tbody-inactivos').innerHTML = '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">No hay alumnos inactivos que coincidan con los filtros</td></tr>';
+    document.getElementById('tbody-inactivos').innerHTML = '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px">No hay alumnos inactivos que coincidan con los filtros</td></tr>';
     inacUpdateBulkBar();
     return;
   }
@@ -6338,18 +6379,16 @@ function renderInactivos(){
 
     const newCarrera = !prev || prev.carrera !== a.carrera;
     const newAnio    = !newCarrera && prev && prev.anio !== a.anio;
-    const sepCarrera = (agrupar && newCarrera) ? `<tr><td colspan="9" style="padding:0;border:none"><div style="background:#1a1a2e;color:#fff;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:7px 14px;margin-top:${globalIdx===0?'0':'8px'}">${carreraLbl}</div></td></tr>` : '';
-    const sepAnio    = (agrupar && newAnio)    ? `<tr><td colspan="9" style="padding:0;border:none"><div style="background:#f0f4f8;color:#555;font-size:11px;font-weight:600;padding:4px 16px;border-left:3px solid #1a1a2e">${a.anio||'Sin año'} año</div></td></tr>` : '';
+    const sepCarrera = (agrupar && newCarrera) ? `<tr><td colspan="7" style="padding:0;border:none"><div style="background:#1a1a2e;color:#fff;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:7px 14px;margin-top:${globalIdx===0?'0':'8px'}">${carreraLbl}</div></td></tr>` : '';
+    const sepAnio    = (agrupar && newAnio)    ? `<tr><td colspan="7" style="padding:0;border:none"><div style="background:#f0f4f8;color:#555;font-size:11px;font-weight:600;padding:4px 16px;border-left:3px solid #1a1a2e">${a.anio||'Sin año'} año</div></td></tr>` : '';
 
     const row = `<tr style="${isChecked?'background:#fff0f0':''}" id="inac-row-${a.id}">
       <td><input type="checkbox" class="inac-row-chk" data-id="${a.id}" ${isChecked?'checked':''} onchange="inacToggleRow(${a.id},this.checked)"></td>
-      <td style="font-weight:500">${a.nombre}</td>
-      <td style="color:${a.carrera?'#555':'#c0392b'}">${carreraLbl}</td>
-      <td style="color:#555">${a.anio||'—'}</td>
+      <td style="font-weight:500">${a.nombre}${deskObsLink(a,true)}</td>
+      <td style="color:${a.carrera?'#555':'#c0392b'}">${carreraLbl}<small class="desk-student-year">${a.anio||'—'}</small></td>
       <td><span class="badge baja">Baja</span></td>
       <td style="max-width:240px">${deudaHtml}</td>
       <td style="color:#555">${a.fechaBaja||'—'}</td>
-      <td class="obs-txt-cell">${a.observaciones?`<span class="obs-txt" title="${esc(a.observaciones)}" onclick="editarObsInactivo(${a.id})">${esc(a.observaciones).replace(/&quot;/g,'"')}</span>`:''}</td>
       <td style="white-space:nowrap;text-align:right">
         <button class="btn success sm" onclick="openReactivar(${a.id})"><i class="ti ti-refresh"></i>Reactivar</button>
         <button type="button" class="btn sm icon-only" onclick="abrirMenuInactivo(${a.id},this,event)" title="Más acciones" aria-label="Más acciones"><i class="ti ti-dots-vertical"></i></button>
@@ -10690,9 +10729,9 @@ function renderBecas(){
 
   // Poblar selects dinámicos con valores reales
   const uniq = arr => [...new Set(arr.filter(Boolean))].sort();
-  becaPopularSelect('beca-fil-carrera',   uniq(BECAS_SOCIO.map(b=>b.carrera)),   'Todas');
+  becaPopularSelect('beca-fil-carrera',   uniq(BECAS_SOCIO.map(b=>b.carrera)),   'Todas las carreras');
   becaPopularSelect('beca-fil-ciudad',    uniq(BECAS_SOCIO.map(b=>b.ciudad)),    'Todas');
-  becaPopularSelect('beca-fil-anio',      uniq(BECAS_SOCIO.map(b=>b.anio)),      'Todos');
+  becaPopularSelect('beca-fil-anio',      uniq(BECAS_SOCIO.map(b=>b.anio)),      'Todos los años');
   becaPopularSelect('beca-fil-vivienda',  uniq(BECAS_SOCIO.map(b=>b.vivienda)),  'Cualquiera');
   becaPopularSelect('beca-fil-transporte',uniq(BECAS_SOCIO.map(b=>b.transporte)),'Cualquiera');
   becaPopularSelect('beca-fil-salud',     uniq(BECAS_SOCIO.map(b=>b.salud)),     'Cualquiera');
@@ -10826,7 +10865,7 @@ function renderBecas(){
   const tbodySocio = document.getElementById('tbody-becas-socio');
   if(tbodySocio){
     if(!socioData.length){
-      tbodySocio.innerHTML = `<tr><td colspan="17" style="text-align:center;color:#aaa;padding:20px">No se encontraron resultados</td></tr>`;
+      tbodySocio.innerHTML = `<tr><td colspan="${_deskBecaView==='compacta'?9:18}" style="text-align:center;color:#aaa;padding:20px">No se encontraron resultados</td></tr>`;
     } else {
       tbodySocio.innerHTML = socioData.map((b,i)=>{
         const idx = BECAS_SOCIO.indexOf(b);
@@ -10855,33 +10894,34 @@ function renderBecas(){
           estadoCelda = `<span style="background:${col.bg};color:${col.c};padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;display:inline-block">${est}</span>${deudaStr}`;
         }
 
-        return `<tr style="${rowStyle}">
+        return `<tr class="desk-beca-record" style="${rowStyle}">
           <td style="text-align:center"><input type="checkbox" class="beca-row-chk" data-idx="${idx}" ${becaSeleccionadas.has(idx)?'checked':''} onchange="becaToggleRow(${idx},this.checked)" style="cursor:pointer"></td>
           <td><strong>${b.alumno}</strong>${orphanBadge}${noPagoBadge}</td>
-          <td>${b.anio}</td>
-          <td>${b.carrera}</td>
-          <td>${b.ciudad}</td>
-          <td style="text-align:center">${b.integrantes||'-'}</td>
-          <td>${b.ingreso?'$'+b.ingreso.toLocaleString('es-AR'):'-'}</td>
-          <td>${b.vivienda}</td>
-          <td style="font-size:11px">${b.transporte}</td>
-          <td style="font-size:11px">${b.salud}</td>
+          <td class="desk-beca-extra">${b.anio}</td>
+          <td>${b.carrera}<small class="desk-beca-anio desk-student-year">${b.anio||'—'}</small></td>
+          <td class="desk-beca-extra">${b.ciudad}</td>
+          <td class="desk-beca-extra" style="text-align:center">${b.integrantes||'-'}</td>
+          <td class="desk-beca-extra">${b.ingreso?'$'+b.ingreso.toLocaleString('es-AR'):'-'}</td>
+          <td class="desk-beca-extra">${b.vivienda}</td>
+          <td class="desk-beca-extra" style="font-size:11px">${b.transporte}</td>
+          <td class="desk-beca-extra" style="font-size:11px">${b.salud}</td>
           <td style="text-align:center">${b.pctAprobado?(Math.round(b.pctAprobado*100)+'%'):'-'}</td>
-          <td style="text-align:center">${b.anterior}</td>
+          <td class="desk-beca-extra" style="text-align:center">${b.anterior}</td>
           <td style="text-align:center">${b.paga}</td>
           <td style="text-align:center"><span style="background:${badge};color:#fff;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600">${pctPct}%</span></td>
           <td style="text-align:center">${estadoCelda}</td>
-          <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${b.obs}</td>
+          <td class="desk-beca-extra" style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${b.obs}</td>
           <td style="text-align:center">
             <label style="display:inline-flex;align-items:center;cursor:pointer;gap:4px" title="No pagó la cuota del mes anterior: el próximo cierre de mes le carga la cuota completa (sin beca)">
               <input type="checkbox" ${b.suspendida?'checked':''} onchange="becaToggleNoPago(${idx})" style="cursor:pointer;accent-color:#c0392b">
             </label>
           </td>
           <td class="beca-col-acciones" style="white-space:nowrap">
-            <button onclick="editarBecaSocio(${idx})" style="background:#f0f0e8;border:none;border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer;margin-right:4px"><i class="ti ti-edit"></i></button>
-            <button onclick="eliminarBecaSocio(${idx})" style="background:#fee2e2;border:none;border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer"><i class="ti ti-trash"></i></button>
+            <button class="btn sm desk-beca-detail-btn" type="button" aria-expanded="false" aria-controls="desk-beca-detail-${idx}" onclick="deskToggleBecaDetail(${idx},this)">Detalle</button>
+            <button class="btn sm icon-only" title="Editar beca" aria-label="Editar beca" onclick="editarBecaSocio(${idx})" style="background:#f0f0e8;border:none;border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer;margin-right:4px"><i class="ti ti-edit"></i></button>
+            <button class="btn sm icon-only" title="Eliminar beca" aria-label="Eliminar beca" onclick="eliminarBecaSocio(${idx})" style="background:#fee2e2;border:none;border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer"><i class="ti ti-trash"></i></button>
           </td>
-        </tr>`;
+        </tr>${deskBecaDetailRow(b,idx)}`;
       }).join('');
     }
   }
@@ -10921,6 +10961,7 @@ function renderBecas(){
     }
   }
   becaActualizarBulkBar();
+  deskApplyBecaView();
 }
 
 function abrirModalBeca(){
@@ -11686,6 +11727,7 @@ function renderProvStats(){
 }
 
 function renderProveedores(){
+  document.getElementById('tab-proveedores').classList.toggle('desk-prov-no-obs',!proveedores.some(p=>String(p.observaciones||'').trim()));
   provUpdateOcultasBtn();
   const base=getProvFiltered('');
   miniChips('ui-prov-chips','prov-fil-pagado',[
@@ -19032,7 +19074,7 @@ function renderBonos(){
       const grupo = bonos.filter(x=>bonoKeyAlumno(x)===key);
       const pendientes = grupo.filter(x=>x.rindio!==true).length;
       if(grupo.length>1 && pendientes>0){
-        grupoBtnHtml = `<button type="button" class="btn sm" style="margin-top:5px;background:#eafaf1;border-color:#a8d5b8;color:#1a4d2e"
+        grupoBtnHtml = `<button type="button" class="btn sm desk-bono-group-action" style="margin-top:5px;background:#eafaf1;border-color:#a8d5b8;color:#1a4d2e"
           onclick="bonoMarcarTodosSi('${key}')" title="Marca como Sí todos los bonos de este alumno de una sola vez">✓✓ Marcar los ${grupo.length} como Sí</button>`;
       }
     }
