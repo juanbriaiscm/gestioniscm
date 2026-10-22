@@ -770,7 +770,7 @@ img, svg{max-width:100%}
   }
 
   window._fbBackup = {
-    crearAhora: () => bkCrear('manual'),
+    crearAhora: (motivo) => bkCrear(motivo || 'manual'),
     ejecutarSiCorresponde: bkEjecutarSiCorresponde,
     listar: bkListar,
     restaurar: bkRestaurar,
@@ -2822,7 +2822,9 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
         <button class="btn success" id="impexp-btn-mezclar" style="display:none" onclick="impExpConfirmarImportMezcla()"><i class="ti ti-git-merge"></i> Agregar solo lo nuevo (sin duplicar)</button>
         <button class="btn danger" id="impexp-btn-importar" style="display:none" onclick="impExpConfirmarImport()"><i class="ti ti-alert-triangle"></i> Reemplazar todos los datos con este archivo</button>
+        <button class="btn" id="impexp-btn-reintentar-fallidas" style="display:none" onclick="impExpReintentarFallidas()"><i class="ti ti-refresh"></i> Reintentar solo las fallidas</button>
       </div>
+      <div id="impexp-import-resultado" style="display:none;margin-top:10px;font-size:12px;background:#fff8e1;border:1px solid #ffe08a;border-radius:6px;padding:10px 14px;color:#444"></div>
       <div id="impexp-import-status" style="font-size:12px;color:#888;margin-top:10px"></div>
     </div>
   </div>
@@ -4625,7 +4627,7 @@ function switchTab(tab, el){
   if(tab==='debitos') debInit();
   if(tab==='asistencias') asistInit();
   if(tab==='bonos'){ bonosInit(); if(typeof bpProfesInit==='function') bpProfesInit(); }
-  if(tab==='impexp-global'){ ['impexp-export-status','impexp-import-status','impexp-import-preview','impexp-import-error'].forEach(id=>{const e=document.getElementById(id); if(e){e.style.display='none'; e.textContent='';} }); const bi=document.getElementById('impexp-btn-importar'); if(bi) bi.style.display='none'; const bm=document.getElementById('impexp-btn-mezclar'); if(bm) bm.style.display='none'; const nf=document.getElementById('impexp-nombre-archivo'); if(nf) nf.textContent=''; const fi=document.getElementById('impexp-input-file'); if(fi) fi.value=''; window._impExpPendiente = null; }
+  if(tab==='impexp-global'){ ['impexp-export-status','impexp-import-status','impexp-import-preview','impexp-import-error','impexp-import-resultado'].forEach(id=>{const e=document.getElementById(id); if(e){e.style.display='none'; e.textContent='';} }); const bi=document.getElementById('impexp-btn-importar'); if(bi) bi.style.display='none'; const bm=document.getElementById('impexp-btn-mezclar'); if(bm) bm.style.display='none'; const br=document.getElementById('impexp-btn-reintentar-fallidas'); if(br) br.style.display='none'; const nf=document.getElementById('impexp-nombre-archivo'); if(nf) nf.textContent=''; const fi=document.getElementById('impexp-input-file'); if(fi) fi.value=''; window._impExpPendiente = null; window._impExpUltimoResultado = null; }
 }
 
 const _ddHideTimers = {};
@@ -19464,7 +19466,10 @@ function bonosPrint(){
     'iscm_bonos_profes_v1',
     'iscm_proveedores_v1',
     'iscm_prov_hidden_v1',
-    'iscm_presupuestos_v1'
+    'iscm_prov_benef_v1',
+    'iscm_presupuestos_v1',
+    'iscm_becas_reset_fecha',
+    'iscm_conc_feriados_v1'
   ];
   const ARCH_FILE_PFX_IE = 'iscm_arch_file_';
 
@@ -19495,6 +19500,28 @@ function bonosPrint(){
     localStorage.setItem(key, JSON.stringify(value));
     if(window._fbReady && window._fb){
       await window._fb.set(key, value);
+    }
+  }
+
+  // Antes de escribir datos de golpe (reemplazo total o combinación), intenta
+  // crear un backup automático de respaldo. Si no existe el sistema de backups,
+  // si el usuario no tiene permiso para generarlos, o si el backup falla por
+  // cualquier otro motivo, NO sigue en silencio: pide una confirmación explícita
+  // dejando en claro que se va a continuar sin backup previo.
+  async function ieBackupPrevioOConfirmar(motivoSufijo){
+    if(!window._fbBackup || typeof window._fbBackup.crearAhora !== 'function'){
+      return confirm('No se encontró el sistema de copias de seguridad automáticas en esta sesión.\n¿Querés continuar de todas formas, SIN backup previo?');
+    }
+    if(typeof _bkEsAdmin === 'function' && !_bkEsAdmin()){
+      return confirm('Tu usuario no tiene permiso para crear copias de seguridad automáticas.\nSe va a continuar SIN backup previo. ¿Continuar de todas formas?');
+    }
+    ieSetStatus('impexp-import-status', 'Creando copia de seguridad automática antes de continuar…', false);
+    try{
+      await window._fbBackup.crearAhora('automático (previo a ' + motivoSufijo + ')');
+      return true;
+    }catch(e){
+      console.error('ieBackupPrevioOConfirmar: el backup previo falló', e);
+      return confirm('No se pudo crear la copia de seguridad automática antes de continuar.\nError: ' + (e && e.message ? e.message : 'desconocido') + '\n¿Querés continuar de todas formas, SIN backup previo?');
     }
   }
 
@@ -19556,7 +19583,13 @@ function bonosPrint(){
     document.getElementById('impexp-nombre-archivo').textContent = file ? file.name : '';
     document.getElementById('impexp-btn-importar').style.display = 'none';
     document.getElementById('impexp-btn-mezclar').style.display = 'none';
+    const btnReintentar = document.getElementById('impexp-btn-reintentar-fallidas');
+    if(btnReintentar) btnReintentar.style.display = 'none';
+    const resultadoEl = document.getElementById('impexp-import-resultado');
+    if(resultadoEl){ resultadoEl.style.display = 'none'; resultadoEl.innerHTML = ''; }
+    window._impExpUltimoResultado = null;
     ieSetStatus('impexp-import-error', '', false);
+    ieSetStatus('impexp-import-status', '', false);
     const preview = document.getElementById('impexp-import-preview');
     preview.style.display = 'none';
     preview.innerHTML = '';
@@ -19571,16 +19604,7 @@ function bonosPrint(){
           throw new Error('El archivo no tiene el formato esperado (falta "data").');
         }
         window._impExpPendiente = json;
-        const claves = Object.keys(json.data).filter(k => json.data[k] !== null && json.data[k] !== undefined);
-        const nArchivos = json.archivosAdjuntos ? Object.keys(json.archivosAdjuntos).length : 0;
-        preview.style.display = '';
-        preview.innerHTML = `
-          <div><b>Exportado el:</b> ${json.exportadoEl ? new Date(json.exportadoEl).toLocaleString('es-AR') : 'desconocido'}</div>
-          <div><b>Secciones de datos encontradas:</b> ${claves.length} de ${IMPEXP_KEYS.length}</div>
-          <div><b>Archivos adjuntos incluidos:</b> ${nArchivos}</div>
-        `;
-        document.getElementById('impexp-btn-mezclar').style.display = '';
-        document.getElementById('impexp-btn-importar').style.display = '';
+        ieMostrarPreviewArchivo(json, preview);
       }catch(err){
         ieSetStatus('impexp-import-error', 'No se pudo leer el archivo: ' + err.message, true);
       }
@@ -19590,6 +19614,153 @@ function bonosPrint(){
     };
     reader.readAsText(file);
   };
+
+  // Cuenta "registros" de un valor guardado: para arrays, la cantidad de
+  // elementos; para objetos, la cantidad de claves; para cualquier otro tipo
+  // (texto, número, booleano) no hay una cantidad comparable.
+  function ieContarRegistros(valor){
+    if(Array.isArray(valor)) return valor.length;
+    if(valor && typeof valor === 'object') return Object.keys(valor).length;
+    return null;
+  }
+
+  // Intenta determinar la fecha del cambio más reciente conocido en el
+  // sistema (última entrada de auditoría, o si no, fecha del último backup),
+  // para poder avisar si el archivo elegido quedó desactualizado. Si no se
+  // puede determinar (sin permiso para leer auditoría/backups, sin conexión,
+  // etc.) devuelve null y, en ese caso, simplemente no se muestra el aviso.
+  async function ieUltimoCambioConocido(){
+    let ultimoTs = null;
+    try{
+      if(window._fbAuditoria && typeof window._fbAuditoria.listar === 'function'){
+        const r = await window._fbAuditoria.listar();
+        if(r && r.entradas && r.entradas.length && r.entradas[0].ts){
+          ultimoTs = r.entradas[0].ts;
+        }
+      }
+    }catch(e){ console.warn('impExp: no se pudo leer la auditoría para comparar fechas', e); }
+    try{
+      if(window._fbBackup && typeof window._fbBackup.listar === 'function'){
+        const backups = await window._fbBackup.listar();
+        if(backups && backups.length && backups[0].ts && (ultimoTs === null || backups[0].ts > ultimoTs)){
+          ultimoTs = backups[0].ts;
+        }
+      }
+    }catch(e){ console.warn('impExp: no se pudo leer los backups para comparar fechas', e); }
+    return ultimoTs;
+  }
+
+  // Arma la vista previa de un archivo elegido para importar: secciones
+  // encontradas, comparación de cantidad de registros por sección (archivo
+  // vs. nube actual) y aviso si el archivo parece más viejo que los datos
+  // actuales. No bloquea nada: sólo informa antes de que el usuario confirme
+  // con los botones que ya existen.
+  async function ieMostrarPreviewArchivo(json, preview){
+    const claves = Object.keys(json.data).filter(k => json.data[k] !== null && json.data[k] !== undefined);
+    const nArchivos = json.archivosAdjuntos ? Object.keys(json.archivosAdjuntos).length : 0;
+    const exportadoElTxt = json.exportadoEl ? new Date(json.exportadoEl).toLocaleString('es-AR') : 'desconocido';
+
+    preview.style.display = '';
+    preview.innerHTML = `
+      <div><b>Exportado el:</b> ${exportadoElTxt}</div>
+      <div><b>Secciones de datos encontradas:</b> ${claves.length} de ${IMPEXP_KEYS.length}</div>
+      <div><b>Archivos adjuntos incluidos:</b> ${nArchivos}</div>
+      <div style="margin-top:6px;color:#888">Comparando con los datos actuales…</div>
+    `;
+    document.getElementById('impexp-btn-mezclar').style.display = '';
+    document.getElementById('impexp-btn-importar').style.display = '';
+
+    // Comparación por sección (cantidad de registros: archivo vs. nube).
+    const filasComparacion = [];
+    for(const key of claves){
+      if(window._impExpPendiente !== json) return; // el usuario eligió otro archivo mientras comparábamos
+      const cantArchivo = ieContarRegistros(json.data[key]);
+      if(cantArchivo === null) continue; // valores sueltos (texto/número/booleano): no hay cantidad que comparar
+      let cantNube = null;
+      try{ cantNube = ieContarRegistros(await ieLeerClave(key)); }catch(e){ /* queda en "—" */ }
+      filasComparacion.push({ key, cantArchivo, cantNube });
+    }
+    if(window._impExpPendiente !== json) return;
+
+    let htmlComparacion = '';
+    if(filasComparacion.length){
+      htmlComparacion = '<div style="margin-top:8px"><b>Comparación por sección (cantidad de registros, archivo vs. nube):</b></div>' +
+        '<div style="max-height:160px;overflow:auto;margin-top:4px">' +
+        '<table style="width:100%;font-size:.9em;border-collapse:collapse">' +
+        filasComparacion.map(f => `<tr><td style="padding:1px 6px 1px 0">${f.key}</td><td style="padding:1px 6px;text-align:right">${f.cantArchivo}</td><td style="padding:1px 4px;color:#888">vs.</td><td style="padding:1px 6px;text-align:right">${f.cantNube === null ? '—' : f.cantNube}</td></tr>`).join('') +
+        '</table></div>';
+    }
+
+    // Aviso si el archivo es más viejo que el último cambio conocido.
+    let htmlAviso = '';
+    if(json.exportadoEl){
+      const tsArchivo = new Date(json.exportadoEl).getTime();
+      if(!isNaN(tsArchivo)){
+        const ultimoTs = await ieUltimoCambioConocido();
+        if(window._impExpPendiente !== json) return;
+        if(ultimoTs && ultimoTs > tsArchivo){
+          htmlAviso = `<div style="margin-top:8px;padding:8px;border:1px solid #c0392b;border-radius:6px;color:#c0392b;background:#fdecea">
+            ⚠️ Este archivo es más viejo que los datos actuales; importarlo puede pisar información más nueva.
+          </div>`;
+        }
+      }
+    }
+
+    preview.innerHTML = `
+      <div><b>Exportado el:</b> ${exportadoElTxt}</div>
+      <div><b>Secciones de datos encontradas:</b> ${claves.length} de ${IMPEXP_KEYS.length}</div>
+      <div><b>Archivos adjuntos incluidos:</b> ${nArchivos}</div>
+      ${htmlAviso}
+      ${htmlComparacion}
+    `;
+  }
+
+  // Guarda el resultado de la última corrida de "Reemplazar todos los datos",
+  // para poder reintentar sólo las claves que fallaron sin repetir todo el
+  // proceso ni volver a pedir la confirmación de texto "IMPORTAR".
+  window._impExpUltimoResultado = null; // { json, resultados: [{key, ok, error?}] }
+
+  // Pinta el resumen de la importación: cuántas secciones entraron bien y,
+  // si hubo errores, el detalle de cuáles y por qué. Muestra/oculta el botón
+  // de reintentar según si quedan fallidas.
+  function ieRenderResultadoImportacion(resultados, notaExtra){
+    const el = document.getElementById('impexp-import-resultado');
+    if(!el) return;
+    const okCant = resultados.filter(r => r.ok).length;
+    const total = resultados.length;
+    const fallidas = resultados.filter(r => !r.ok);
+    let html = `<div><b>${okCant} de ${total} secciones importadas.</b></div>`;
+    if(fallidas.length){
+      html += '<div style="margin-top:6px;color:#c0392b"><b>Fallaron:</b></div>' +
+        '<ul style="margin:4px 0 0 18px;padding:0">' +
+        fallidas.map(r => `<li>${r.key}: ${r.error}</li>`).join('') +
+        '</ul>';
+    }
+    if(notaExtra) html += `<div style="margin-top:6px">${notaExtra}</div>`;
+    el.innerHTML = html;
+    el.style.display = '';
+    const btnReintentar = document.getElementById('impexp-btn-reintentar-fallidas');
+    if(btnReintentar) btnReintentar.style.display = fallidas.length ? '' : 'none';
+  }
+
+  // Escribe una lista puntual de claves, una por vez (mantiene el
+  // escalonado actual para no saturar Firestore), sin frenarse ante el
+  // primer error: registra ok/error por clave y sigue con las demás.
+  async function ieImportarClaves(json, claves, verbo){
+    const resultados = [];
+    for(let i=0;i<claves.length;i++){
+      const key = claves[i];
+      ieSetStatus('impexp-import-status', `${verbo || 'Importando'} ${i+1} de ${claves.length}: ${key}…`, false);
+      try{
+        await ieEscribirClave(key, json.data[key]);
+        resultados.push({key, ok:true});
+      }catch(e){
+        console.error('impExp: error importando la clave', key, e);
+        resultados.push({key, ok:false, error: (e && e.message) ? e.message : 'error desconocido'});
+      }
+    }
+    return resultados;
+  }
 
   window.impExpConfirmarImport = async function(){
     const json = window._impExpPendiente;
@@ -19602,38 +19773,98 @@ function bonosPrint(){
       return;
     }
 
+    const backupOk = await ieBackupPrevioOConfirmar('importación (reemplazo total)');
+    if(!backupOk){
+      ieSetStatus('impexp-import-status', 'Importación cancelada (sin backup previo).', false);
+      return;
+    }
+
     const btn = document.getElementById('impexp-btn-importar');
     btn.disabled = true;
-    try{
-      const claves = Object.keys(json.data);
-      for(let i=0;i<claves.length;i++){
-        const key = claves[i];
-        const value = json.data[key];
-        if(value === null || value === undefined) continue;
-        ieSetStatus('impexp-import-status', `Importando ${i+1} de ${claves.length}: ${key}…`, false);
-        await ieEscribirClave(key, value);
-      }
+    const btnReintentarPrev = document.getElementById('impexp-btn-reintentar-fallidas');
+    if(btnReintentarPrev) btnReintentarPrev.style.display = 'none';
+    const resultadoElPrev = document.getElementById('impexp-import-resultado');
+    if(resultadoElPrev){ resultadoElPrev.style.display = 'none'; resultadoElPrev.innerHTML = ''; }
 
+    try{
+      const claves = Object.keys(json.data).filter(k => json.data[k] !== null && json.data[k] !== undefined);
+      const resultados = await ieImportarClaves(json, claves);
+
+      let notaArchivos = '';
       if(json.archivosAdjuntos){
         const ids = Object.keys(json.archivosAdjuntos);
         if(ids.length && !(window._fbReady && window._fb)){
-          ieSetStatus('impexp-import-status', 'Datos importados. No se pudieron restaurar los archivos adjuntos porque no hay conexión con la nube.', true);
-        }else{
+          notaArchivos = 'No se pudieron restaurar los archivos adjuntos porque no hay conexión con la nube.';
+        }else if(ids.length){
+          let okArch = 0;
           for(let i=0;i<ids.length;i++){
             const id = ids[i];
             ieSetStatus('impexp-import-status', `Restaurando archivo adjunto ${i+1} de ${ids.length}…`, false);
-            try{ await window._fb.set(ARCH_FILE_PFX_IE + id, json.archivosAdjuntos[id]); }
+            try{ await window._fb.set(ARCH_FILE_PFX_IE + id, json.archivosAdjuntos[id]); okArch++; }
             catch(e){ console.warn('impExp: no se pudo restaurar archivo', id, e); }
           }
+          if(okArch < ids.length) notaArchivos = `Archivos adjuntos: ${okArch} de ${ids.length} restaurados.`;
         }
       }
 
-      ieSetStatus('impexp-import-status', 'Importación completa. Recargando…', false);
-      setTimeout(() => location.reload(), 800);
+      window._impExpUltimoResultado = { json, resultados };
+      ieRenderResultadoImportacion(resultados, notaArchivos);
+
+      const huboErrores = resultados.some(r => !r.ok);
+      if(huboErrores){
+        ieSetStatus('impexp-import-status', 'Importación terminada con errores en algunas secciones. Revisá el detalle de arriba; la página NO se recargó automáticamente.', true);
+        btn.disabled = false;
+      }else{
+        ieSetStatus('impexp-import-status', 'Importación completa. Recargando…', false);
+        setTimeout(() => location.reload(), 800);
+      }
     }catch(e){
       console.error('impExpConfirmarImport error', e);
       ieSetStatus('impexp-import-status', 'Ocurrió un error durante la importación. Revisá la consola antes de reintentar.', true);
       btn.disabled = false;
+    }
+  };
+
+  // Reintenta únicamente las claves que quedaron en error en la última
+  // corrida de "Reemplazar todos los datos". No vuelve a pedir la
+  // confirmación de texto "IMPORTAR" ni crea un nuevo backup (ya se creó
+  // uno antes de la corrida original).
+  window.impExpReintentarFallidas = async function(){
+    const ultimo = window._impExpUltimoResultado;
+    if(!ultimo || !ultimo.resultados){ return; }
+    if(window._impExpPendiente !== ultimo.json){
+      ieSetStatus('impexp-import-status', 'Se eligió otro archivo después de esa importación; no se puede reintentar sobre él.', true);
+      return;
+    }
+    const clavesFallidas = ultimo.resultados.filter(r => !r.ok).map(r => r.key);
+    if(!clavesFallidas.length) return;
+
+    const btnReintentar = document.getElementById('impexp-btn-reintentar-fallidas');
+    const btnImportar = document.getElementById('impexp-btn-importar');
+    if(btnReintentar) btnReintentar.disabled = true;
+    if(btnImportar) btnImportar.disabled = true;
+    try{
+      const nuevos = await ieImportarClaves(ultimo.json, clavesFallidas, 'Reintentando');
+      const mapa = {};
+      ultimo.resultados.forEach(r => { mapa[r.key] = r; });
+      nuevos.forEach(r => { mapa[r.key] = r; });
+      const resultados = Object.values(mapa);
+      window._impExpUltimoResultado = { json: ultimo.json, resultados };
+      ieRenderResultadoImportacion(resultados);
+
+      const huboErrores = resultados.some(r => !r.ok);
+      if(huboErrores){
+        ieSetStatus('impexp-import-status', 'Todavía quedan secciones con error. Revisá el detalle de arriba.', true);
+      }else{
+        ieSetStatus('impexp-import-status', 'Reintento completo: ya no quedan secciones con error. Recargando…', false);
+        setTimeout(() => location.reload(), 800);
+      }
+    }catch(e){
+      console.error('impExpReintentarFallidas error', e);
+      ieSetStatus('impexp-import-status', 'Ocurrió un error durante el reintento. Revisá la consola.', true);
+    }finally{
+      if(btnReintentar) btnReintentar.disabled = false;
+      if(btnImportar) btnImportar.disabled = false;
     }
   };
 
@@ -19716,6 +19947,12 @@ function bonosPrint(){
     if(!json){ return; }
     const conf = confirm('Se van a AGREGAR al sistema los registros del archivo elegido que todavía no existen (alumnos, cuotas, proveedores, etc.). Lo que ya está cargado no se va a modificar ni duplicar. ¿Continuar?');
     if(!conf) return;
+
+    const backupOk = await ieBackupPrevioOConfirmar('combinación de datos (agregar sin duplicar)');
+    if(!backupOk){
+      ieSetStatus('impexp-import-status', 'Combinación cancelada (sin backup previo).', false);
+      return;
+    }
 
     const btn = document.getElementById('impexp-btn-mezclar');
     const btnReemplazar = document.getElementById('impexp-btn-importar');
