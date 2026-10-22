@@ -59,6 +59,9 @@ body{font-family:system-ui,sans-serif;font-size:14px;background:#f5f5f0;color:#1
 .deuda-conceptos{margin-top:3px;line-height:1.5}
 .obs-ico{border:none;background:transparent;color:#888;cursor:pointer;padding:4px;border-radius:5px;font-size:16px;line-height:1}
 .obs-ico:hover{background:#f0f0e8;color:#1a1a2e}
+.obs-txt-cell{max-width:200px}
+.obs-txt{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#555;cursor:pointer}
+.obs-txt:hover{color:#1a1a2e;text-decoration:underline}
 .alu-menu{position:fixed;z-index:10000;min-width:200px;background:#fff;border:1px solid #d8d8d0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:4px}
 .alu-menu button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:none;background:transparent;font-size:13px;color:#1a1a1a;padding:8px 10px;border-radius:5px;cursor:pointer;min-height:34px}
 .alu-menu button:hover{background:#f0f0e8}
@@ -1508,7 +1511,7 @@ img, svg{max-width:100%}
             <th>Estado</th>
             <th>Deuda</th>
             <th>Cuota mensual</th>
-            <th style="width:34px" title="Observaciones"></th>
+            <th>Observaciones</th>
             <th style="text-align:right">Acciones</th>
           </tr>
         </thead>
@@ -4599,7 +4602,7 @@ function renderTable(){
       <td><span class="badge ${badgeClass}">${a.estado}</span>${a.acuerdo&&a.estado==='Acuerdo'?`<div style="font-size:11px;color:#856404;margin-top:2px">${a.acuerdo.fecha?'Hasta: '+a.acuerdo.fecha.split('-').reverse().join('/'):''} ${a.acuerdo.monto?'· $'+a.acuerdo.monto.toLocaleString('es-AR'):''}</div>`:''}</td>
       <td style="max-width:240px"><div class="${a.deuda>0?'monto-deuda':'monto-ok'}">${a.deuda>0?fmt(a.deuda):'—'}</div><div class="deuda-conceptos">${tagsHtml}</div></td>
       <td style="color:#555">${fmt(a.cuota)}</td>
-      <td style="text-align:center">${a.observaciones?`<button type="button" class="obs-ico" title="${String(a.observaciones).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}" onclick="editarObs(${a.id})"><i class="ti ti-note"></i></button>`:''}</td>
+      <td class="obs-txt-cell">${a.observaciones?`<span class="obs-txt" title="${String(a.observaciones).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}" onclick="editarObs(${a.id})">${String(a.observaciones).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span>`:''}</td>
       <td style="white-space:nowrap;text-align:right">
         <button class="btn ${a.estado==='Debe'?'warn':'primary'} sm" onclick="openPago(${a.id})"><i class="ti ti-credit-card"></i>Deuda / Pago</button>
         <button type="button" class="btn sm icon-only" onclick="abrirMenuAlumno(${a.id},this,event)" title="Más acciones" aria-label="Más acciones"><i class="ti ti-dots-vertical"></i></button>
@@ -7114,6 +7117,15 @@ function dashIrAlumnosCarrera(carrera){
   if(sel){ sel.value = carrera; renderTable(); }
 }
 
+/* Color fijo por carrera (mismo color en Dashboard e Indicadores) */
+const _PALETA_CARRERAS = ['#2980b9','#27ae60','#e67e22','#8e44ad','#c0392b','#16a085','#d35400','#2c3e50','#f39c12','#7f8c8d'];
+const _COLOR_CARRERA_FIJO = {'Psicopedagogía':'#8e44ad','Educación Física':'#27ae60','Escena del Crimen':'#c0392b','Inglés':'#2980b9'};
+function colorCarrera(nombre){
+  const n = String(nombre||'');
+  if(_COLOR_CARRERA_FIJO[n]) return _COLOR_CARRERA_FIJO[n];
+  let h = 0; for(let i=0;i<n.length;i++) h = (h*31 + n.charCodeAt(i)) >>> 0;
+  return _PALETA_CARRERAS[h % _PALETA_CARRERAS.length];
+}
 function renderDashboard(){
   const activos = alumnos.filter(a=>a.estado!=='Baja'&&!esFuturo(a));
   const deben   = activos.filter(a=>a.estado==='Debe');
@@ -7232,7 +7244,7 @@ function renderDashboard(){
           ? '<div style="color:#aaa;font-size:13px;text-align:center;padding:12px">Sin deuda activa</div>'
           : carrerasDeuda.slice(0,8).map(x=>`<div class="dash-bar-row clickable" onclick="dashIrAlumnosCarrera(this.dataset.c)" data-c="${_esc(x.c)}" title="Ver alumnos de ${_esc(x.c)}">
               <div class="dash-bar-label" title="${_esc(x.c)}">${_esc(x.c)}</div>
-              <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${Math.max(3,Math.round(x.deuda/maxCarrDeuda*100))}%;background:#c0392b"></div></div>
+              <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${Math.max(3,Math.round(x.deuda/maxCarrDeuda*100))}%;background:${colorCarrera(x.c)}"></div></div>
               <div class="dash-bar-num wide">${fmt(x.deuda)}</div>
             </div>`).join('')}
         ${carrerasDeuda.length>8?`<div style="font-size:12px;color:#999;margin-top:6px">y ${carrerasDeuda.length-8} carrera${carrerasDeuda.length-8!==1?'s':''} más</div>`:''}
@@ -7355,7 +7367,7 @@ function renderIndicadores(){
         ${carreraStats.map(x=>`
           <div class="dash-bar-row clickable" onclick="dashIrAlumnosCarrera('${x.c.replace(/'/g,"\\'")}')" title="Ver alumnos de ${x.c}">
             <div class="dash-bar-label" title="${x.c}">${x.c}</div>
-            <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${Math.round(x.total/maxTotal*100)}%;background:#2980b9"></div></div>
+            <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${Math.round(x.total/maxTotal*100)}%;background:${colorCarrera(x.c)}"></div></div>
             <div class="dash-bar-num">${x.total} <span style="color:#c0392b;font-weight:400">${x.deben>0?'('+x.deben+' deben)':''}</span></div>
           </div>
         `).join('')}
