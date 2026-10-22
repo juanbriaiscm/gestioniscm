@@ -131,6 +131,9 @@ tr:hover td{background:#fafaf5}
 .dd-item{display:block;width:100%;padding:9px 16px;background:none;border:none;text-align:left;font-size:13px;color:#333;cursor:pointer;white-space:nowrap;transition:background .12s}
 .dd-item:hover{background:#f5f5f0;color:#1a1a2e}
 .dd-item.active{background:#eef6ff;color:#1a1a2e;font-weight:600}
+.dd-sec{padding:8px 16px 3px;font-size:11px;font-weight:600;color:#888;letter-spacing:.02em;cursor:default}
+.dd-sep{border-top:1px solid #eee;margin:4px 0}
+.dd-item.danger,.dd-item.danger i{color:#c0392b}
 .tab-group-btn i,.dd-item i{margin-right:6px;font-size:14px;vertical-align:-1px}
 .ti{margin-right:6px}
 .pager{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid #f0f0e8;justify-content:space-between;flex-wrap:wrap}
@@ -323,7 +326,7 @@ tr:hover td{background:#fafaf5}
 .global-search-wrap input{width:100%;height:32px;padding:0 10px 0 30px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#fff;font-size:13px;outline:none;transition:background .2s}
 .global-search-wrap input::placeholder{color:rgba(255,255,255,0.4)}
 .global-search-wrap input:focus{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.3)}
-.global-search-wrap .gs-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;opacity:.5}
+.global-search-wrap .gs-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none;opacity:.55;color:#fff}
 .global-search-dropdown{display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.18);z-index:9000;max-height:420px;overflow-y:auto;border:1px solid #e0e0d8}
 .global-search-dropdown.open{display:block}
 .gs-section{padding:6px 12px 2px;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid #f0f0e8}
@@ -1240,7 +1243,7 @@ img, svg{max-width:100%}
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="ISCM Tesorería">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.49.0/tabler-icons.min.css">
 
 </head>
 <body>
@@ -1257,7 +1260,7 @@ img, svg{max-width:100%}
 
   <!-- Center: search -->
   <div class="global-search-wrap">
-    <span class="gs-icon">🔎</span>
+    <i class="ti ti-search gs-icon"></i>
     <input type="text" id="global-search-input" placeholder="Buscador general (Ctrl+K)" autocomplete="off"
       oninput="gsSearch(this.value)" onfocus="gsSearch(this.value)" onblur="setTimeout(gsClose,200)" onkeydown="gsKey(event)">
     <div class="global-search-dropdown" id="gs-dropdown"></div>
@@ -1265,19 +1268,18 @@ img, svg{max-width:100%}
 
   <!-- Right: actions -->
   <div id="topbar-actions" style="display:flex;gap:6px;align-items:center">
-    <!-- Cierre de mes -->
-    <button onclick="openCierreMes()" title="Cierre de mes"
-      style="height:30px;padding:0 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:#fff;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap;transition:background .15s;display:flex;align-items:center;gap:5px"
-      onmouseenter="this.style.background='rgba(255,255,255,0.18)'"
-      onmouseleave="this.style.background='rgba(255,255,255,0.1)'">
-      <i class="ti ti-calendar-month" style="font-size:14px"></i> <span class="btn-label-text">Cierre de mes</span></button>
-
-    <!-- Cierre de año -->
-    <button onclick="openCierreAnio()" title="Cierre de año"
-      style="height:30px;padding:0 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:#fff;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap;transition:background .15s;display:flex;align-items:center;gap:5px"
-      onmouseenter="this.style.background='rgba(255,255,255,0.18)'"
-      onmouseleave="this.style.background='rgba(255,255,255,0.1)'">
-      <i class="ti ti-school" style="font-size:14px"></i> <span class="btn-label-text">Cierre de año</span></button>
+    <!-- Cierres: mes y año en un solo menú -->
+    <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-cierres')" onmouseleave="ddHide('dd-cierres')">
+      <button onclick="ddToggle('dd-cierres',event)" title="Cierres"
+        style="height:30px;padding:0 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:#fff;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap;transition:background .15s;display:flex;align-items:center;gap:5px"
+        onmouseenter="this.style.background='rgba(255,255,255,0.18)'"
+        onmouseleave="this.style.background='rgba(255,255,255,0.1)'">
+        <i class="ti ti-calendar-check" style="font-size:14px"></i> <span class="btn-label-text">Cierres ▾</span></button>
+      <div class="tab-dropdown" id="dd-cierres">
+        <button class="dd-item" onclick="openCierreMes();ddHide('dd-cierres')"><i class="ti ti-calendar-month"></i>Cierre de mes</button>
+        <button class="dd-item" onclick="openCierreAnio();ddHide('dd-cierres')"><i class="ti ti-school"></i>Cierre de año</button>
+      </div>
+    </div>
 
     <!-- Agregar alumno -->
     <button onclick="openNuevoAlumno()" title="Agregar alumno"
@@ -1285,17 +1287,6 @@ img, svg{max-width:100%}
       onmouseenter="this.style.opacity='.85'"
       onmouseleave="this.style.opacity='1'">
       <i class="ti ti-user-plus" style="font-size:14px"></i> <span class="btn-label-text">Agregar alumno</span></button>
-
-    <!-- Más acciones: Importar/Exportar contactos -->
-    <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-mas-acciones')" onmouseleave="ddHide('dd-mas-acciones')">
-      <button style="height:30px;padding:0 10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:#fff;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap;transition:background .15s;display:flex;align-items:center;gap:5px"
-        onmouseenter="this.style.background='rgba(255,255,255,0.18)'"
-        onmouseleave="this.style.background='rgba(255,255,255,0.1)'"
-        title="Más acciones">⋮ <span class="btn-label-text">Más acciones</span></button>
-      <div class="tab-dropdown" id="dd-mas-acciones">
-        <button class="dd-item" onclick="exportarContactosWpp(this);ddHide('dd-mas-acciones')" title="Exportar teléfonos de activos e inactivos para WhatsApp"><i class="ti ti-brand-whatsapp"></i>Exportar contactos</button>
-      </div>
-    </div>
 
     <!-- Separador -->
     <div style="width:1px;height:20px;background:rgba(255,255,255,0.12);margin:0 2px"></div>
@@ -1395,7 +1386,7 @@ img, svg{max-width:100%}
         <div class="tab-dropdown" id="dd-sistema">
           <button class="dd-item" id="nav-dd-archivos" onclick="switchTab('archivos',this)"><i class="ti ti-folder"></i>Archivos</button>
           <button class="dd-item" id="nav-dd-debitos" onclick="switchTab('debitos',this)"><i class="ti ti-credit-card"></i>Débitos</button>
-          <button class="dd-item" id="nav-dd-impexp-global" onclick="switchTab('impexp-global',this)"><i class="ti ti-database-export"></i>Importar / Exportar todo</button>
+          <button class="dd-item" id="nav-dd-impexp-global" onclick="switchTab('impexp-global',this)"><i class="ti ti-database-export"></i>Copia completa</button>
         </div>
       </div>
 
@@ -1446,12 +1437,16 @@ img, svg{max-width:100%}
       <button class="btn" id="btn-mas-filtros" onclick="toggleMoreFilters()"><i class="ti ti-filter"></i>Más filtros ▾</button>
 
       <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-impexp')" onmouseleave="ddHide('dd-impexp')">
-        <button class="btn"><i class="ti ti-folder"></i>Importación / Exportación ▾</button>
+        <button class="btn"><i class="ti ti-arrows-exchange"></i>Importar / Exportar ▾</button>
         <div class="tab-dropdown" id="dd-impexp">
+          <div class="dd-sec">Importar</div>
           <button class="dd-item" onclick="abrirRestaurarDeudas();ddHide('dd-impexp')" title="Restaurar deudas desde el Excel exportado previamente"><i class="ti ti-refresh"></i>Restaurar deudas</button>
-          <button class="dd-item" onclick="abrirImportarCaja();ddHide('dd-impexp')" title="Marcar cuotas como pagadas desde el Reporte de Caja"><i class="ti ti-file-import"></i>Importar caja</button>
-          <button class="dd-item" onclick="abrirImportCBUs();ddHide('dd-impexp')" title="Asignar CBUs masivamente desde una lista de alumnos"><i class="ti ti-building-bank"></i>Importar CBUs</button>
-          <button class="dd-item" onclick="exportarDeudaXLSX();ddHide('dd-impexp')" title="Exportar tabla para pegar en Alumnos con deuda ISCM"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
+          <button class="dd-item" onclick="abrirImportarCaja();ddHide('dd-impexp')" title="Marcar cuotas como pagadas desde el Reporte de Caja"><i class="ti ti-file-import"></i>Caja</button>
+          <button class="dd-item" onclick="abrirImportCBUs();ddHide('dd-impexp')" title="Asignar CBUs masivamente desde una lista de alumnos"><i class="ti ti-building-bank"></i>CBUs</button>
+          <div class="dd-sep"></div>
+          <div class="dd-sec">Exportar</div>
+          <button class="dd-item" onclick="exportarDeudaXLSX();ddHide('dd-impexp')" title="Exportar tabla para pegar en Alumnos con deuda ISCM"><i class="ti ti-file-spreadsheet"></i>Excel de deudas</button>
+          <button class="dd-item" onclick="exportarContactosWpp(this);ddHide('dd-impexp')" title="Exportar teléfonos de activos e inactivos para WhatsApp"><i class="ti ti-brand-whatsapp"></i>Contactos para WhatsApp</button>
         </div>
       </div>
     </div>
@@ -1514,9 +1509,17 @@ img, svg{max-width:100%}
         <option value="sin">Sin deuda</option>
       </select>
       <button class="btn" onclick="clearInactivosFilters()"><i class="ti ti-x"></i>Limpiar</button>
-      <button class="btn primary" onclick="openImportInactivosModal()"><i class="ti ti-file-import"></i>Importar Excel</button>
+      <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-inac-impexp')" onmouseleave="ddHide('dd-inac-impexp')">
+        <button class="btn"><i class="ti ti-arrows-exchange"></i>Importar / Exportar ▾</button>
+        <div class="tab-dropdown" id="dd-inac-impexp">
+          <div class="dd-sec">Importar</div>
+          <button class="dd-item" onclick="openImportInactivosModal();ddHide('dd-inac-impexp')"><i class="ti ti-file-spreadsheet"></i>Excel de inactivos</button>
+          <div class="dd-sep"></div>
+          <div class="dd-sec">Exportar</div>
+          <button class="dd-item" onclick="exportarInactivosXLSX();ddHide('dd-inac-impexp')" title="Exportar inactivos para hoja Deuda todos alumnos"><i class="ti ti-file-spreadsheet"></i>Excel (Deuda todos alumnos)</button>
+        </div>
+      </div>
       <button class="btn warn" onclick="inacBulkEliminarFiltrados()" title="Eliminar todos los inactivos actualmente visibles según filtros"><i class="ti ti-trash"></i>Eliminar filtrados</button>
-      <button class="btn" onclick="exportarInactivosXLSX()" title="Exportar inactivos para hoja Deuda todos alumnos" style="background:#e8f5ee;border-color:#a8d5b8;color:#1a4d2e"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
       <button class="btn" onclick="detectarInactivosDuplicados()" title="Buscar alumnos inactivos cargados más de una vez (por nombre similar)" style="background:#fff4e5;border-color:#f0c98c;color:#8a5a00"><i class="ti ti-copy"></i>Detectar duplicados</button>
     </div>
 
@@ -2069,11 +2072,19 @@ img, svg{max-width:100%}
       <option value="Hijo prof.">Hijo/a de profesor/a</option>
     </select>
     <button class="btn" onclick="becaLimpiarFiltros()" style="height:34px;font-size:12px"><i class="ti ti-x"></i>Limpiar filtros</button>
-    <button class="btn" onclick="document.getElementById('beca-import-input').click()" style="height:34px;font-size:12px;background:#eef3fc;border-color:#a8c3ed;color:#1a3a6e"><i class="ti ti-upload"></i>Importar</button>
+      <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-becas-impexp')" onmouseleave="ddHide('dd-becas-impexp')">
+        <button class="btn" style="height:34px;font-size:12px"><i class="ti ti-arrows-exchange"></i>Importar / Exportar ▾</button>
+        <div class="tab-dropdown" id="dd-becas-impexp">
+          <div class="dd-sec">Importar</div>
+          <button class="dd-item" onclick="document.getElementById('beca-import-input').click();ddHide('dd-becas-impexp')"><i class="ti ti-file-import"></i>Archivo (JSON, CSV o Excel)</button>
+          <div class="dd-sep"></div>
+          <div class="dd-sec">Exportar</div>
+          <button class="dd-item" onclick="exportarBecasCSV();ddHide('dd-becas-impexp')"><i class="ti ti-file-type-csv"></i>CSV</button>
+          <button class="dd-item" onclick="exportarBecasExcel();ddHide('dd-becas-impexp')"><i class="ti ti-file-spreadsheet"></i>Excel</button>
+          <button class="dd-item" onclick="exportarBecasJSON();ddHide('dd-becas-impexp')"><i class="ti ti-braces"></i>JSON</button>
+        </div>
+      </div>
     <input type="file" id="beca-import-input" accept=".json,.csv,.xlsx,.xls" style="display:none" onchange="becaProcesarImport(this)">
-    <button class="btn" onclick="exportarBecasCSV()" style="height:34px;font-size:12px;background:#e8f5ee;border-color:#a8d5b8;color:#1a4d2e"><i class="ti ti-download"></i>Exportar CSV</button>
-    <button class="btn" onclick="exportarBecasExcel()" style="height:34px;font-size:12px;background:#e8f5ee;border-color:#a8d5b8;color:#1a4d2e"><i class="ti ti-download"></i>Exportar Excel</button>
-    <button class="btn" onclick="exportarBecasJSON()" style="height:34px;font-size:12px;background:#e8f5ee;border-color:#a8d5b8;color:#1a4d2e"><i class="ti ti-download"></i>Exportar JSON</button>
   </div>
 
   <!-- Barra edición masiva becas -->
@@ -2379,12 +2390,15 @@ img, svg{max-width:100%}
     <h2 style="margin:0;font-size:17px;color:#1a1a2e"><i class="ti ti-building"></i>Gestión de Proveedores</h2>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-prov-impexp')" onmouseleave="ddHide('dd-prov-impexp')">
-        <button class="btn" title="Importar o exportar proveedores"><i class="ti ti-file-import"></i>Importar/Exportar ▾</button>
+        <button class="btn" title="Importar o exportar proveedores"><i class="ti ti-arrows-exchange"></i>Importar / Exportar ▾</button>
         <div class="tab-dropdown" id="dd-prov-impexp">
-          <button class="dd-item" onclick="provAbrirImport();ddHide('dd-prov-impexp')" title="Importar la hoja Proveedores del Excel de Tesorería ISCM"><i class="ti ti-file-import"></i>Importar desde Excel (Tesorería)</button>
-          <button class="dd-item" onclick="provExportarExcel();ddHide('dd-prov-impexp')"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
-          <button class="dd-item" onclick="provExportarJSON();ddHide('dd-prov-impexp')"><i class="ti ti-braces"></i>Exportar JSON</button>
-          <button class="dd-item" onclick="provExportarCSV();ddHide('dd-prov-impexp')"><i class="ti ti-file-type-csv"></i>Exportar CSV</button>
+          <div class="dd-sec">Importar</div>
+          <button class="dd-item" onclick="provAbrirImport();ddHide('dd-prov-impexp')" title="Importar la hoja Proveedores del Excel de Tesorería ISCM"><i class="ti ti-file-spreadsheet"></i>Excel (Tesorería)</button>
+          <div class="dd-sep"></div>
+          <div class="dd-sec">Exportar</div>
+          <button class="dd-item" onclick="provExportarExcel();ddHide('dd-prov-impexp')"><i class="ti ti-file-spreadsheet"></i>Excel</button>
+          <button class="dd-item" onclick="provExportarCSV();ddHide('dd-prov-impexp')"><i class="ti ti-file-type-csv"></i>CSV</button>
+          <button class="dd-item" onclick="provExportarJSON();ddHide('dd-prov-impexp')"><i class="ti ti-braces"></i>JSON</button>
         </div>
       </div>
       <button class="btn" onclick="provCopiarAbrir()" title="Crear las facturas de este mes a partir de las del mes anterior"><i class="ti ti-copy"></i>Copiar mes anterior</button>
@@ -2464,12 +2478,15 @@ img, svg{max-width:100%}
       <button class="btn" onclick="bonosSort()"><i class="ti ti-sort-ascending-letters"></i>Ordenar A–Z</button>
 
       <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-bonos-al-mas')" onmouseleave="ddHide('dd-bonos-al-mas')">
-        <button class="btn" title="Más acciones"><i class="ti ti-dots-vertical"></i>Más acciones</button>
+        <button class="btn" title="Importar o exportar bonos"><i class="ti ti-arrows-exchange"></i>Importar / Exportar ▾</button>
         <div class="tab-dropdown" id="dd-bonos-al-mas">
+          <div class="dd-sec">Importar</div>
           <button class="dd-item" onclick="bonosOpenPaste();ddHide('dd-bonos-al-mas')"><i class="ti ti-clipboard-list"></i>Pegar lista</button>
-          <button class="dd-item" onclick="bonosOpenImp();ddHide('dd-bonos-al-mas')"><i class="ti ti-file-import"></i>Importar Excel</button>
+          <button class="dd-item" onclick="bonosOpenImp();ddHide('dd-bonos-al-mas')"><i class="ti ti-file-spreadsheet"></i>Excel</button>
+          <div class="dd-sep"></div>
+          <div class="dd-sec">Exportar</div>
+          <button class="dd-item" onclick="bonosExportarXLSX();ddHide('dd-bonos-al-mas')" title="Descargar la planilla en Excel"><i class="ti ti-file-spreadsheet"></i>Excel</button>
           <button class="dd-item" onclick="bonosPrint();ddHide('dd-bonos-al-mas')"><i class="ti ti-printer"></i>PDF</button>
-          <button class="dd-item" onclick="bonosExportarXLSX();ddHide('dd-bonos-al-mas')" title="Descargar la planilla en Excel"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
         </div>
       </div>
 
@@ -2554,12 +2571,15 @@ Pérez, Juan | 1001"></textarea>
       <button class="btn" onclick="bpSort()"><i class="ti ti-sort-ascending-letters"></i>Ordenar A–Z</button>
 
       <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-bonos-prof-mas')" onmouseleave="ddHide('dd-bonos-prof-mas')">
-        <button class="btn" title="Más acciones"><i class="ti ti-dots-vertical"></i>Más acciones</button>
+        <button class="btn" title="Importar o exportar bonos"><i class="ti ti-arrows-exchange"></i>Importar / Exportar ▾</button>
         <div class="tab-dropdown" id="dd-bonos-prof-mas">
+          <div class="dd-sec">Importar</div>
           <button class="dd-item" onclick="bpOpenPaste();ddHide('dd-bonos-prof-mas')"><i class="ti ti-clipboard-list"></i>Pegar lista</button>
-          <button class="dd-item" onclick="bpOpenImp();ddHide('dd-bonos-prof-mas')"><i class="ti ti-file-import"></i>Importar Excel</button>
+          <button class="dd-item" onclick="bpOpenImp();ddHide('dd-bonos-prof-mas')"><i class="ti ti-file-spreadsheet"></i>Excel</button>
+          <div class="dd-sep"></div>
+          <div class="dd-sec">Exportar</div>
+          <button class="dd-item" onclick="bpXlsx();ddHide('dd-bonos-prof-mas')" title="Descargar la planilla en Excel"><i class="ti ti-file-spreadsheet"></i>Excel</button>
           <button class="dd-item" onclick="bpPrint();ddHide('dd-bonos-prof-mas')"><i class="ti ti-printer"></i>PDF</button>
-          <button class="dd-item" onclick="bpXlsx();ddHide('dd-bonos-prof-mas')"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
         </div>
       </div>
 
@@ -2798,7 +2818,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
 
 <div id="tab-impexp-global" style="display:none">
   <div style="max-width:900px;margin:0 auto">
-    <h2 style="margin:0 0 4px;font-size:17px;color:#1a1a2e"><i class="ti ti-database-export"></i> Importar / Exportar todo</h2>
+    <h2 style="margin:0 0 4px;font-size:17px;color:#1a1a2e"><i class="ti ti-database-export"></i> Copia completa</h2>
     <p style="font-size:13px;color:#888;margin:0 0 20px">Descargá toda la información del sistema (alumnos, aranceles, caja, becas, bonos, proveedores, conciliación, presupuestos, archivos, etc.) en un único archivo JSON, o restaurala completa desde un backup.</p>
 
     <!-- EXPORTAR -->
@@ -2851,27 +2871,33 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
       </select>
       <button onclick="concAgregarFila()" class="btn primary"><i class="ti ti-plus"></i>Agregar fila</button>
 
+      <button class="btn" onclick="concAbrirNuevoMes()" title="Crear un mes nuevo"><i class="ti ti-calendar-plus"></i>Nuevo mes</button>
+
+      <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-conc-impexp')" onmouseleave="ddHide('dd-conc-impexp')">
+        <button class="btn"><i class="ti ti-arrows-exchange"></i>Importar / Exportar ▾</button>
+        <div class="tab-dropdown" id="dd-conc-impexp" style="left:auto;right:0">
+          <div class="dd-sec">Importar</div>
+          <button class="dd-item" onclick="concAbrirImport();ddHide('dd-conc-impexp')" title="Importar historial desde Excel (.xlsx)"><i class="ti ti-file-spreadsheet"></i>Excel</button>
+          <button class="dd-item" onclick="concAbrirExtracto();ddHide('dd-conc-impexp')" title="Subir extracto bancario y conciliar automáticamente"><i class="ti ti-building-bank"></i>Extracto del banco</button>
+          <div class="dd-sep"></div>
+          <div class="dd-sec">Exportar</div>
+          <button class="dd-item" onclick="concExportarXLSX(false);ddHide('dd-conc-impexp')"><i class="ti ti-file-spreadsheet"></i>Excel — mes actual</button>
+          <button class="dd-item" onclick="concExportarXLSX(true);ddHide('dd-conc-impexp')"><i class="ti ti-file-spreadsheet"></i>Excel — historial completo</button>
+          <button class="dd-item" onclick="concExportarPDF();ddHide('dd-conc-impexp')"><i class="ti ti-file-type-pdf"></i>PDF — mes actual</button>
+        </div>
+      </div>
+
       <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-conc-mas')" onmouseleave="ddHide('dd-conc-mas')">
-        <button class="btn" title="Más acciones"><i class="ti ti-dots-vertical"></i>Más acciones</button>
-        <div class="tab-dropdown" id="dd-conc-mas">
-          <button class="dd-item" onclick="concAbrirNuevoMes();ddHide('dd-conc-mas')"><i class="ti ti-calendar-plus"></i>Nuevo mes</button>
-          <button class="dd-item" onclick="concAbrirImport();ddHide('dd-conc-mas')" title="Importar historial desde Excel (.xlsx)"><i class="ti ti-file-import"></i>Importar Excel</button>
-          <button class="dd-item" onclick="concAbrirExtracto();ddHide('dd-conc-mas')" title="Subir extracto bancario y conciliar automáticamente"><i class="ti ti-building-bank"></i>Extracto Banco</button>
+        <button class="btn" title="Más acciones"><i class="ti ti-dots-vertical"></i>Acciones ▾</button>
+        <div class="tab-dropdown" id="dd-conc-mas" style="left:auto;right:0">
           <button class="dd-item" onclick="concAbrirMailsPP();ddHide('dd-conc-mas')" title="Pegar mails de Pronto Pago para cargar importes"><i class="ti ti-mail"></i>Mails Pronto Pago</button>
-          <button class="dd-item" onclick="concEliminarMes();ddHide('dd-conc-mas')" title="Eliminar el mes seleccionado y todas sus filas" style="color:#c0392b"><i class="ti ti-trash"></i>Eliminar mes</button>
+          <div class="dd-sep"></div>
+          <button class="dd-item danger" onclick="concEliminarMes();ddHide('dd-conc-mas')" title="Eliminar el mes seleccionado y todas sus filas"><i class="ti ti-trash"></i>Eliminar mes</button>
         </div>
       </div>
       <input type="file" id="import-xlsx-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="concProcesarImport(this)">
       <input type="file" id="extracto-file-input" accept=".xlsx,.xls,.csv,.txt" style="display:none" onchange="concProcesarExtracto(this)">
 
-      <div style="position:relative;display:inline-block">
-        <button onclick="concToggleExportMenu(event)" class="btn" style="background:#e8f5ee;border-color:#a8d5b8;color:#1a4d2e" title="Exportar conciliación"><i class="ti ti-file-export"></i>Exportar ▾</button>
-        <div id="conc-export-menu" style="display:none;position:absolute;top:100%;right:0;background:#fff;border:1px solid #e0e0d8;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);z-index:9000;min-width:230px;padding:4px 0;margin-top:4px">
-          <button class="dd-item" onclick="concExportarXLSX(false); concToggleExportMenu()"><i class="ti ti-file-spreadsheet"></i>Excel — mes actual</button>
-          <button class="dd-item" onclick="concExportarXLSX(true); concToggleExportMenu()"><i class="ti ti-file-spreadsheet"></i>Excel — historial completo</button>
-          <button class="dd-item" onclick="concExportarPDF(); concToggleExportMenu()"><i class="ti ti-file-type-pdf"></i>PDF — mes actual</button>
-        </div>
-      </div>
     </div>
   </div>
 
