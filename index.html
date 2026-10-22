@@ -1300,6 +1300,48 @@ img, svg{max-width:100%}
 #asist-mes{width:100%;height:36px;border:1px solid #d0d0c8;border-radius:6px;padding:0 10px;font:inherit;background:#fff}
 @media(max-width:600px){#asist-selector-grid>div{flex-basis:100%}.mini-head-actions{width:100%}#tab-resumen table{min-width:650px}}
 </style>
+<style>/* Segunda tanda: reutiliza las tablas, paleta y controles del sistema. */
+#tab-proveedores [hidden],#tab-debitos [hidden],#tab-bonos [hidden],#tab-presupuestos [hidden],#tab-conciliacion [hidden]{display:none!important}
+.ui-help{font-size:12px;color:#777;line-height:1.55}.ui-details{border:1px solid #e8e8e0;background:#fff;border-radius:8px;margin:0 0 14px}.ui-details>summary{cursor:pointer;padding:11px 14px;font-size:13px;font-weight:600;color:#1a1a2e}.ui-details[open]>summary{border-bottom:1px solid #e8e8e0}.ui-detail-body{padding:14px;margin:0!important;border:0!important;border-radius:0!important}
+.ui-actions{position:relative;display:inline-block}.ui-actions>summary{list-style:none}.ui-actions>summary::-webkit-details-marker{display:none}.ui-actions-list{position:absolute;right:0;top:calc(100% + 4px);z-index:600;background:#fff;min-width:200px;padding:5px;border:1px solid #d8d8d0;border-radius:8px;box-shadow:0 8px 24px #0002}.ui-menu-btn{display:flex;width:100%;justify-content:flex-start;background:transparent!important;border:0!important;color:#333;height:auto;min-height:34px;text-align:left}.ui-menu-btn:hover{background:#f0f0e8!important}.ui-menu-btn.danger,.ui-menu-btn.peligro{color:#c0392b}
+.ui-more-filters{display:flex;align-items:center}.ui-more-filters>summary{list-style:none;cursor:pointer}.ui-more-filters[open]{display:flex;flex-wrap:wrap;gap:8px}.ui-more-filters select{margin-top:8px}
+.ui-fact-status{display:block;margin-top:4px;font-size:11px;color:#888}
+#tab-proveedores table td:nth-child(3){text-align:right;font-variant-numeric:tabular-nums}
+#tab-bonos .page-tools{gap:8px}.ui-bonos-tools{margin-bottom:14px}.ui-bonos-table table{min-width:700px}.ui-bonos-table .bp-row{border:0;border-radius:0;padding:0;margin:0;background:#fff}.ui-bonos-table .bp-row.bp-done{opacity:1}.ui-bonos-table td{vertical-align:middle}.ui-bonos-table .bp-name{font-size:13px;font-weight:600}.ui-bonos-table .bp-bonos{margin:0}.ui-bonos-table .bp-days{white-space:nowrap}.ui-bonos-table .bp-note{font-size:12px;color:#777;max-width:220px;white-space:normal;border-left:0;font-style:normal;padding-left:14px}
+#tab-bonos .bono-inp{border-color:transparent;background:transparent}#tab-bonos .bono-inp:hover{border-color:#e2e2da}#tab-bonos .bono-inp:focus{background:#fff;border-color:#1a1a2e}#tab-bonos .bono-inp:disabled{background:#f4f4ef;border-color:transparent}#tab-bonos .bono-card{box-shadow:none;border-width:1px;border-radius:5px;font-family:inherit}#tab-bonos .bp-bono{box-shadow:none;border-radius:5px}.bp-bono:focus-visible,.bono-card:focus-visible{outline:2px solid #4b3fb0;outline-offset:2px}
+.ui-edit-head{padding-top:6px}.ui-edit-head h3{font-size:14px;margin:0 0 4px}.ui-save-status{font-size:11px;color:#777}.ui-save-error{color:#b45309}
+#tab-presupuestos .pp-th{background:#f8f8f4;color:#666;font-family:inherit;padding:10px 14px}#tab-presupuestos .pp-in:focus{outline:2px solid #4b3fb033;outline-offset:1px}#ui-presup-publicidad>.ui-detail-body{padding:14px!important}#ui-presup-publicidad{margin-bottom:14px}
+.ui-arancel-grid{align-items:stretch}.ui-arancel-grid>#card-general,.ui-arancel-grid>#card-ef123{display:flex;flex-direction:column}.ui-arancel-grid .field label{min-height:18px;line-height:1.4}.ui-arancel-grid #am-preview,.ui-arancel-grid #ef-preview{font-variant-numeric:tabular-nums}.ui-arancel-grid div:has(>#am-preview),.ui-arancel-grid div:has(>#ef-preview){text-align:right}.ui-arancel-grid #card-general>div:has(#am-preview),.ui-arancel-grid #card-ef123>div:has(#ef-preview){margin-top:auto!important}
+#tab-cobranza table td,#tab-cobranza table th{font-variant-numeric:tabular-nums}#ui-fact-formulas .resumen-card,#ui-fact-calculadora .resumen-card{border:0;box-shadow:none}#ui-fact-calculadora>.ui-detail-body{border-top:0!important}#calc-resultado{background:#fafaf7!important;border-color:#e8e8e0!important}
+#caja-stats .stat-value{font-size:18px}#caja-stats>.stat:nth-child(3){border-left:4px solid #1a1a2e}#caja-stats>.stat:nth-child(3) .stat-value{font-size:24px;font-weight:700}.ui-caja-difference{background:#fafaf7;padding:12px;border-radius:6px}#billetes-diff{font-size:19px!important;font-variant-numeric:tabular-nums}
+.ui-backup-card{padding:18px;margin-bottom:14px}.ui-conc-help{margin-bottom:12px}#ui-conc-controls{margin-bottom:8px}
+#arch-grid.ui-arch-list{display:flex!important;flex-direction:column;gap:0!important;background:#fff;border:1px solid #e8e8e0;border-radius:8px;min-height:0!important}#arch-grid.ui-arch-list>.arch-card{display:grid;grid-template-columns:28px minmax(0,1fr) minmax(130px,auto);gap:12px;align-items:center;padding:10px 44px 10px 14px;border:0;border-bottom:1px solid #e8e8e0;border-radius:0;box-shadow:none;text-align:left}#arch-grid.ui-arch-list .arch-card-icon{font-size:22px;margin:0}#arch-grid.ui-arch-list .arch-card-name{margin:0;overflow-wrap:anywhere;white-space:normal}#arch-grid.ui-arch-list .arch-card-meta{margin:0;font-size:11px}#arch-grid.ui-arch-list .arch-card-menu{top:8px}
+@media(max-width:1100px){.ui-caja-layout{grid-template-columns:minmax(0,1fr)!important}.ui-caja-layout>div{min-width:0}}
+@media(max-width:700px){.ui-arancel-grid{grid-template-columns:minmax(0,1fr)!important}.ui-actions-list{right:auto;left:0}#arch-grid.ui-arch-list>.arch-card{grid-template-columns:24px minmax(0,1fr)}#arch-grid.ui-arch-list .arch-card-meta{grid-column:2}#tab-aranceles>div[style*="grid-template-columns:1fr 1fr 1fr"]{grid-template-columns:1fr!important}.ui-caja-layout>div>div>div[style*="grid-template-columns:140px"]{grid-template-columns:1fr 1fr!important}}
+#bonos-stats-row,#bp-stats{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+#sub-bonos-alumnos>.table-wrap{overflow-x:auto!important;overflow-y:hidden!important}
+#sub-bonos-alumnos>.table-wrap>table{min-width:1000px}
+@media(max-width:700px){
+ .ui-arancel-grid .btn{height:auto;min-height:34px;white-space:normal;text-align:center;justify-content:center}
+ .ui-arancel-grid #card-general>div:has(>button),.ui-arancel-grid #card-ef123>div:has(>button){flex-direction:column}
+ #tab-aranceles .section-divider span{white-space:normal;line-height:1.5}
+ #tab-aranceles .section-divider{white-space:normal;height:auto}
+ .ui-caja-layout .resumen-card>div:has(>h3){flex-wrap:wrap;gap:10px}
+ .ui-caja-layout .resumen-card>div:has(>h3)>div{flex:1 1 100%;max-width:100%;justify-content:flex-start!important}
+ #caja-btn-cerrar{white-space:normal;min-height:34px;height:auto;flex:1 1 100%;justify-content:center;text-align:center}
+ #tab-bonos .controls input{min-width:0!important;max-width:100%}
+}
+#tab-bonos,#tab-archivos,#tab-impexp-global{padding:16px}
+#tab-presupuestos tfoot td{white-space:nowrap}
+.ui-bonos-table .bp-edit{color:#555;font-size:12px;border:1px solid #d0d0c8;background:#fff;padding:3px 10px}
+@media(max-width:900px){#tab-bonos,#tab-archivos,#tab-impexp-global{padding-left:10px;padding-right:10px}}
+#presup-total-global{white-space:nowrap;font-variant-numeric:tabular-nums}
+@media(max-width:700px){
+ #presup-form-area>.pp-card>div[style*="grid-template-columns"]{grid-template-columns:minmax(0,1fr)!important}
+ #presup-form-area .field{grid-column:auto!important;min-width:0}
+ #presup-form-area>div:has(>#presup-total-global){flex-wrap:wrap;gap:10px}
+}
+</style>
 </head>
 <body data-tab="dashboard">
 
@@ -1666,10 +1708,10 @@ img, svg{max-width:100%}
   </div>
 
   <!-- TAB ARANCELES -->
-  <div id="tab-aranceles" style="display:none">
-    <div class="info-box" style="margin-bottom:14px">
+  <div id="tab-aranceles" style="display:none"><div class="page-head"><h2 class="page-title"><i class="ti ti-receipt-2"></i>Aranceles</h2></div>
+    <div class="info-box" style="margin-bottom:14px"><strong>Las cuotas ya generadas no se modifican.</strong> Guardá un borrador para revisar los valores antes de aplicar.</div><details class="ui-details"><summary>Cómo se aplica</summary><div class="ui-detail-body ui-help">
       <strong>Actualización de aranceles</strong>: Modificá los valores y <strong>guardá como borrador</strong> para revisarlos antes de aplicar. Las cuotas ya generadas <strong>no se modifican</strong> — el nuevo valor se usará recién al <strong>cerrar el mes</strong>. Los ítems porcentuales (Equip. Tecnológico, Mantenimiento, Resolución conjunta) se calculan sobre la enseñanza curricular —o curricular+extracurricular para Ed. Física 1°/2°/3°—.
-    </div>
+    </div></details>
 
     <!-- Banner borrador pendiente -->
     <div id="arancel-draft-banner" style="display:none;background:#fff8e1;border:1px solid #f9a825;border-radius:8px;padding:12px 16px;margin-bottom:14px;display:none;align-items:center;gap:12px">
@@ -1683,7 +1725,7 @@ img, svg{max-width:100%}
     </div>
 
     <!-- ARANCEL MENSUAL (carreras generales) -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px" class="ui-arancel-grid">
       <div class="resumen-card" id="card-general">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
           <h3 style="margin:0"><i class="ti ti-clipboard-list"></i>Arancel Mensual — Carreras generales</h3>
@@ -1781,17 +1823,17 @@ img, svg{max-width:100%}
   </div>
 
   <!-- Corrección de cuotas ya generadas con arancel viejo -->
-  <div class="resumen-card" id="card-correccion-mes" style="margin-top:16px">
+  <details class="ui-details"><summary>Mantenimiento · Corregir cuota de un mes generado</summary><div class="resumen-card ui-detail-body" id="card-correccion-mes" style="margin-top:16px">
     <h3 style="margin:0 0 6px 0"><i class="ti ti-tool"></i>Corregir cuota de un mes ya generado</h3>
     <div style="font-size:12px;color:#888;margin-bottom:10px">
       Usar <strong>solo</strong> si el cierre de mes ya generó la cuota con el arancel viejo (por el bug del auto-corrector). Primero aplicá el arancel nuevo arriba en ambas tarjetas. Después, esto busca en cada alumno activo la cuota <strong>no pagada</strong> del mes indicado y le pone el valor de su "cuota" actual (ya recalculada arriba con el arancel vigente y su % de beca real). No genera cuotas nuevas ni duplica nada — solo corrige el monto del registro existente.
     </div>
     <div class="field"><label>Mes a corregir</label><input id="correccion-mes" placeholder="Ej: Septiembre" value="Septiembre"></div>
     <button class="btn primary" style="width:100%;font-size:13px" onclick="corregirCuotaMesGenerado()"><i class="ti ti-refresh"></i>Corregir cuotas de ese mes</button>
-  </div>
+  </div></details>
 
   <!-- Historial de cambios de arancel -->
-  <div style="margin-top:16px" id="arancel-historial-wrap">
+  <details class="ui-details"><summary>Historial de cambios de arancel</summary><div style="margin-top:16px" id="arancel-historial-wrap" class="ui-detail-body">
     <div class="section-divider"><span><i class="ti ti-clipboard-list"></i>Historial de cambios de arancel</span></div>
     <div class="table-wrap">
       <table>
@@ -1801,10 +1843,10 @@ img, svg{max-width:100%}
         <tbody id="tbody-arancel-historial"></tbody>
       </table>
     </div>
-  </div>
+  </div></details>
 
     <!-- Vista previa de alumnos afectados -->
-    <div class="table-wrap" style="margin-top:8px">
+    <details class="ui-details"><summary>Vista previa de alumnos con beca</summary><div class="table-wrap ui-detail-body" style="margin-top:8px">
       <div style="padding:10px 14px;font-size:13px;font-weight:600;border-bottom:1px solid #f0f0e8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <span>Vista previa — alumnos con beca</span>
         <div style="display:flex;gap:8px;align-items:center">
@@ -1822,7 +1864,7 @@ img, svg{max-width:100%}
         </tr></thead>
         <tbody id="tbody-becados"></tbody>
       </table>
-    </div>
+    </div></details>
   </div>
 
   <!-- TAB RESUMEN -->
@@ -1860,8 +1902,21 @@ img, svg{max-width:100%}
     </div>
 
     <!-- Panel de fórmulas de comisión y calculadora (siempre visible) -->
+    
+
+    <!-- Desglose por canal -->
     <div class="resumen-card" style="margin-bottom:16px">
-      <h3><i class="ti ti-math-function"></i>Fórmulas de comisión y calculadora</h3>
+      <h3><i class="ti ti-building-bank"></i>Participación por canal de cobro (acumulado)</h3>
+      <div id="cob-canales" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:10px"></div>
+    </div>
+
+    <!-- Gráfico de barras SVG -->
+    <div class="resumen-card" style="margin-bottom:14px">
+      <h3><i class="ti ti-chart-line"></i>Evolución de facturación neta mensual</h3>
+      <div id="cob-chart" style="margin-top:12px;overflow-x:auto"></div>
+    </div>
+  <details class="ui-details" id="ui-fact-formulas"><summary>Comisiones y fórmulas</summary><div class="resumen-card ui-detail-body" style="margin-bottom:16px">
+      
 
       <!-- Referencia de tasas -->
       <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin:2px 0 10px">Tasas aplicadas</div>
@@ -1871,25 +1926,23 @@ img, svg{max-width:100%}
       </div>
 
       <!-- Calculadora interactiva -->
-      <div style="border-top:1px solid #e8e8e0;padding-top:16px">
-        <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">Calculadora rápida</div>
+      
+    </div></details><details class="ui-details" id="ui-fact-calculadora" ontoggle="uiRecordCalculator(this)"><summary>Calculadora rápida</summary><div style="border-top:1px solid #e8e8e0;padding-top:16px" class="ui-detail-body">
+        
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;align-items:end">
           <div>
             <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">Importe Bruto</label>
-            <input type="number" id="calc-bruto" placeholder="0.00" step="0.01" oninput="calcRapido()"
-              style="width:100%;height:38px;padding:0 12px;border-radius:7px;border:1px solid #d0d0c8;font-size:14px">
+            <input type="number" id="calc-bruto" placeholder="0.00" step="0.01" oninput="calcRapido()" style="width:100%;height:38px;padding:0 12px;border-radius:7px;border:1px solid #d0d0c8;font-size:14px">
           </div>
           <div>
             <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">Método de pago</label>
-            <select id="calc-metodo" onchange="calcRapido()"
-              style="width:100%;height:38px;padding:0 12px;border-radius:7px;border:1px solid #d0d0c8;font-size:14px">
+            <select id="calc-metodo" onchange="calcRapido()" style="width:100%;height:38px;padding:0 12px;border-radius:7px;border:1px solid #d0d0c8;font-size:14px">
               <option value="">— Elegir —</option>
             </select>
           </div>
           <div>
             <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">% Comisión base (sin IVA)</label>
-            <input type="number" id="calc-tasa-manual" placeholder="Auto desde método" step="0.01" oninput="calcRapido()"
-              style="width:100%;height:38px;padding:0 12px;border-radius:7px;border:1px solid #d0d0c8;font-size:14px">
+            <input type="number" id="calc-tasa-manual" placeholder="Auto desde método" step="0.01" oninput="calcRapido()" style="width:100%;height:38px;padding:0 12px;border-radius:7px;border:1px solid #d0d0c8;font-size:14px">
           </div>
         </div>
 
@@ -1921,21 +1974,7 @@ img, svg{max-width:100%}
           <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Tabla de escenarios (múltiples importes)</div>
           <div id="calc-tabla-escenarios" style="font-size:12px;color:#aaa;padding:8px 0">Ingresá un método para ver la tabla.</div>
         </div>
-      </div>
-    </div>
-
-    <!-- Desglose por canal -->
-    <div class="resumen-card" style="margin-bottom:16px">
-      <h3><i class="ti ti-building-bank"></i>Participación por canal de cobro (acumulado)</h3>
-      <div id="cob-canales" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:10px"></div>
-    </div>
-
-    <!-- Gráfico de barras SVG -->
-    <div class="resumen-card" style="margin-bottom:14px">
-      <h3><i class="ti ti-chart-line"></i>Evolución de facturación neta mensual</h3>
-      <div id="cob-chart" style="margin-top:12px;overflow-x:auto"></div>
-    </div>
-  </div>
+      </div></details></div>
 
   <!-- TAB CONTROL CAJA -->
   <div id="tab-caja" style="display:none">
@@ -1944,7 +1983,7 @@ img, svg{max-width:100%}
     <!-- Stats summary cards -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px" id="caja-stats"></div>
 
-    <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start">
+    <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start" class="ui-caja-layout">
 
       <!-- Columna izquierda: formulario + tabla movimientos -->
       <div>
@@ -1967,11 +2006,7 @@ img, svg{max-width:100%}
             <!-- Alumno vinculado -->
             <div class="caja-alumno-wrap" id="caja-alumno-wrap" title="Vincular alumno (opcional)">
               <div id="caja-alumno-badge" style="display:none"></div>
-              <input type="text" id="caja-alumno-input" placeholder="Vincular alumno (opcional)" autocomplete="off"
-                oninput="cajaAlumnoSearch(this.value)"
-                onfocus="cajaAlumnoSearch(this.value)"
-                onblur="setTimeout(()=>cajaAlumnoDropdownClose(),200)"
-                onkeydown="cajaAlumnoInputKeydown(event)">
+              <input type="text" id="caja-alumno-input" placeholder="Vincular alumno (opcional)" autocomplete="off" oninput="cajaAlumnoSearch(this.value)" onfocus="cajaAlumnoSearch(this.value)" onblur="setTimeout(()=>cajaAlumnoDropdownClose(),200)" onkeydown="cajaAlumnoInputKeydown(event)">
               <div class="caja-alumno-dropdown" id="caja-alumno-dropdown"></div>
             </div>
             <button class="btn primary" onclick="cajaAgregar()">Agregar</button>
@@ -2007,9 +2042,9 @@ img, svg{max-width:100%}
             <h3><i class="ti ti-clipboard-list"></i>Movimientos</h3>
             <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
               <button class="btn sm" id="caja-btn-cerrar" onclick="cajaCerrarMes()" style="background:#1a4d2e;color:#fff;border-color:#1a4d2e" title="Archiva el mes actual y arranca el siguiente"><i class="ti ti-calendar-check"></i>Cerrar mes actual</button>
-              <button class="btn sm" onclick="cajaXlsAbrir()" title="Importar el Excel de Control de Caja y separarlo por meses"><i class="ti ti-file-import"></i>Importar Excel</button>
+              <details class="ui-actions"><summary class="btn">Herramientas <i class="ti ti-chevron-down"></i></summary><div class="ui-actions-list"><button class="btn sm ui-menu-btn" onclick="cajaXlsAbrir();this.closest('details').open=false" title="Importar el Excel de Control de Caja y separarlo por meses"><i class="ti ti-file-import"></i>Importar Excel</button><button class="btn sm danger ui-menu-btn" onclick="cajaLimpiar();this.closest('details').open=false"><i class="ti ti-trash"></i>Limpiar todo</button></div></details>
               <button class="btn sm" onclick="cajaHistAbrir()" title="Ver meses y años cerrados"><i class="ti ti-history"></i>Historial</button>
-              <button class="btn sm danger" onclick="cajaLimpiar()"><i class="ti ti-trash"></i>Limpiar todo</button>
+              
             </div>
           </div>
           <div class="table-wrap">
@@ -2058,7 +2093,7 @@ img, svg{max-width:100%}
               </tr>
             </tfoot>
           </table>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid #f0f0e8">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid #f0f0e8" class="ui-caja-difference">
             <span style="font-size:12px;color:#666">Diferencia con saldo:</span>
             <span style="font-weight:700;font-size:15px" id="billetes-diff">—</span>
           </div>
@@ -2439,11 +2474,9 @@ img, svg{max-width:100%}
 <!-- TAB PROVEEDORES -->
 <div id="tab-proveedores" style="display:none">
   <div class="page-head">
-    <h2 class="page-title"><i class="ti ti-truck"></i>Proveedores</h2>
-    <button class="btn primary" onclick="openNuevoProveedor()"><i class="ti ti-plus"></i>Agregar factura</button>
-  </div>
-  <div class="page-tools">
-      <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-prov-impexp')" onmouseleave="ddHide('dd-prov-impexp')">
+    <h2 class="page-title"><i class="ti ti-truck"></i>Proveedores<span class="page-count" id="ui-prov-count" title="Facturas"></span></h2>
+    
+  <div class="mini-head-actions"><div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-prov-impexp')" onmouseleave="ddHide('dd-prov-impexp')">
         <button class="btn" title="Importar o exportar proveedores"><i class="ti ti-arrows-exchange"></i>Importar / Exportar ▾</button>
         <div class="tab-dropdown" id="dd-prov-impexp">
           <div class="dd-sec">Importar</div>
@@ -2454,9 +2487,11 @@ img, svg{max-width:100%}
           <button class="dd-item" onclick="provExportarCSV();ddHide('dd-prov-impexp')"><i class="ti ti-file-type-csv"></i>CSV</button>
           <button class="dd-item" onclick="provExportarJSON();ddHide('dd-prov-impexp')"><i class="ti ti-braces"></i>JSON</button>
         </div>
-      </div>
+      </div><button class="btn primary" onclick="openNuevoProveedor()"><i class="ti ti-plus"></i>Agregar factura</button></div></div>
+  <div class="page-tools">
+      
       <button class="btn" onclick="provCopiarAbrir()" title="Crear las facturas de este mes a partir de las del mes anterior"><i class="ti ti-copy"></i>Copiar mes anterior</button>
-      <button class="btn" onclick="provBenefAbrir()" title="A quién le transfiere el banco por cada proveedor"><i class="ti ti-users"></i>Beneficiarios</button>
+      <details class="ui-actions"><summary class="btn">Herramientas <i class="ti ti-chevron-down"></i></summary><div class="ui-actions-list"><button class="btn ui-menu-btn" onclick="provBenefAbrir();this.closest('details').open=false" title="A quién le transfiere el banco por cada proveedor"><i class="ti ti-users"></i>Beneficiarios</button></div></details>
       <button class="btn" onclick="provExtAbrir()" title="Marcar facturas como pagadas desde el extracto bancario"><i class="ti ti-building-bank"></i>Conciliar extracto</button>
   </div>
   <input type="file" id="prov-import-input" accept=".xlsx,.xls" style="display:none" onchange="provProcesarImport(this)">
@@ -2465,7 +2500,7 @@ img, svg{max-width:100%}
   <!-- Filtros -->
   <div class="controls" style="margin-bottom:10px;flex-wrap:wrap;gap:8px">
     <input type="text" id="prov-search" placeholder="Buscar proveedor, N° factura, monto, observaciones..." oninput="renderProveedores()" style="min-width:320px;flex:1">
-    <select id="prov-fil-pagado" onchange="renderProveedores()">
+    <select id="prov-fil-pagado" onchange="renderProveedores()" hidden="" aria-hidden="true">
       <option value="">Todos los pagos</option>
       <option value="SI">Pagados</option>
       <option value="NO">Pendientes de pago</option>
@@ -2479,7 +2514,7 @@ img, svg{max-width:100%}
     <button class="btn prov-more-filter" id="btn-prov-ocultas" style="display:none" onclick="provToggleMostrarOcultas()"><i class="ti ti-eye-off"></i>Mostrar ocultas</button>
     <button class="btn" onclick="provLimpiarFiltros()"><i class="ti ti-x"></i>Limpiar</button>
     <button class="btn" id="btn-mas-filtros-prov" onclick="toggleProvMoreFilters()"><i class="ti ti-filter"></i>Más filtros ▾</button>
-  </div>
+  </div><div id="ui-prov-chips" class="estado-chips"></div>
   <div class="bulk-bar" id="prov-bulk-bar">
     <span id="prov-bulk-count">0 seleccionados</span>
     <button class="btn warn sm" onclick="ocultarSeleccionados()"><i class="ti ti-eye-off"></i>Ocultar seleccionados</button>
@@ -2492,8 +2527,8 @@ img, svg{max-width:100%}
           <th style="width:36px"><input type="checkbox" id="prov-chk-all" onchange="toggleAllProv(this)"></th>
           <th>Proveedor</th>
           <th>Monto</th>
-          <th>Factura enviada</th>
-          <th>N° Factura</th>
+          
+          <th>Factura</th>
           <th>Vencimiento</th>
           <th>¿Pagado?</th>
           <th>Fecha de pago</th>
@@ -2524,14 +2559,9 @@ img, svg{max-width:100%}
 
 <div id="sub-bonos-alumnos">
   <div class="page-head">
-    <h2 class="page-title"><i class="ti ti-ticket"></i>Bonos de contribución · Alumnos</h2>
-    <button class="btn primary" onclick="bonoAdd()"><i class="ti ti-plus"></i>Agregar bono</button>
-  </div>
-  <div class="page-tools">
-      <button class="btn" id="bonos-undo" onclick="bonosUndo()" disabled><i class="ti ti-arrow-back-up"></i>Deshacer</button>
-      <button class="btn" onclick="bonosSort()"><i class="ti ti-sort-ascending-letters"></i>Ordenar A–Z</button>
-
-      <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-bonos-al-mas')" onmouseleave="ddHide('dd-bonos-al-mas')">
+    <h2 class="page-title"><i class="ti ti-ticket"></i>Bonos de contribución <span class="page-count" id="ui-bonos-alumnos-count"></span></h2>
+    
+  <div class="mini-head-actions"><div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-bonos-al-mas')" onmouseleave="ddHide('dd-bonos-al-mas')">
         <button class="btn" title="Importar o exportar bonos"><i class="ti ti-arrows-exchange"></i>Importar / Exportar ▾</button>
         <div class="tab-dropdown" id="dd-bonos-al-mas">
           <div class="dd-sec">Importar</div>
@@ -2542,7 +2572,12 @@ img, svg{max-width:100%}
           <button class="dd-item" onclick="bonosExportarXLSX();ddHide('dd-bonos-al-mas')" title="Descargar la planilla en Excel"><i class="ti ti-file-spreadsheet"></i>Excel</button>
           <button class="dd-item" onclick="bonosPrint();ddHide('dd-bonos-al-mas')"><i class="ti ti-printer"></i>PDF</button>
         </div>
-      </div>
+      </div><button class="btn primary" onclick="bonoAdd()"><i class="ti ti-plus"></i>Agregar bono</button></div></div>
+  <div class="page-tools ui-bonos-tools">
+      <button class="btn" id="bonos-undo" onclick="bonosUndo()" disabled=""><i class="ti ti-arrow-back-up"></i>Deshacer</button>
+      <button class="btn" onclick="bonosSort()"><i class="ti ti-sort-ascending-letters"></i>Ordenar A–Z</button>
+
+      
 
       <button class="btn" onclick="bonosOpenCfg()"><i class="ti ti-settings"></i>Ajustes</button>
   </div>
@@ -2554,14 +2589,14 @@ img, svg{max-width:100%}
   <!-- Filtros -->
   <div class="controls" style="margin-bottom:10px">
     <input type="text" id="bonos-search" placeholder="Buscar por N° de bono o alumno..." oninput="renderBonos()" style="min-width:280px;flex:1">
-    <select id="bonos-fil-rindio" onchange="renderBonos()">
+    <select id="bonos-fil-rindio" onchange="renderBonos()" hidden="" aria-hidden="true">
       <option value="">Todos los estados</option>
       <option value="si">✓ Rindieron</option>
       <option value="no">✗ No rindieron</option>
       <option value="pend">Sin definir</option>
     </select>
     <button class="btn" onclick="bonosLimpiarFiltros()"><i class="ti ti-x"></i>Limpiar</button>
-  </div>
+  </div><div id="ui-bonos-al-chips" class="estado-chips"></div>
 
   <!-- Planilla -->
   <div class="table-wrap" style="overflow:visible">
@@ -2617,13 +2652,8 @@ Pérez, Juan | 1001"></textarea>
 <div id="sub-bonos-profes" style="display:none">
 
   <div class="page-head">
-    <h2 class="page-title"><i class="ti ti-school"></i>Bonos de contribución · Profesores</h2>
-  </div>
-  <div class="page-tools">
-      <button class="btn" id="bp-undo" disabled><i class="ti ti-arrow-back-up"></i>Deshacer</button>
-      <button class="btn" onclick="bpSort()"><i class="ti ti-sort-ascending-letters"></i>Ordenar A–Z</button>
-
-      <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-bonos-prof-mas')" onmouseleave="ddHide('dd-bonos-prof-mas')">
+    <h2 class="page-title"><i class="ti ti-ticket"></i>Bonos de contribución <span class="page-count" id="ui-bonos-profes-count"></span></h2>
+  <div class="mini-head-actions"><div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-bonos-prof-mas')" onmouseleave="ddHide('dd-bonos-prof-mas')">
         <button class="btn" title="Importar o exportar bonos"><i class="ti ti-arrows-exchange"></i>Importar / Exportar ▾</button>
         <div class="tab-dropdown" id="dd-bonos-prof-mas">
           <div class="dd-sec">Importar</div>
@@ -2634,7 +2664,12 @@ Pérez, Juan | 1001"></textarea>
           <button class="dd-item" onclick="bpXlsx();ddHide('dd-bonos-prof-mas')" title="Descargar la planilla en Excel"><i class="ti ti-file-spreadsheet"></i>Excel</button>
           <button class="dd-item" onclick="bpPrint();ddHide('dd-bonos-prof-mas')"><i class="ti ti-printer"></i>PDF</button>
         </div>
-      </div>
+      </div><button class="btn primary" onclick="document.getElementById('bp-name').focus()"><i class="ti ti-plus"></i>Agregar docente</button></div></div>
+  <div class="page-tools ui-bonos-tools">
+      <button class="btn" id="bp-undo" disabled=""><i class="ti ti-arrow-back-up"></i>Deshacer</button>
+      <button class="btn" onclick="bpSort()"><i class="ti ti-sort-ascending-letters"></i>Ordenar A–Z</button>
+
+      
 
       <button class="btn" onclick="bpOpenCfg()"><i class="ti ti-settings"></i>Ajustes</button>
   </div>
@@ -2652,16 +2687,16 @@ Pérez, Juan | 1001"></textarea>
   <!-- Filtros -->
   <div class="controls">
     <input type="text" id="bp-q" placeholder="Buscar docente o N° de bono..." style="min-width:260px;flex:1">
-    <select id="bp-filter">
+    <select id="bp-filter" hidden="" aria-hidden="true">
       <option value="todos">Todos los docentes</option>
       <option value="pendiente">Con pendientes</option>
       <option value="pagado">Con pagados</option>
       <option value="devuelto">Devolvieron</option>
     </select>
     <button class="btn" onclick="bpClear()"><i class="ti ti-x"></i>Limpiar</button>
-  </div>
+  </div><div id="ui-bonos-prof-chips" class="estado-chips"></div><p class="ui-help">Cantidades de docentes. Un docente puede aparecer en más de un estado.</p>
 
-  <div id="bp-list"></div>
+  <div id="bp-list" class="table-wrap ui-bonos-table"></div>
 </div><!-- /sub-bonos-profes -->
 </div><!-- /tab-bonos -->
 
@@ -2771,42 +2806,39 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
 
 <!-- TAB CONCILIACIÓN BANCARIA -->
 <div id="tab-debitos" style="display:none">
+<input type="file" id="deb-file-input" accept=".csv,.txt" style="display:none" onchange="debProcesarArchivo(this)">
 
   <!-- Header -->
   <div class="page-head">
     <div>
-      <h2 class="page-title"><i class="ti ti-file-alert"></i>Débitos (Reporte de Cobros)</h2>
+      <h2 class="page-title"><i class="ti ti-file-alert"></i>Débitos (Reporte de Cobros)<span id="ui-deb-count" class="page-count"></span></h2>
       <p style="font-size:12px;color:#888;margin:4px 0 0">Historial de cobros por débito/CBU, con motivo de rechazo, buscando por identificador.</p>
     </div>
-    <button class="btn primary" onclick="debAbrirImport()"><i class="ti ti-file-import"></i>Subir CSV</button>
-  </div>
-  <div class="page-tools">
-      <input type="file" id="deb-file-input" accept=".csv,.txt" style="display:none" onchange="debProcesarArchivo(this)">
-      <button onclick="debBorrarTodo()" class="btn peligro" title="Borra todo el historial cargado"><i class="ti ti-trash"></i>Vaciar</button>
-  </div>
+    
+  <div class="mini-head-actions"><button class="btn primary" onclick="debAbrirImport()"><i class="ti ti-file-import"></i>Subir CSV</button><details class="ui-actions"><summary class="btn">Acciones <i class="ti ti-chevron-down"></i></summary><div class="ui-actions-list"><button onclick="debBorrarTodo();this.closest('details').open=false" class="btn peligro ui-menu-btn" title="Borra todo el historial cargado"><i class="ti ti-trash"></i>Vaciar</button></div></details></div></div>
+  
 
   <!-- Stats -->
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px" id="deb-stats"></div>
 
   <!-- Buscador / filtros -->
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-    <input type="text" id="deb-search" placeholder="Buscar por identificador, referencia u observación..." oninput="debRender()"
-      style="flex:1;min-width:240px;height:34px;padding:0 12px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
+  <div class="controls">
+    <input type="text" id="deb-search" placeholder="Buscar por identificador, referencia u observación..." oninput="debRender()" style="flex:1;min-width:240px;height:34px;padding:0 12px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
     <select id="deb-fil-periodo-mes" onchange="debRender()" style="height:34px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
       <option value="">Todos los meses</option>
     </select>
     <select id="deb-fil-periodo-dia" onchange="debRender()" style="height:34px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
       <option value="">Todos los días</option>
     </select>
-    <select id="deb-fil-estado" onchange="debRender()" style="height:34px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
+    <select id="deb-fil-estado" onchange="debRender()" style="height:34px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px" hidden="" aria-hidden="true">
       <option value="">Todos los estados</option>
       <option value="rechazado">✗ Rechazados</option>
       <option value="aceptado">✓ Aceptados</option>
     </select>
-    <select id="deb-fil-motivo" onchange="debRender()" style="height:34px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
+    
+  <details class="ui-more-filters" id="ui-deb-more"><summary class="btn" id="ui-deb-more-label"><i class="ti ti-filter"></i>Más filtros</summary><select id="deb-fil-motivo" onchange="debRender()" style="height:34px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
       <option value="">Todos los motivos</option>
-    </select>
-  </div>
+    </select></details></div><div id="ui-deb-chips" class="estado-chips"></div>
 
   <!-- Acciones de expansión -->
   <div style="display:flex;justify-content:flex-end;gap:16px;margin-bottom:8px">
@@ -2869,15 +2901,15 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
 </div>
 
 <div id="tab-impexp-global" style="display:none">
-  <div style="max-width:900px;margin:0 auto">
-    <h2 style="margin:0 0 4px;font-size:17px;color:#1a1a2e"><i class="ti ti-database-export"></i> Copia completa</h2>
-    <p style="font-size:13px;color:#888;margin:0 0 20px">Descargá toda la información del sistema (alumnos, aranceles, caja, becas, bonos, proveedores, conciliación, presupuestos, archivos, etc.) en un único archivo JSON, o restaurala completa desde un backup.</p>
+  <div>
+    <div class="page-head"><h2 class="page-title"><i class="ti ti-database-export"></i> Copia completa</h2></div>
+    <p style="font-size:13px;color:#888;margin:0 0 20px">Exportá la información del sistema a un archivo JSON o importá una copia.</p>
 
     <!-- EXPORTAR -->
-    <div style="background:#fff;border:1px solid #e0e0d8;border-radius:10px;padding:20px;margin-bottom:20px">
+    <div class="resumen-card ui-backup-card">
       <h3 style="margin:0 0 10px;font-size:14px;color:#1a1a2e"><i class="ti ti-download"></i> Exportar</h3>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#444;margin-bottom:14px;cursor:pointer">
-        <input type="checkbox" id="impexp-incluir-archivos" checked style="width:15px;height:15px">
+        <input type="checkbox" id="impexp-incluir-archivos" checked="" style="width:15px;height:15px">
         Incluir el contenido de los archivos adjuntos (puede tardar más si hay muchos)
       </label>
       <button class="btn primary" id="impexp-btn-exportar" onclick="impExpExportar()"><i class="ti ti-file-download"></i> Exportar todo a JSON</button>
@@ -2885,14 +2917,10 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
     </div>
 
     <!-- IMPORTAR -->
-    <div style="background:#fff;border:1px solid #e0e0d8;border-radius:10px;padding:20px">
+    <div class="resumen-card ui-backup-card">
       <h3 style="margin:0 0 10px;font-size:14px;color:#1a1a2e"><i class="ti ti-upload"></i> Importar</h3>
-      <div style="background:#e7f5ec;border:1px solid #b7e4c7;border-radius:6px;padding:10px 14px;font-size:12px;color:#1e5631;margin-bottom:10px">
-        <i class="ti ti-git-merge"></i> <b>Agregar solo lo nuevo:</b> compara el archivo con los datos actuales y agrega únicamente los registros que todavía no existen (por ejemplo, alumnos, cuotas, proveedores, etc. con un ID que no está cargado). Lo que ya está duplicado o ya fue cargado se deja como está, sin pisarlo. Es la opción recomendada para sumar información de otra planilla o backup sin perder nada de lo actual.
-      </div>
-      <div style="background:#fff3cd;border:1px solid #ffe69c;border-radius:6px;padding:10px 14px;font-size:12px;color:#664d03;margin-bottom:14px">
-        <i class="ti ti-alert-triangle"></i> <b>Reemplazar todo:</b> borra toda la información actual (para todos los usuarios) y la reemplaza por la del archivo elegido. Esta acción no se puede deshacer. Se recomienda exportar un backup antes de usarla.
-      </div>
+      <div style="background:#e7f5ec;border:1px solid #b7e4c7;border-radius:6px;padding:10px 14px;font-size:12px;color:#1e5631;margin-bottom:10px"><i class="ti ti-git-merge"></i> <b>Agregar solo lo nuevo:</b> suma registros que no existen y conserva los actuales. No actualiza los duplicados.</div>
+      <div style="background:#fff3cd;border:1px solid #ffe69c;border-radius:6px;padding:10px 14px;font-size:12px;color:#664d03;margin-bottom:14px"><i class="ti ti-alert-triangle"></i> <b>Reemplazar todo:</b> elimina la información actual de todos los usuarios y la sustituye por la del archivo. No se puede deshacer. Exportá una copia antes.</div>
       <input type="file" id="impexp-input-file" accept="application/json,.json" style="display:none" onchange="impExpArchivoSeleccionado(this)">
       <button class="btn" onclick="document.getElementById('impexp-input-file').click()"><i class="ti ti-file-upload"></i> Elegir archivo JSON</button>
       <span id="impexp-nombre-archivo" style="font-size:12px;color:#666;margin-left:10px"></span>
@@ -2916,13 +2944,13 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
     <h2 class="page-title"><i class="ti ti-building-bank"></i>Conciliación Bancaria</h2>
     <button class="btn primary" onclick="concAgregarFila()"><i class="ti ti-plus"></i>Agregar fila</button>
   </div>
-  <div class="page-tools">
-      <select id="conc-mes-sel" onchange="concCambiarMes()" style="font-size:13px;height:34px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;min-width:160px"></select>
-      <select id="conc-fil-estado" onchange="concRender()" title="Filtrar por estado de conciliación">
+  <div class="controls" id="ui-conc-controls"><select id="conc-mes-sel" onchange="concCambiarMes()" style="font-size:13px;height:34px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;min-width:160px"></select><select id="conc-fil-estado" onchange="concRender()" title="Filtrar por estado de conciliación" hidden="" aria-hidden="true">
         <option value="">Todos</option>
         <option value="No">Sin conciliar</option>
         <option value="Si">✓ Conciliados</option>
-      </select>
+      </select></div><div id="ui-conc-chips" class="estado-chips"></div><div class="page-tools">
+      
+      
 
       <button class="btn" onclick="concAbrirNuevoMes()" title="Crear un mes nuevo"><i class="ti ti-calendar-plus"></i>Nuevo mes</button>
 
@@ -2951,18 +2979,15 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
       <input type="file" id="import-xlsx-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="concProcesarImport(this)">
       <input type="file" id="extracto-file-input" accept=".xlsx,.xls,.csv,.txt" style="display:none" onchange="concProcesarExtracto(this)">
 
-  </div>
+  <button onclick="concAbrirTasas()" class="btn"><i class="ti ti-settings"></i> Ver/editar tasas de comisión</button></div>
 
   <!-- Stats del mes -->
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px" id="conc-stats"></div>
 
   <!-- Info de feriados y tasas -->
-  <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-    <div style="background:#e8f4f8;border:1px solid #bee5eb;border-radius:6px;padding:8px 14px;font-size:12px;color:#0c5460;flex:1;min-width:200px">
+  <details class="ui-details ui-conc-help"><summary>Acreditación automática · QR 24 h hábiles / Boca y Link 48 h hábiles</summary><div class="ui-detail-body"><div class="ui-help">
       <strong>Acreditación automática:</strong> QR = 24hs hábiles · Boca de Pago / Link de Pago = 48hs hábiles (sin sáb/dom/feriados). Si cae en mes siguiente → se genera la fila automáticamente.
-    </div>
-    <button onclick="concAbrirTasas()" style="background:#fff;border:1px solid #d0d0c8;border-radius:6px;padding:8px 14px;font-size:12px;cursor:pointer;white-space:nowrap"><i class="ti ti-settings"></i> Ver/editar tasas de comisión</button>
-  </div>
+    </div></div></details>
 
   <!-- Tabla principal -->
   <div class="table-wrap" style="margin-bottom:14px;overflow-x:auto">
@@ -3336,10 +3361,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
     <h2 class="page-title"><i class="ti ti-clipboard-list"></i>Presupuestos</h2>
     <button class="btn primary" onclick="presupNuevo()"><i class="ti ti-plus"></i>Nuevo presupuesto</button>
   </div>
-  <div class="page-tools">
-      <button onclick="presupDuplicar()" class="pp-btn"><i class="ti ti-copy"></i>Duplicar</button>
-      <button onclick="presupMenuExportar(this)" class="pp-btn"><i class="ti ti-file-export"></i>Exportar</button>
-  </div>
+  
 
   <!-- KPIs -->
   <div class="pp-kpis" id="presup-kpis"></div>
@@ -3348,12 +3370,12 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
   <div class="pp-card" style="padding:12px 14px">
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
       <input id="presup-buscar" class="pp-in" placeholder="Buscar por nº, título, proveedor..." oninput="presupRenderLista()" style="min-width:240px;height:34px">
-      <select id="presup-filtro-estado" class="pp-in" onchange="presupRenderLista()" style="height:34px">
+      <select id="presup-filtro-estado" class="pp-in" onchange="presupRenderLista()" style="height:34px" hidden="" aria-hidden="true">
         <option value="">Todos los estados</option>
         <option>Borrador</option><option>Enviado</option><option>Aprobado</option><option>Rechazado</option>
       </select>
       <span id="presup-count" style="font-size:12px;color:#888"></span>
-    </div>
+    </div><div id="ui-presup-chips" class="estado-chips"></div>
     <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr>
@@ -3369,12 +3391,12 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
   <datalist id="presup-dl-cod"></datalist>
 
   <!-- Form del presupuesto activo -->
-  <div id="presup-form-area">
+  <div id="presup-form-area"><div class="page-head ui-edit-head"><div><h3 id="ui-presup-edit-title">Presupuesto abierto</h3><span id="ui-presup-save" class="ui-save-status" role="status" aria-live="polite"></span></div><div class="mini-head-actions"><button onclick="presupDuplicar()" class="btn"><i class="ti ti-copy"></i>Duplicar</button><button onclick="presupMenuExportar(this)" class="btn"><i class="ti ti-file-export"></i>Exportar</button></div></div>
     <div class="pp-card">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px">
         <div class="field" style="grid-column:span 2;min-width:0"><label>Título del presupuesto *</label><input id="presup-titulo" placeholder="Ej: Material didáctico mayo 2026" oninput="presupAutoguardar()"></div>
         <div class="field"><label>Proveedor</label><input id="presup-proveedor" list="presup-dl-prov" placeholder="Elegí uno o escribí otro" autocomplete="off" oninput="presupAutoguardar()"></div>
-        <div class="field"><label>Nº</label><input id="presup-numero" readonly style="background:#f5f5f0;color:#666"></div>
+        <div class="field"><label>Nº</label><input id="presup-numero" readonly="" style="background:#f5f5f0;color:#666"></div>
         <div class="field"><label>Fecha</label><input type="date" id="presup-fecha" oninput="presupAutoguardar()"></div>
         <div class="field"><label>Válido hasta <span id="presup-validez-lbl" style="font-weight:600;margin-left:4px"></span></label><input type="date" id="presup-validez" oninput="presupAutoguardar()"></div>
         <div class="field"><label>Estado</label>
@@ -3383,7 +3405,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
           </select>
         </div>
         <div class="field" style="grid-column:1/-1"><label><i class="ti ti-link"></i>Link Google Drive de la cotización</label>
-          <div style="display:flex;gap:6px"><input id="presup-link" placeholder="https://drive.google.com/file/d/..." style="flex:1;font-size:12px" oninput="presupAutoguardar()"><button class="pp-btn" style="padding:0 12px" onclick="presupAbrirLink()" title="Abrir link"><i class="ti ti-external-link"></i></button></div>
+          <div style="display:flex;gap:6px"><input id="presup-link" placeholder="https://drive.google.com/file/d/..." style="flex:1;font-size:12px" oninput="presupAutoguardar()"><button class="btn" style="padding:0 12px" onclick="presupAbrirLink()" title="Abrir link"><i class="ti ti-external-link"></i></button></div>
         </div>
         <div class="field" style="grid-column:1/-1"><label>Notas / Observaciones</label><textarea id="presup-notas" rows="2" style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px;resize:vertical" oninput="presupAutoguardar()" placeholder="Observaciones generales del presupuesto..."></textarea></div>
       </div>
@@ -3412,9 +3434,9 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
     </div>
 
     <!-- Publicidad -->
-    <div class="pp-card">
+    <details class="ui-details" id="ui-presup-publicidad"><summary>Publicidad · Agregar publicidad</summary><div class="pp-card ui-detail-body">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <h3 style="font-size:14px;font-weight:600;color:#1a1a2e;margin:0"><i class="ti ti-speakerphone"></i>Cotización de publicidad</h3>
+        <h3 style="font-size:14px;font-weight:600;color:#1a1a2e;margin:0">Cotización de publicidad</h3>
         <button onclick="presupAgregarItem('pub')" style="background:#1a1a2e;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:12px;cursor:pointer">+ Agregar ítem</button>
       </div>
       <div style="overflow-x:auto">
@@ -3432,7 +3454,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
         </table>
       </div>
       <div style="font-size:11px;color:#999;margin-top:6px">Si cargás precio mensual y meses, el total se calcula solo; si no, escribí el total a mano.</div>
-    </div>
+    </div></details>
 
     <!-- Totales -->
     <div class="pp-card" style="padding:12px 20px">
@@ -4619,6 +4641,31 @@ function renderTable(){
 
 }
 // Presentación compacta: sin cambios en los modelos de datos.
+// Mejoras de presentación: se mantienen los formatos y las operaciones existentes.
+let _uiPresupSaveSeq=0;
+function uiPresupStatus(text,error=false){const e=document.getElementById('ui-presup-save');if(e){e.textContent=text;e.classList.toggle('ui-save-error',error);}}
+function uiPresupPending(){++_uiPresupSaveSeq;uiPresupStatus('Cambios pendientes…');}
+function uiProvMenu(id,btn,event){
+  event.stopPropagation();document.getElementById('ui-row-menu')?._close?.();
+  const p=proveedores.find(x=>x.id===id);if(!p)return;
+  const m=document.createElement('div');m.id='ui-row-menu';m.className='alu-menu';m.setAttribute('role','menu');
+  const close=()=>{m.remove();document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',key);window.removeEventListener('resize',close);window.removeEventListener('scroll',close,true);};
+  const outside=e=>{if(!m.contains(e.target)&&!btn.contains(e.target))close();};
+  const key=e=>{if(e.key==='Escape'){close();btn.focus();}};m._close=close;
+  const add=(label,icon,action,danger=false)=>{const b=document.createElement('button');b.type='button';b.className=danger?'peligro':'';b.setAttribute('role','menuitem');b.innerHTML='<i class="ti '+icon+'"></i>'+label;b.onclick=()=>{close();action();};m.append(b);};
+  const oculto=provOcultos.has(id);
+  add(oculto?'Mostrar factura':'Ocultar factura',oculto?'ti-eye':'ti-eye-off',()=>oculto?mostrarFila(id):ocultarFila(id));
+  add('Eliminar factura','ti-trash',()=>eliminarProv(id),true);document.body.append(m);
+  const r=btn.getBoundingClientRect();m.style.left=Math.max(8,Math.min(r.right-m.offsetWidth,innerWidth-m.offsetWidth-8))+'px';m.style.top=Math.max(8,Math.min(r.bottom+4,innerHeight-m.offsetHeight-8))+'px';
+  document.addEventListener('pointerdown',outside);document.addEventListener('keydown',key);window.addEventListener('resize',close);window.addEventListener('scroll',close,true);m.querySelector('button').focus();
+}
+function uiRecordCalculator(el){try{localStorage.setItem('iscm_ui_calculadora_abierta',el.open?'1':'0');}catch(e){}}
+function uiRestoreCalculator(){try{document.getElementById('ui-fact-calculadora').open=localStorage.getItem('iscm_ui_calculadora_abierta')==='1';}catch(e){}}
+function uiToggleArchView(){const grid=document.getElementById('arch-grid'),list=!grid.classList.contains('ui-arch-list');try{localStorage.setItem('iscm_ui_archivos_lista',list?'1':'0');}catch(e){}uiApplyArchView(list);}
+function uiApplyArchView(value){let list=!!value;if(value===undefined){try{list=localStorage.getItem('iscm_ui_archivos_lista')==='1';}catch(e){}}
+  document.getElementById('arch-grid').classList.toggle('ui-arch-list',list);const b=document.getElementById('ui-arch-view');b.innerHTML=list?'<i class="ti ti-layout-grid"></i>Vista de tarjetas':'<i class="ti ti-list"></i>Vista de lista';b.setAttribute('aria-pressed',list);
+}
+
 function miniEsc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function miniChips(container,select,items,render){
   const box=document.getElementById(container),sel=document.getElementById(select);
@@ -4758,7 +4805,7 @@ function switchTab(tab, el){
     renderArancelHistorial();
     cargarMatriculaForm();
   }
-  if(tab==='cobranza'){ renderCobranza(); renderTasasFacturacion(); }
+  if(tab==='cobranza'){ renderCobranza(); renderTasasFacturacion(); uiRestoreCalculator(); }
   if(tab==='caja') renderCaja();
   if(tab==='acuerdos') renderAcuerdos();
   if(tab==='becas') renderBecas();
@@ -11581,9 +11628,9 @@ function provToggleMostrarOcultas(){
   renderProveedores();
 }
 
-function getProvFiltered(){
+function getProvFiltered(pagoOverride){
   const raw = (document.getElementById('prov-search')||{value:''}).value.trim();
-  const fp  = (document.getElementById('prov-fil-pagado')||{value:''}).value;
+  const fp = pagoOverride===undefined ? (document.getElementById('prov-fil-pagado')||{value:''}).value : pagoOverride;
   const ff  = (document.getElementById('prov-fil-factura')||{value:''}).value;
 
   const hayBusqueda = raw !== '';
@@ -11632,18 +11679,20 @@ function renderProvStats(){
   const sinFact = visible.filter(p=>p.facturaEnviada!=='SI').length;
   const nOcultos = provOcultos.size;
   el.innerHTML = `
-    <div class="stat"><div class="stat-label">Total facturas</div><div class="stat-value info">${total}</div></div>
-    <div class="stat"><div class="stat-label">Pagadas</div><div class="stat-value success">${pagados}</div></div>
-    <div class="stat"><div class="stat-label">Pendientes de pago</div><div class="stat-value danger">${pendientes}</div></div>
-    <div class="stat"><div class="stat-label">Monto total</div><div class="stat-value">${provFmt(montoTotal)}</div></div>
-    <div class="stat"><div class="stat-label">Monto pendiente</div><div class="stat-value danger">${provFmt(montoPend)}</div></div>
-    ${nEsperando>0 ? `<div class="stat"><div class="stat-label">Esperando factura</div><div class="stat-value" style="color:#b45309">${nEsperando}</div></div>` : ''}
+    <div class="stat" title="No incluye las filas en Esperando factura"><div class="stat-label">Monto total · sin espera</div><div class="stat-value">${provFmt(montoTotal)}</div></div>
+    <div class="stat" title="No incluye las filas en Esperando factura"><div class="stat-label">Monto pendiente · sin espera</div><div class="stat-value danger">${provFmt(montoPend)}</div></div>
     ${nOcultos>0 ? `<div class="stat"><div class="stat-label">Filas ocultas</div><div class="stat-value" style="color:#888">${nOcultos}</div></div>` : ''}
   `;
 }
 
 function renderProveedores(){
   provUpdateOcultasBtn();
+  const base=getProvFiltered('');
+  miniChips('ui-prov-chips','prov-fil-pagado',[
+    ['','Todos',base.length], ['SI','Pagados',base.filter(p=>!p.esperando&&p.pagado==='SI').length],
+    ['NO','Pendientes',base.filter(p=>!p.esperando&&p.pagado==='NO').length], ['ESP','Esperando factura',base.filter(p=>p.esperando).length]
+  ],()=>{provPage=1;renderProveedores();});
+  document.getElementById('ui-prov-count').textContent=base.length+' facturas';
   renderProvStats();
   const filt = getProvFiltered();
   const total = filt.length;
@@ -11675,23 +11724,21 @@ function renderProveedores(){
       <td>${chk}</td>
       <td style="font-weight:500">${p.nombre}</td>
       <td style="font-weight:600;color:#1a1a2e">${provFmt(p.precio)}</td>
-      <td>${factBadge}</td>
       <td class="factura-cell${p.linkFactura?' has-link':''}" style="font-size:12px" onmouseenter="showFacturaPopup(event,${p.id})" onmouseleave="startHidePopup()" onclick="${p.linkFactura?`abrirFacturaLink(${p.id})`:''}">
-        ${p.esperando ? '<span class="badge debe" style="background:#fff3cd;color:#8a6d00">Esperando factura</span>' : (p.nFactura||'—')}${p.linkFactura?' <i class="ti ti-paperclip" style="margin:0"></i>':''}</td>
+        ${p.esperando ? '<span class="badge debe" style="background:#fff3cd;color:#8a6d00">Esperando factura</span>' : (p.nFactura||'—')}${p.linkFactura?' <i class="ti ti-paperclip" style="margin:0"></i>':''}<small class="ui-fact-status">${p.facturaEnviada==='SI'?'Factura recibida':'Sin factura recibida'}</small></td>
       <td style="font-size:12px">${provSemaforoHtml(p)}${fmtFecha(p.fechaVencimiento)}</td>
       <td>${p.esperando ? '<span class="badge" style="background:#f1f1ec;color:#888">—</span>' : pagBadge}</td>
       <td style="font-size:12px">${fmtFecha(p.fechaPago)}</td>
       <td style="font-size:12px;color:#666">${p.observaciones||'—'}</td>
       <td style="white-space:nowrap">
-        <button class="btn sm" onclick="openEditProv(${p.id})"><i class="ti ti-edit"></i></button>
-        ${ocultarBtn}
-        <button class="btn sm danger" onclick="eliminarProv(${p.id})"><i class="ti ti-trash"></i></button>
+        <button class="btn sm" onclick="openEditProv(${p.id})"><i class="ti ti-edit"></i>Editar</button>
+<button class="btn sm icon-only" title="Más acciones de la factura" aria-label="Más acciones de la factura" onclick="uiProvMenu(${p.id},this,event)"><i class="ti ti-dots-vertical"></i></button>
       </td>
     </tr>`;
   }).join('');
 
   const info = document.getElementById('prov-pager-info');
-  if(info) info.textContent = `${start+1}–${Math.min(start+PROV_PER_PAGE,total)} de ${total} facturas`;
+  if(info) info.textContent = `${total?start+1:0}–${Math.min(start+PROV_PER_PAGE,total)} de ${total} facturas`;
   const prev = document.getElementById('prov-btn-prev');
   const next = document.getElementById('prov-btn-next');
   if(prev) prev.disabled = provPage<=1;
@@ -12405,8 +12452,15 @@ function presupAutoAlto(t){ t.style.height='auto'; if(t.scrollHeight>0) t.style.
 
 // ── Almacenamiento ──
 function presupGuardarStorage(){
-  localStorage.setItem(PRESUP_KEY, JSON.stringify(presupuestos));
-  if(window._fb) window._fb.set(PRESUP_KEY, presupuestos).catch(()=>{});
+  const seq=++_uiPresupSaveSeq;
+  try{localStorage.setItem(PRESUP_KEY,JSON.stringify(presupuestos));}
+  catch(e){uiPresupStatus('No se pudo guardar en este equipo',true);throw e;}
+  if(window._fb){
+    uiPresupStatus('Guardando…');
+    Promise.resolve().then(()=>window._fb.set(PRESUP_KEY,presupuestos)).then(()=>{
+      if(seq===_uiPresupSaveSeq)uiPresupStatus('Guardado');
+    }).catch(()=>{if(seq===_uiPresupSaveSeq)uiPresupStatus('Guardado en este equipo · No se pudo sincronizar',true);});
+  }else uiPresupStatus('Guardado en este equipo');
 }
 function presupCargarStorage(){
   const s = localStorage.getItem(PRESUP_KEY);
@@ -12465,7 +12519,9 @@ function presupRenderLista(){
   const tb = document.getElementById('presup-tbody-lista'); if(!tb) return;
   const q = (document.getElementById('presup-buscar')?.value||'').toLowerCase().trim();
   const est = document.getElementById('presup-filtro-estado')?.value || '';
-  const rows = presupuestos.filter(p=>(!est||p.estado===est) && (!q || [p.numero,p.titulo,p.proveedor,p.notas].join(' ').toLowerCase().includes(q)));
+  const base=presupuestos.filter(p=>!q||[p.numero,p.titulo,p.proveedor,p.notas].join(' ').toLowerCase().includes(q));
+  miniChips('ui-presup-chips','presup-filtro-estado', [['','Todos',base.length],...['Borrador','Enviado','Aprobado','Rechazado'].map(e=>[e,e,base.filter(p=>p.estado===e).length])],presupRenderLista);
+  const rows=base.filter(p=>!est||p.estado===est);
   const cnt = document.getElementById('presup-count');
   if(cnt) cnt.textContent = rows.length+' de '+presupuestos.length;
   if(!rows.length){ tb.innerHTML = '<tr><td colspan="8" style="padding:18px;text-align:center;color:#aaa">No hay presupuestos que coincidan.</td></tr>'; return; }
@@ -12551,6 +12607,8 @@ function presupVolcarFormulario(){
   set('presup-notas', p.notas||''); set('presup-link', p.linkDrive||'');
   set('presup-desc-pct', p.descuentoPct||0); set('presup-iva-pct', String(p.ivaPct||0));
   presupRefrescarListas();
+  document.getElementById('ui-presup-edit-title').textContent='Editando presupuesto N.º '+(p.numero||'—');
+  document.getElementById('ui-presup-publicidad').open=!!p.itemsPub?.length;
   presupRenderTabla('general'); presupRenderTabla('pub');
   presupRecalcular();
   presupRefrescarSelector();
@@ -12581,6 +12639,7 @@ function presupGuardarActivo(){
 
 let _presupTimer = null;
 function presupAutoguardar(){
+  uiPresupPending();
   presupLeerFormulario();
   presupRecalcular();
   clearTimeout(_presupTimer);
@@ -12633,6 +12692,7 @@ function presupUpdateItem(tipo, idx, campo, valor){
 }
 
 function presupRenderTabla(tipo){
+  if(tipo==='pub'&&presupActivo?.itemsPub?.length)document.getElementById('ui-presup-publicidad').open=true;
   const tb = document.getElementById('presup-tbody-'+tipo); if(!tb || !presupActivo) return;
   const td = 'padding:5px 6px;border-bottom:1px solid #f0f0e8;vertical-align:top;';
   const arr = tipo==='general' ? presupActivo.itemsGeneral : presupActivo.itemsPub;
@@ -13462,11 +13522,16 @@ function debRender(){
     (r.referencia||'').toLowerCase().includes(q) ||
     (r.motivoTexto||'').toLowerCase().includes(q)
   );
-  if(filEstado) filtradas = filtradas.filter(r => r.estado === filEstado);
   if(filMotivoVal) filtradas = filtradas.filter(r => r.motivoCodigo === filMotivoVal);
   if(filMesVal) filtradas = filtradas.filter(r => r.periodoMes === filMesVal);
   if(filDiaVal) filtradas = filtradas.filter(r => String(r.periodoDia) === filDiaVal);
 
+  miniChips('ui-deb-chips','deb-fil-estado',[
+    ['','Todos',filtradas.length],['aceptado','Aceptados',filtradas.filter(r=>r.estado==='aceptado').length],['rechazado','Rechazados',filtradas.filter(r=>r.estado==='rechazado').length]
+  ],debRender);
+  document.getElementById('ui-deb-count').textContent=rows.length;
+  document.getElementById('ui-deb-more-label').innerHTML='<i class="ti ti-filter"></i>Más filtros'+(filMotivoVal?' · 1 aplicado':'');
+  if(filEstado)filtradas=filtradas.filter(r=>r.estado===filEstado);
   const groupsEl = document.getElementById('deb-groups');
   const empty = document.getElementById('deb-empty');
   if(!groupsEl) return;
@@ -13571,7 +13636,7 @@ function debRender(){
       <div class="deb-group-header" onclick="debToggleMonth('${clave}')">
         <div class="deb-group-title"><i class="ti ti-chevron-right deb-caret"></i>${monthLabel}</div>
         <div class="deb-group-stats">
-          <span class="deb-chip">${grupoRows.length} reg.</span>
+          <span class="deb-chip">${grupoRows.length} cobros · ${fmtN(grupoRows.reduce((s,r)=>s+(Number(r.importe)||0),0))}</span>
           <span class="deb-chip danger">${rechGrupo.length} rech.</span>
           <span class="deb-chip success">${acepGrupo.length} acept.</span>
           <span class="deb-chip danger">$${totalRechGrupo.toLocaleString('es-AR',{minimumFractionDigits:2})}</span>
@@ -13641,12 +13706,15 @@ function concRender(){
   concOrdenarFechas(concMesActual);
   const filEstado = document.getElementById('conc-fil-estado')?.value||'';
   let filas = concData[concMesActual] || [];
+  miniChips('ui-conc-chips','conc-fil-estado',[
+    ['','Todos',filas.length],['No','Sin conciliar',filas.filter(f=>f.conciliado==='No').length],['Si','Conciliados',filas.filter(f=>f.conciliado==='Si').length]
+  ],concRender);
   if(filEstado) filas = filas.filter(f=>f.conciliado===filEstado);
   const tbody = document.getElementById('conc-tbody');
   tbody.innerHTML = '';
 
   if(!filas.length){
-    tbody.innerHTML = '<tr><td colspan="10" style="padding:20px;text-align:center;color:#aaa;font-size:13px">No hay movimientos en este mes. Usá "+ Agregar fila" para comenzar.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:20px;text-align:center;color:#aaa;font-size:13px">'+(filEstado?'No hay movimientos con este estado en el mes seleccionado.':'No hay movimientos en este mes. Usá "+ Agregar fila" para comenzar.')+'</td></tr>';
   } else {
     filas.forEach((f,i)=>{
       // Real index in the full (unfiltered) array, needed for edit/delete
@@ -15927,11 +15995,11 @@ function mostrarPPError(msg){
 <!-- ══════════════════════════════════════════════════════════════
      TAB ARCHIVOS
      ══════════════════════════════════════════════════════════════ -->
-<div id="tab-archivos" style="display:none;padding:16px;max-width:1400px;margin:0 auto">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+<div id="tab-archivos" style="display: none;">
+  <div class="page-head">
     <div>
-      <h2 style="margin:0;font-size:17px;color:#1a1a2e"><i class="ti ti-folder"></i>Archivos</h2>
-      <p style="font-size:12px;color:#888;margin:4px 0 0">Organizá documentos en carpetas. Los archivos se guardan en la nube vía Firebase.</p>
+      <h2 class="page-title"><i class="ti ti-folder"></i>Archivos<span class="page-count" id="ui-arch-count"></span></h2>
+      <p style="font-size:12px;color:#888;margin:4px 0 0">Organizá documentos en carpetas.</p>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap" id="arch-admin-btns">
       <button class="btn" onclick="archNuevaCarpeta()" id="arch-btn-nueva-carpeta"><i class="ti ti-folder-plus"></i>Nueva carpeta</button>
@@ -15941,22 +16009,17 @@ function mostrarPPError(msg){
   <div id="arch-breadcrumb" style="font-size:13px;color:#555;margin-bottom:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
     <span onclick="archNavRaiz()" style="cursor:pointer;color:#2980b9;font-weight:600"><i class="ti ti-home"></i>Inicio</span>
   </div>
-  <div style="margin-bottom:14px">
-    <input type="text" id="arch-search" placeholder="Buscar archivos y carpetas..." oninput="archRender()"
-      style="width:100%;max-width:360px;height:34px;padding:0 12px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
-  </div>
+  <div class="controls">
+    <input type="text" id="arch-search" placeholder="Buscar archivos y carpetas..." oninput="archRender()" style="width:100%;max-width:360px;height:34px;padding:0 12px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
+  <button class="btn" id="ui-arch-view" onclick="uiToggleArchView()" type="button" aria-pressed="false"><i class="ti ti-list"></i>Vista de lista</button></div>
   <div id="arch-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;min-height:160px"></div>
-  <div id="arch-dropzone" style="display:none;margin-top:20px;border:2px dashed #b0b0a8;border-radius:10px;padding:32px;text-align:center;color:#888;font-size:13px;cursor:pointer;transition:background .2s"
-    ondragover="event.preventDefault();this.style.background='#f0f8f0'"
-    ondragleave="this.style.background=''"
-    ondrop="archDropHandler(event)"
-    onclick="document.getElementById('arch-file-input').click()">
+  <div id="arch-dropzone" style="display:none;margin-top:20px;border:2px dashed #b0b0a8;border-radius:10px;padding:32px;text-align:center;color:#888;font-size:13px;cursor:pointer;transition:background .2s" ondragover="event.preventDefault();this.style.background='#f0f8f0'" ondragleave="this.style.background=''" ondrop="archDropHandler(event)" onclick="document.getElementById('arch-file-input').click()">
     <div style="font-size:32px;margin-bottom:8px"><i class="ti ti-file-text" style="margin:0"></i></div>
     <div>Arrastrá archivos aquí o <strong>hacé clic</strong> para seleccionar</div>
     <div style="font-size:11px;margin-top:4px;color:#aaa">PDF, Word, Excel, imágenes · máx 700 KB por archivo</div>
   </div>
   <div id="arch-upload-progress" class="arch-upload-progress"></div>
-  <input type="file" id="arch-file-input" style="display:none" multiple accept="*/*" onchange="archFileSelected(event)">
+  <input type="file" id="arch-file-input" style="display:none" multiple="" accept="*/*" onchange="archFileSelected(event)">
 </div>
 
 <!-- MODAL nueva carpeta -->
@@ -17434,6 +17497,8 @@ function archRender(){
     }
   }
   grid.innerHTML = html;
+  document.getElementById('ui-arch-count').textContent=grid.querySelectorAll('.arch-card').length;
+  uiApplyArchView();
 }
 
 function archActualizarBreadcrumb(){
@@ -18935,6 +19000,10 @@ function renderBonos(){
       normalizar(b.alumno||'').includes(q)
     );
   }
+  miniChips('ui-bonos-al-chips','bonos-fil-rindio',[
+    ['','Todos',lista.length], ['si','Rindieron',lista.filter(b=>b.rindio===true).length], ['no','No rindieron',lista.filter(b=>b.rindio===false).length], ['pend','Sin definir',lista.filter(b=>b.rindio!==true&&b.rindio!==false).length]
+  ],renderBonos);
+  document.getElementById('ui-bonos-alumnos-count').textContent=bonos.length+' bonos';
   if(fil==='si')   lista = lista.filter(b=>b.rindio===true);
   else if(fil==='no')   lista = lista.filter(b=>b.rindio===false);
   else if(fil==='pend') lista = lista.filter(b=>b.rindio!==true && b.rindio!==false);
@@ -18982,8 +19051,8 @@ function renderBonos(){
       </td>
       <td>
         <div class="bono-cards">
-          <div class="bono-card si ${siActive}" onclick="bonoSetRindio('${b.id}',true)">✓ Sí</div>
-          <div class="bono-card no ${noActive}" onclick="bonoSetRindio('${b.id}',false)">✗ No</div>
+          <button type="button" class="bono-card si ${siActive}" aria-pressed="${b.rindio===true}" onclick="bonoSetRindio('${b.id}',true)">✓ Sí</button>
+          <button type="button" class="bono-card no ${noActive}" aria-pressed="${b.rindio===false}" onclick="bonoSetRindio('${b.id}',false)">✗ No</button>
         </div>
       </td>
       <td><input class="bono-inp" type="date" value="${bonoEscAttr(b.fechaRindio||'')}"
@@ -19482,12 +19551,17 @@ function bonosPrint(){
 
     const q = ($('bp-q').value || '').trim().toLowerCase();
     const f = $('bp-filter').value;
-    const vis = data.filter(t => {
+    const base = data.filter(t => {
       const hitQ = !q || t.name.toLowerCase().includes(q) ||
         t.bonos.some(b => String(b.n).includes(q) || String(b.n+cfg.offset).includes(q));
-      const hitF = f === 'todos' || t.bonos.some(b => b.st === f);
-      return hitQ && hitF;
+      return hitQ;
     });
+    miniChips('ui-bonos-prof-chips','bp-filter',[
+      ['todos','Todos',base.length], ['pendiente','Con pendientes',base.filter(t=>t.bonos.some(b=>b.st==='pendiente')).length],
+      ['pagado','Con pagados',base.filter(t=>t.bonos.some(b=>b.st==='pagado')).length], ['devuelto','Devolvieron',base.filter(t=>t.bonos.some(b=>b.st==='devuelto')).length]
+    ],render);
+    $('ui-bonos-profes-count').textContent=data.length+' docentes';
+    const vis=base.filter(t=>f==='todos'||t.bonos.some(b=>b.st===f));
 
     if(!data.length){
       cont.innerHTML = '<div class="bp-empty">Todavía no hay docentes cargados.<br>Arriba: nombre, los bonos que se llevó (<b>1000-1002</b>) y Agregar.<br>O usá <b>Importar Excel</b> / <b>Pegar lista</b>.</div>';
@@ -19495,7 +19569,7 @@ function bonosPrint(){
     }
     if(!vis.length){ cont.innerHTML = '<div class="bp-empty">Ningún docente coincide con la búsqueda.</div>'; return; }
 
-    cont.innerHTML = vis.map(t => {
+    cont.innerHTML = '<table><thead><tr><th>Docente</th><th>Bonos y estado</th><th>Días</th><th>Observaciones</th><th>Acciones</th></tr></thead><tbody>'+vis.map(t => {
       const bonos = t.bonos.map(b => `
         <button class="bp-bono" data-st="${b.st}" data-id="${t.id}" data-n="${b.n}" title="Tocar para cambiar de estado">
           <span class="bp-n">N° ${b.n}</span>
@@ -19503,16 +19577,13 @@ function bonosPrint(){
           <span class="bp-st">${LBL[b.st]}</span>
         </button>`).join('');
       const done = t.bonos.every(b => b.st !== 'pendiente') ? ' bp-done' : '';
-      return `<div class="bp-row${done}">
-        <div class="bp-rtop">
-          <div class="bp-name" data-id="${t.id}" title="Mantené apretado para marcar todos los bonos como pagados">${esc(t.name)}</div>
-          <div class="bp-days">${esc(t.days||'')}</div>
-          <button class="bp-edit" data-edit="${t.id}" title="Editar"><i class="ti ti-edit" style="margin-right:0"></i></button>
-        </div>
-        <div class="bp-bonos">${bonos}</div>
-        ${t.note ? '<div class="bp-note">'+esc(t.note)+'</div>' : ''}
-      </div>`;
-    }).join('');
+      return `<tr class="bp-row${done}">
+        <td><div class="bp-name" data-id="${t.id}" title="Mantené apretado para marcar todos los bonos como pagados">${esc(t.name)}</div></td>
+        <td><div class="bp-bonos">${bonos}</div></td><td class="bp-days">${esc(t.days||'—')}</td>
+        <td class="bp-note">${esc(t.note||'—')}</td>
+        <td><button class="btn sm bp-edit" data-edit="${t.id}" title="Editar docente" aria-label="Editar docente"><i class="ti ti-edit"></i>Editar</button></td>
+      </tr>`;
+    }).join('')+'</tbody></table>';
 
     cont.querySelectorAll('.bp-bono').forEach(el => {
       el.onclick = () => {
