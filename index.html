@@ -227,7 +227,14 @@ tr:hover td{background:#fafaf5}
 .dash-kpi-val{font-size:24px;font-weight:700;color:var(--kpi-color,#1a1a2e);line-height:1}
 .dash-kpi-sub{font-size:12px;color:#999;margin-top:4px}
 .dash-kpi-grid-6{grid-template-columns:repeat(3,1fr)}
-.dash-kpi-val-money{font-size:22px}
+@media(min-width:1100px){.dash-kpi-grid-6{grid-template-columns:repeat(6,1fr)}}
+.dash-panels{margin-top:14px;margin-bottom:0}
+.dash-panels .dash-card h3{display:flex;align-items:center;gap:6px;justify-content:space-between}
+.dash-panels .dash-card h3 a{font-size:12px;font-weight:600;color:#3b5bab;cursor:pointer;text-decoration:none}
+.dash-bar-row .dash-bar-label{width:150px}
+.dash-bar-num.wide{width:120px}
+@media(max-width:700px){.dash-bar-row .dash-bar-label{width:100px}.dash-bar-num.wide{width:96px}}
+.dash-kpi-val-money{font-size:clamp(15px,1.45vw,22px);overflow-wrap:anywhere}
 .dash-count{background:#4b3fb0;color:#fff;border-radius:10px;font-size:11px;font-weight:700;padding:1px 8px;letter-spacing:0;line-height:1.5}
 .dash-alert-ver{font-size:12px;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:2px}
 .dash-otros{margin:12px 0 0}
@@ -7192,6 +7199,13 @@ function renderDashboard(){
   const presupContables = presupConTotal.filter(p=>p.estado!=='Borrador');
   const presupUltimo = presupContables[0];
 
+  // Paneles inferiores: deuda por carrera (barras) y mayores deudores
+  const _carrDeuda = {};
+  activos.forEach(a=>{ if(a.deuda>0 && a.carrera){ const o=_carrDeuda[a.carrera]||(_carrDeuda[a.carrera]={c:a.carrera,deuda:0,n:0}); o.deuda+=a.deuda; o.n++; } });
+  const carrerasDeuda = Object.values(_carrDeuda).sort((a,b)=>b.deuda-a.deuda);
+  const maxCarrDeuda = Math.max(...carrerasDeuda.map(x=>x.deuda),1);
+  const topDeudoresDash = [...deben].sort((a,b)=>b.deuda-a.deuda).slice(0,5);
+  const _esc = t => String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
   const pctDeb = activos.length>0 ? Math.round(deben.length/activos.length*100) : 0;
   const pctDia = activos.length>0 ? Math.round(alDia.length/activos.length*100) : 0;
   const html = `
@@ -7208,6 +7222,32 @@ function renderDashboard(){
       <div class="dash-kpi ${totalDeuda>0?'red':'green'} clickable" onclick="dashIrAlumnos('Debe')" title="Ver deudores"><div class="dash-kpi-label">Deuda total</div><div class="dash-kpi-val dash-kpi-val-money">${fmt(totalDeuda)}</div><div class="dash-kpi-sub">Ver deudores ›</div></div>
       <div class="dash-kpi ${saldoCaja>=0?'green':'red'} clickable" onclick="dashIrTab('caja')" title="Ver Control Caja"><div class="dash-kpi-label">Saldo de caja</div><div class="dash-kpi-val dash-kpi-val-money">${fmt(saldoCaja)}</div><div class="dash-kpi-sub">Ver Control Caja ›</div></div>
       <div class="dash-kpi ${provVencidas>0?'red':'green'} clickable" onclick="dashIrTab('proveedores')" title="Ver Proveedores"><div class="dash-kpi-label">Facturas vencidas</div><div class="dash-kpi-val">${provVencidas}</div><div class="dash-kpi-sub">${provVencidas>0?fmt(provTotalVencido)+' · ':''}Ver Proveedores ›</div></div>
+    </div>
+
+    <!-- Detalle de la deuda: dos paneles que se acomodan según el ancho de pantalla -->
+    <div class="dash-2col dash-panels">
+      <div class="dash-card">
+        <h3><span><i class="ti ti-coin" style="margin-right:6px"></i>Deuda por carrera</span><a onclick="dashIrTab('indicadores')">Ver detalle</a></h3>
+        ${carrerasDeuda.length===0
+          ? '<div style="color:#aaa;font-size:13px;text-align:center;padding:12px">Sin deuda activa</div>'
+          : carrerasDeuda.slice(0,8).map(x=>`<div class="dash-bar-row clickable" onclick="dashIrAlumnosCarrera(this.dataset.c)" data-c="${_esc(x.c)}" title="Ver alumnos de ${_esc(x.c)}">
+              <div class="dash-bar-label" title="${_esc(x.c)}">${_esc(x.c)}</div>
+              <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${Math.max(3,Math.round(x.deuda/maxCarrDeuda*100))}%;background:#c0392b"></div></div>
+              <div class="dash-bar-num wide">${fmt(x.deuda)}</div>
+            </div>`).join('')}
+        ${carrerasDeuda.length>8?`<div style="font-size:12px;color:#999;margin-top:6px">y ${carrerasDeuda.length-8} carrera${carrerasDeuda.length-8!==1?'s':''} más</div>`:''}
+      </div>
+      <div class="dash-card">
+        <h3><span><i class="ti ti-alert-triangle" style="margin-right:6px"></i>Mayores deudores</span><a onclick="dashIrAlumnos('Debe')">Ver todos</a></h3>
+        ${topDeudoresDash.length===0
+          ? '<div style="color:#aaa;font-size:13px;text-align:center;padding:12px">Sin deudores activos</div>'
+          : `<table class="dash-mini-table">
+              <tbody>${topDeudoresDash.map(a=>`<tr class="clickable-row" onclick="openEdit(${a.id})" title="Abrir ficha de ${_esc(a.nombre)}">
+                <td style="font-weight:500">${_esc(a.nombre)}<div style="font-size:12px;color:#999;font-weight:400">${_esc(a.carrera||'')}${a.anio?' · '+_esc(a.anio):''}</div></td>
+                <td style="text-align:right;color:#c0392b;font-weight:600;white-space:nowrap">${fmt(a.deuda)}</td>
+              </tr>`).join('')}</tbody>
+            </table>`}
+      </div>
     </div>
 
     <!-- 3) Otros datos: lo secundario en una sola franja -->
