@@ -44,7 +44,23 @@ body{font-family:system-ui,sans-serif;font-size:14px;background:#f5f5f0;color:#1
 .btn.warn:hover{background:#d35400}
 .btn.danger{background:#c0392b;color:#fff;border-color:#c0392b}
 .btn.danger:hover{background:#a93226}
-.btn.sm{font-size:11px;padding:3px 10px;height:26px}
+.btn.sm{font-size:12px;padding:3px 10px;height:32px}
+.btn.icon-only{padding:3px 8px;min-width:32px;justify-content:center}
+.estado-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.estado-chip{font-size:12px;height:32px;padding:0 12px;border-radius:16px;border:1px solid #d0d0c8;background:#fff;color:#333;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-weight:500}
+.estado-chip:hover{background:#f0f0e8}
+.estado-chip .n{color:#999;font-weight:400}
+.estado-chip.active{background:#1a1a2e;border-color:#1a1a2e;color:#fff}
+.estado-chip.active .n{color:rgba(255,255,255,.7)}
+.deuda-conceptos{margin-top:3px;line-height:1.5}
+.obs-ico{border:none;background:transparent;color:#888;cursor:pointer;padding:4px;border-radius:5px;font-size:16px;line-height:1}
+.obs-ico:hover{background:#f0f0e8;color:#1a1a2e}
+.alu-menu{position:fixed;z-index:10000;min-width:200px;background:#fff;border:1px solid #d8d8d0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:4px}
+.alu-menu button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:none;background:transparent;font-size:13px;color:#1a1a1a;padding:8px 10px;border-radius:5px;cursor:pointer;min-height:34px}
+.alu-menu button:hover{background:#f0f0e8}
+.alu-menu button.peligro{color:#c0392b}
+.alu-menu button.peligro:hover{background:#fbeaea}
+.alu-menu-sep{height:1px;background:#e8e8e0;margin:4px 2px}
 .table-wrap{background:#fff;border-radius:8px;border:1px solid #e8e8e0;overflow-x:auto;overflow-y:hidden;max-width:100%}
 .deb-toggle-link{background:none;border:none;padding:0;font-size:12px;color:#2980b9;cursor:pointer;font-weight:600}
 .deb-toggle-link:hover{text-decoration:underline}
@@ -203,9 +219,15 @@ tr:hover td{background:#fafaf5}
 .dash-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:4px}
 .dash-kpi{background:#fff;border-radius:10px;border:1px solid #e8e8e0;padding:14px 16px;position:relative;overflow:hidden}
 .dash-kpi::before{content:'';position:absolute;inset:0 auto 0 0;width:4px;background:var(--kpi-color,#1a1a2e);border-radius:10px 0 0 10px}
-.dash-kpi-label{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.dash-kpi-label{font-size:12px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
 .dash-kpi-val{font-size:24px;font-weight:700;color:var(--kpi-color,#1a1a2e);line-height:1}
-.dash-kpi-sub{font-size:11px;color:#aaa;margin-top:4px}
+.dash-kpi-sub{font-size:12px;color:#999;margin-top:4px}
+.dash-kpi-grid-6{grid-template-columns:repeat(3,1fr)}
+.dash-kpi-val-money{font-size:22px}
+.dash-count{background:#4b3fb0;color:#fff;border-radius:10px;font-size:11px;font-weight:700;padding:1px 8px;letter-spacing:0;line-height:1.5}
+.dash-alert-ver{font-size:12px;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:2px}
+.dash-otros{margin:12px 0 0}
+body[data-tab="dashboard"] #stats-row,body[data-tab="dashboard"] #stats-row-secondary{display:none}
 .dash-kpi.blue{--kpi-color:#2980b9}
 .dash-kpi.green{--kpi-color:#27ae60}
 .dash-kpi.red{--kpi-color:#c0392b}
@@ -235,7 +257,7 @@ tr:hover td{background:#fafaf5}
 .dash-mini-table tr:last-child td{border-bottom:none}
 .dash-mini-table tr.clickable-row{cursor:pointer;transition:background .12s}
 .dash-mini-table tr.clickable-row:hover td{background:#f4f6fb}
-.dash-alert{border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:8px;display:flex;align-items:flex-start;gap:8px}
+.dash-alert{border-radius:8px;padding:9px 12px;font-size:13px;align-items:center;margin-bottom:8px;display:flex;align-items:flex-start;gap:8px}
 .dash-alert.clickable{cursor:pointer;transition:filter .12s}
 .dash-alert.clickable:hover{filter:brightness(.96)}
 .dash-alert.warn{background:#fff3cd;border:1px solid #ffc107;color:#856404}
@@ -388,6 +410,7 @@ tr:hover td{background:#fafaf5}
 .toast.success{ background:#1e7e4e; }
 .toast.error  { background:#c0392b; }
 .toast.info   { background:#2471a3; }
+.toast.warn   { background:#b45309; }
 .toast-icon{ font-size:17px;flex-shrink:0; }
 .toast-msg{ line-height:1.4; }
 
@@ -1246,7 +1269,7 @@ img, svg{max-width:100%}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.49.0/dist/tabler-icons.min.css">
 
 </head>
-<body>
+<body data-tab="dashboard">
 
 <div class="topbar">
   <!-- Left: logo + title -->
@@ -1417,7 +1440,7 @@ img, svg{max-width:100%}
         <option value="3°">3°</option>
         <option value="4°">4°</option>
       </select>
-      <select id="fil-estado" onchange="renderTable()" class="more-filter" style="display:none">
+      <select id="fil-estado" onchange="renderTable()" style="display:none" aria-hidden="true" tabindex="-1">
         <option value="">Todos los estados</option>
         <option value="Al día">Al día</option>
         <option value="Debe">Debe</option>
@@ -1434,7 +1457,7 @@ img, svg{max-width:100%}
         <option value="4+">4 o más</option>
       </select>
       <button class="btn" onclick="clearFilters()"><i class="ti ti-x"></i>Limpiar</button>
-      <button class="btn" id="btn-mas-filtros" onclick="toggleMoreFilters()"><i class="ti ti-filter"></i>Más filtros ▾</button>
+      <button class="btn" id="btn-mas-filtros" onclick="toggleMoreFilters()"><i class="ti ti-filter"></i>Más filtros</button>
 
       <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-impexp')" onmouseleave="ddHide('dd-impexp')">
         <button class="btn"><i class="ti ti-arrows-exchange"></i>Importar / Exportar ▾</button>
@@ -1450,6 +1473,8 @@ img, svg{max-width:100%}
         </div>
       </div>
     </div>
+
+    <div class="estado-chips" id="estado-chips"></div>
 
     <div class="bulk-bar" id="bulk-bar">
       <span id="bulk-count">0 seleccionados</span>
@@ -1467,11 +1492,10 @@ img, svg{max-width:100%}
             <th>Carrera</th>
             <th>Año</th>
             <th>Estado</th>
-            <th>Conceptos adeudados</th>
-            <th>Monto deuda</th>
+            <th>Deuda</th>
             <th>Cuota mensual</th>
-            <th>Observaciones</th>
-            <th>Acciones</th>
+            <th style="width:34px" title="Observaciones"></th>
+            <th style="text-align:right">Acciones</th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -1625,7 +1649,7 @@ img, svg{max-width:100%}
 
     <!-- Banner borrador pendiente -->
     <div id="arancel-draft-banner" style="display:none;background:#fff8e1;border:1px solid #f9a825;border-radius:8px;padding:12px 16px;margin-bottom:14px;display:none;align-items:center;gap:12px">
-      <span style="font-size:18px">⚠️</span>
+      <i class="ti ti-alert-triangle" style="font-size:18px"></i>
       <div style="flex:1">
         <strong style="color:#e65100">Hay un borrador guardado sin aplicar.</strong>
         <span style="font-size:12px;color:#666;margin-left:8px" id="arancel-draft-fecha"></span>
@@ -2029,8 +2053,8 @@ img, svg{max-width:100%}
     </select>
     <select id="acuerdos-fil-estado" onchange="renderAcuerdos()" style="height:34px;border-radius:6px;border:1px solid #d0d0c8;padding:0 8px;font-size:12px">
       <option value="">Todos</option>
-      <option value="ok">✅ Al día con el acuerdo</option>
-      <option value="riesgo">⚠️ En riesgo (deuda subió)</option>
+      <option value="ok">Al día con el acuerdo</option>
+      <option value="riesgo">En riesgo (deuda subió)</option>
       <option value="vencido">🔴 Fecha vencida</option>
     </select>
   </div>
@@ -2866,7 +2890,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
       <select id="conc-mes-sel" onchange="concCambiarMes()" style="font-size:13px;height:34px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;min-width:160px"></select>
       <select id="conc-fil-estado" onchange="concRender()" title="Filtrar por estado de conciliación">
         <option value="">Todos</option>
-        <option value="No">⚠️ Sin conciliar</option>
+        <option value="No">Sin conciliar</option>
         <option value="Si">✓ Conciliados</option>
       </select>
       <button onclick="concAgregarFila()" class="btn primary"><i class="ti ti-plus"></i>Agregar fila</button>
@@ -4402,11 +4426,11 @@ function buildCarreraFilter(){
   sel.innerHTML = `<option value=""${actual===''?' selected':''}>Todas las carreras</option>` + carreras.map(c=>`<option${c===actual?' selected':''}>${c}</option>`).join('');
   sel.value = actual;
 }
-function getFiltered(){
+function getFiltered(estOverride){
   const q = normalizar(document.getElementById('search').value);
   const car = document.getElementById('fil-carrera').value;
   const anio = document.getElementById('fil-anio').value;
-  const est = document.getElementById('fil-estado').value;
+  const est = estOverride!==undefined ? estOverride : document.getElementById('fil-estado').value;
   const cuotasFil = document.getElementById('fil-cuotas') ? document.getElementById('fil-cuotas').value : '';
   return alumnos.filter(a=>{
     if(a.estado==='Baja') return false; // los de baja van al tab inactivos
@@ -4445,7 +4469,7 @@ function renderStats(){
   const inactivos = getInactivosReales();
   // Actualizar badge en el tab
   const tabInac = document.getElementById('tab-btn-inactivos');
-  if(tabInac) tabInac.textContent = `🚫 Alumnos Inactivos${inactivos.length>0?' ('+inactivos.length+')':''}`;
+  if(tabInac) tabInac.textContent = `Alumnos Inactivos${inactivos.length>0?' ('+inactivos.length+')':''}`;
   document.getElementById('stats-row').innerHTML = `
     <div class="stat"><div class="stat-label">Total activos</div><div class="stat-value info">${activos.length}</div></div>
     <div class="stat"><div class="stat-label">Al día</div><div class="stat-value success">${alDia}</div></div>
@@ -4471,6 +4495,7 @@ function renderTable(){
   if(page>pages) page=1;
   const slice = filtered.slice((page-1)*PER_PAGE, page*PER_PAGE);
   document.getElementById('pager-info').textContent = `${total} alumnos · Página ${page} de ${pages}`;
+  renderEstadoChips();
   document.getElementById('btn-prev').disabled = page===1;
   document.getElementById('btn-next').disabled = page>=pages;
   const selCount = selected.size;
@@ -4487,12 +4512,12 @@ function renderTable(){
     const pendientes = (a.conceptos||[]).filter(c=>!c.pagado);
     const pagados = (a.conceptos||[]).filter(c=>c.pagado);
     const favor = a.saldoFavor||0;
-    const favorTag = favor>0 ? ` <span style="color:#27ae60;font-size:10px;font-weight:600;background:#d4edda;padding:1px 6px;border-radius:8px">✦ Favor: ${fmt(favor)}</span>` : '';
+    const favorTag = favor>0 ? ` <span style="color:#1e7e45;font-size:11px;font-weight:600;background:#d4edda;padding:1px 6px;border-radius:8px">A favor: ${fmt(favor)}</span>` : '';
     const tagsHtml = pendientes.length>0
       ? pendientes.map(c=>`<span class="concepto-tag ${conceptoClass(c.tipo)}">${conceptoLabel(c)}</span>`).join('')+favorTag
       : pagados.length>0
-        ? `<span style="color:#27ae60;font-size:11px;font-weight:500">✓ Al día</span> <span style="color:#aaa;font-size:10px">(${pagados.length} pago${pagados.length!==1?'s':''})</span>`+favorTag
-        : `<span style="color:#aaa;font-size:12px">—</span>`+favorTag;
+        ? `<span style="color:#27ae60;font-size:12px;font-weight:500"><i class="ti ti-check" style="margin:0 2px 0 0"></i>Al día</span> <span style="color:#999;font-size:11px">(${pagados.length} pago${pagados.length!==1?'s':''})</span>`+favorTag
+        : favorTag.trim();
 
     const newCarrera = !prev || prev.carrera !== a.carrera;
     const newAnio    = !newCarrera && prev && prev.anio !== a.anio;
@@ -4505,16 +4530,13 @@ function renderTable(){
       <td style="font-weight:500">${a.nombre}</td>
       <td style="color:#555">${a.carrera}</td>
       <td style="color:#555">${a.anio}</td>
-      <td><span class="badge ${badgeClass}">${a.estado}</span>${a.acuerdo&&a.estado==='Acuerdo'?`<div style="font-size:10px;color:#856404;margin-top:2px">${a.acuerdo.fecha?'Hasta: '+a.acuerdo.fecha.split('-').reverse().join('/'):''} ${a.acuerdo.monto?'· $'+a.acuerdo.monto.toLocaleString('es-AR'):''}</div>`:''}</td>
-      <td style="max-width:220px">${tagsHtml}</td>
-      <td class="${a.deuda>0?'monto-deuda':'monto-ok'}">${a.deuda>0?fmt(a.deuda):'—'}</td>
+      <td><span class="badge ${badgeClass}">${a.estado}</span>${a.acuerdo&&a.estado==='Acuerdo'?`<div style="font-size:11px;color:#856404;margin-top:2px">${a.acuerdo.fecha?'Hasta: '+a.acuerdo.fecha.split('-').reverse().join('/'):''} ${a.acuerdo.monto?'· $'+a.acuerdo.monto.toLocaleString('es-AR'):''}</div>`:''}</td>
+      <td style="max-width:240px"><div class="${a.deuda>0?'monto-deuda':'monto-ok'}">${a.deuda>0?fmt(a.deuda):'—'}</div><div class="deuda-conceptos">${tagsHtml}</div></td>
       <td style="color:#555">${fmt(a.cuota)}</td>
-      <td><input style="border:none;background:transparent;font-size:12px;color:#555;width:100%;max-width:180px" value="${a.observaciones||''}" onchange="saveObs(${a.id},this.value)" placeholder="—"></td>
-      <td style="white-space:nowrap">
+      <td style="text-align:center">${a.observaciones?`<button type="button" class="obs-ico" title="${String(a.observaciones).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}" onclick="editarObs(${a.id})"><i class="ti ti-note"></i></button>`:''}</td>
+      <td style="white-space:nowrap;text-align:right">
         <button class="btn ${a.estado==='Debe'?'warn':'primary'} sm" onclick="openPago(${a.id})"><i class="ti ti-credit-card"></i>Deuda / Pago</button>
-        <button class="btn sm" onclick="abrirHistorialPagos(${a.id})" title="Ver historial de pagos" style="background:#f0f0e8"><i class="ti ti-history"></i></button>
-        <button class="btn sm" onclick="openEdit(${a.id})" title="Editar alumno" style="padding:3px 8px"><i class="ti ti-edit"></i></button>
-        <button class="btn danger sm" onclick="eliminarAlumno(${a.id})" title="Eliminar alumno"><i class="ti ti-trash"></i></button>
+        <button type="button" class="btn sm icon-only" onclick="abrirMenuAlumno(${a.id},this,event)" title="Más acciones" aria-label="Más acciones"><i class="ti ti-dots-vertical"></i></button>
       </td>
     </tr>`;
     return sepCarrera + sepAnio + row;
@@ -4571,7 +4593,7 @@ function renderResumen(){
   // Bloque de inactivos por carrera
   const htmlInactivos = carrerasInac.length ? `
     <div style="margin-top:20px;margin-bottom:8px;display:flex;align-items:center;gap:8px">
-      <span style="font-size:13px;font-weight:700;color:#721c24;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">🚫 Alumnos Inactivos</span>
+      <span style="font-size:13px;font-weight:700;color:#721c24;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap"><i class="ti ti-user-off" style="margin-right:5px"></i>Alumnos Inactivos</span>
       <div style="flex:1;height:1px;background:#e8d7da"></div>
     </div>
     <div class="resumen-grid">` +
@@ -4588,7 +4610,7 @@ function renderResumen(){
 
   document.getElementById('resumen-grid').innerHTML =
     `<div style="margin-bottom:8px;display:flex;align-items:center;gap:8px">
-      <span style="font-size:13px;font-weight:700;color:#1a1a2e;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">✅ Alumnos Activos</span>
+      <span style="font-size:13px;font-weight:700;color:#1a1a2e;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap"><i class="ti ti-user-check" style="margin-right:5px"></i>Alumnos Activos</span>
       <div style="flex:1;height:1px;background:#e8e8e0"></div>
     </div>
     <div class="resumen-grid">${htmlActivos}</div>` + htmlInactivos;
@@ -4602,6 +4624,7 @@ function dashRefrescarSiVisible(){
 
 function switchTab(tab, el){
   tabActual = tab;
+  document.body.dataset.tab = tab;
   // Cerrar cualquier dropdown abierto (necesario en móvil / touch)
   document.querySelectorAll('.tab-dropdown.open').forEach(dd=>{
     if(_ddHideTimers[dd.id]){ clearTimeout(_ddHideTimers[dd.id]); delete _ddHideTimers[dd.id]; }
@@ -4738,9 +4761,9 @@ function exportarContactosWpp(anchorEl){
     padding:6px;min-width:210px`;
 
   const opts = [
-    { label:'📱 Activos + Inactivos', val:'todos' },
-    { label:'✅ Solo activos',         val:'activos' },
-    { label:'📂 Solo inactivos',       val:'inactivos' },
+    { label:'<i class="ti ti-users"></i>Activos + Inactivos', val:'todos' },
+    { label:'<i class="ti ti-user-check"></i>Solo activos',         val:'activos' },
+    { label:'<i class="ti ti-user-off"></i>Solo inactivos',       val:'inactivos' },
   ];
 
   menu.innerHTML = `
@@ -4868,7 +4891,7 @@ function _doExportWpp(filtro){
   a.click();
   URL.revokeObjectURL(url);
 
-  let msg = `📱 Exportados ${filas.length} contactos`;
+  let msg = `Exportados ${filas.length} contactos`;
   if(sinTel.length) msg += ` · ${sinTel.length} sin teléfono`;
   showToast(msg);
 
@@ -5379,6 +5402,22 @@ function exportarInactivosXLSX(){
   }
 }
 
+const ESTADOS_CHIPS = [['', 'Todos'], ['Al día','Al día'], ['Debe','Debe'], ['Acuerdo','Acuerdo'], ['Vacante','Vacante'], ['Matrícula','Matrícula']];
+function setEstadoFiltro(v){
+  const sel = document.getElementById('fil-estado');
+  if(sel) sel.value = v || '';
+  page = 1;
+  renderTable();
+}
+function renderEstadoChips(){
+  const box = document.getElementById('estado-chips');
+  if(!box) return;
+  const actual = document.getElementById('fil-estado').value;
+  box.innerHTML = ESTADOS_CHIPS.map(([val,label])=>{
+    const n = getFiltered(val).length;
+    return `<button type="button" class="estado-chip${actual===val?' active':''}" onclick="setEstadoFiltro('${val}')">${label}<span class="n">${n}</span></button>`;
+  }).join('');
+}
 function clearFilters(){
   document.getElementById('search').value='';
   document.getElementById('fil-carrera').value='';
@@ -5394,7 +5433,7 @@ function toggleMoreFilters(){
   const btn = document.getElementById('btn-mas-filtros');
   const abrir = els.length && els[0].style.display === 'none';
   els.forEach(el => { el.style.display = abrir ? '' : 'none'; });
-  if(btn) btn.textContent = abrir ? '☰ Menos filtros ▲' : '☰ Más filtros ▾';
+  if(btn) btn.innerHTML = abrir ? '<i class="ti ti-filter"></i>Menos filtros' : '<i class="ti ti-filter"></i>Más filtros';
 }
 
 function toggleProvMoreFilters(){
@@ -5844,10 +5883,13 @@ function cbuReset(){
 // ── TOAST & FEEDBACK VISUAL ────────────────────────────────────
 function showToast(msg, tipo='success', duracion=3200){
   const container = document.getElementById('toast-container');
-  const iconos = { success:'✅', error:'❌', info:'ℹ️' };
+  // Un aviso que empieza con ⚠ es una advertencia aunque venga como "success"
+  if(tipo==='success' && /^\s*⚠/.test(String(msg))) tipo = 'warn';
+  msg = String(msg).replace(/^\s*(✅|⚠️?|❌|ℹ️?)\s*/, '');
+  const iconos = { success:'ti-circle-check', warn:'ti-alert-triangle', error:'ti-alert-circle', info:'ti-info-circle' };
   const t = document.createElement('div');
   t.className = `toast ${tipo}`;
-  t.innerHTML = `<span class="toast-icon">${iconos[tipo]||'✅'}</span><span class="toast-msg">${msg}</span>`;
+  t.innerHTML = `<span class="toast-icon"><i class="ti ${iconos[tipo]||iconos.success}" style="margin:0"></i></span><span class="toast-msg">${msg}</span>`;
   container.appendChild(t);
   setTimeout(()=>{
     t.classList.add('hide');
@@ -5894,6 +5936,60 @@ function bulkEliminar(){
 function saveObs(id, val){
   const a = alumnos.find(x=>x.id===id);
   if(a){a.observaciones=val;save();}
+}
+function editarObs(id){
+  const a = alumnos.find(x=>x.id===id);
+  if(!a) return;
+  const v = prompt('Observaciones de '+a.nombre+':', a.observaciones||'');
+  if(v===null) return;
+  saveObs(id, v.trim());
+  renderTable();
+}
+let _aluMenu = null;
+function cerrarMenuAlumno(){
+  if(_aluMenu){ _aluMenu.remove(); _aluMenu = null; }
+  document.removeEventListener('click', cerrarMenuAlumno, true);
+  window.removeEventListener('scroll', cerrarMenuAlumno, true);
+  window.removeEventListener('resize', cerrarMenuAlumno);
+}
+function abrirMenuAlumno(id, btn, ev){
+  if(ev) ev.stopPropagation();
+  const yaAbierto = _aluMenu && _aluMenu._for===btn;
+  cerrarMenuAlumno();
+  if(yaAbierto) return;
+  const a = alumnos.find(x=>x.id===id);
+  if(!a) return;
+  const m = document.createElement('div');
+  m.className = 'alu-menu';
+  m._for = btn;
+  m.innerHTML = `
+    <button type="button" data-act="hist"><i class="ti ti-history"></i>Historial de pagos</button>
+    <button type="button" data-act="edit"><i class="ti ti-edit"></i>Editar alumno</button>
+    <button type="button" data-act="obs"><i class="ti ti-note"></i>${a.observaciones?'Editar observación':'Agregar observación'}</button>
+    <div class="alu-menu-sep"></div>
+    <button type="button" data-act="del" class="peligro"><i class="ti ti-trash"></i>Eliminar alumno</button>`;
+  document.body.appendChild(m);
+  const r = btn.getBoundingClientRect();
+  const w = m.offsetWidth, h = m.offsetHeight;
+  let left = Math.min(r.right - w, window.innerWidth - w - 8); if(left<8) left=8;
+  let top = r.bottom + 4; if(top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 4);
+  m.style.left = left+'px'; m.style.top = top+'px';
+  m.addEventListener('click', e=>{
+    const b = e.target.closest('button'); if(!b) return;
+    e.stopPropagation();
+    const act = b.dataset.act;
+    cerrarMenuAlumno();
+    if(act==='hist') abrirHistorialPagos(id);
+    else if(act==='edit') openEdit(id);
+    else if(act==='obs') editarObs(id);
+    else if(act==='del') eliminarAlumno(id);
+  });
+  _aluMenu = m;
+  setTimeout(()=>{
+    document.addEventListener('click', cerrarMenuAlumno, true);
+    window.addEventListener('scroll', cerrarMenuAlumno, true);
+    window.addEventListener('resize', cerrarMenuAlumno);
+  },0);
 }
 function eliminarAlumno(id){
   const a = alumnos.find(x=>x.id===id);
@@ -6938,7 +7034,6 @@ function dashIrAlumnos(estado){
   switchTab('alumnos', document.getElementById('nav-dd-alumnos'));
   const est = document.getElementById('fil-estado');
   if(est){
-    if(est.style.display==='none') toggleMoreFilters();
     est.value = estado || '';
     renderTable();
   }
@@ -7005,15 +7100,9 @@ function renderDashboard(){
   if(inacDeuda>0) alertas.push({type:'warn', tab:()=>dashIrTab('inactivos'), msg:`Inactivos con deuda pendiente: ${fmt(inacDeuda)}`});
   if(provVencidas>0) alertas.push({type:'danger', tab:()=>dashIrTab('proveedores'), msg:`${provVencidas} factura${provVencidas!==1?'s':''} de proveedor vencida${provVencidas!==1?'s':''} (${fmt(provTotalVencido)})`});
   if(saldoCaja<0) alertas.push({type:'danger', tab:()=>dashIrTab('caja'), msg:`Saldo de caja negativo: ${fmt(saldoCaja)}`});
-  if(vacantes.length>0) alertas.push({type:'info', tab:()=>dashIrAlumnos('Vacante'), msg:`${vacantes.length} alumnos en estado Vacante`});
-  if(matriculados.length>0) alertas.push({type:'info', tab:()=>dashIrAlumnos('Matrícula'), msg:`${matriculados.length} alumnos en estado Matrícula`});
   if(sinConciliar>0) alertas.push({type:'warn', tab:()=>dashIrTab('conciliacion'), msg:`${sinConciliar} movimiento${sinConciliar!==1?'s':''} sin conciliar`});
   if(cobMeses.length===0) alertas.push({type:'info', tab:()=>dashIrTab('cobranza'), msg:'Todavía no cargaste cobranza este período — cargala en Facturación'});
   if(cobMeses.length>0 && varCob!==null && varCob>50) alertas.push({type:'ok', tab:()=>dashIrTab('cobranza'), msg:`Cobranza de ${ultimoMes.mes} creció ${varCob.toFixed(1)}% vs mes anterior`});
-  if(alertas.length===0) alertas.push({type:'ok', msg:'Todo en orden. Sin alertas críticas.'});
-  // Cada alerta con acción se registra en window para poder llamarla desde el onclick
-  window._dashAlertActions = alertas.map(a=>a.tab||null);
-
   // Acuerdos de pago (alumnos)
   const acs = alumnos.filter(a=>a.estado==='Acuerdo'&&a.acuerdo);
   const acsMonto = acs.reduce((s,a)=>s+(a.acuerdo.monto||0),0);
@@ -7021,6 +7110,20 @@ function renderDashboard(){
     .map(a=>({...a,_fv:new Date(a.acuerdo.fecha+'T00:00:00')}))
     .sort((a,b)=>a._fv-b._fv);
   const acsProximo = acsConFecha.find(a=>a._fv>=hoyP) || acsConFecha[0];
+
+  // Vencimientos próximos (antes eran tarjetas sueltas): pasan a ser alertas
+  if(provPorVencer7>0) alertas.push({type:'warn', tab:()=>dashIrTab('proveedores'), msg:`${provPorVencer7} factura${provPorVencer7!==1?'s':''} de proveedor vence${provPorVencer7!==1?'n':''} en los próximos 7 días`});
+  if(acsProximo && acsProximo._fv>=hoyP && acsProximo._fv<=en7){
+    const dd = Math.round((acsProximo._fv-hoyP)/86400000);
+    alertas.push({type:'warn', tab:()=>dashIrTab('acuerdos'), msg:`Acuerdo de pago de ${acsProximo.nombre} vence ${dd===0?'hoy':dd===1?'mañana':'en '+dd+' días'}`});
+  }
+  if(alertas.length===0) alertas.push({type:'ok', msg:'Todo en orden. Sin alertas críticas.'});
+  // Lo que pide acción primero: rojo, amarillo, info y al final lo que está bien
+  const _ordenAl = {danger:0, warn:1, info:2, ok:3};
+  alertas.sort((a,b)=>_ordenAl[a.type]-_ordenAl[b.type]);
+  const alertasPend = alertas.filter(a=>a.type==='danger'||a.type==='warn').length;
+  // Cada alerta con acción se registra en window para poder llamarla desde el onclick
+  window._dashAlertActions = alertas.map(a=>a.tab||null);
 
   const presupConTotal = presupuestos.map(p=>{
     const tg = (p.itemsGeneral||[]).reduce((s,it)=>s+(it.cant||0)*(it.valorUnit||0),0);
@@ -7030,53 +7133,43 @@ function renderDashboard(){
   const presupContables = presupConTotal.filter(p=>p.estado!=='Borrador');
   const presupUltimo = presupContables[0];
 
+  const pctDeb = activos.length>0 ? Math.round(deben.length/activos.length*100) : 0;
+  const pctDia = activos.length>0 ? Math.round(alDia.length/activos.length*100) : 0;
   const html = `
-    <!-- KPIs principales -->
-    <div class="dash-section-title"><i class="ti ti-users"></i>Alumnos</div>
-    <div class="dash-kpi-grid">
-      <div class="dash-kpi blue clickable" onclick="dashIrAlumnos('')" title="Ver alumnos activos"><div class="dash-kpi-label">Total activos</div><div class="dash-kpi-val">${activos.length}</div><div class="dash-kpi-sub">${alumnos.length} registros totales</div></div>
-      <div class="dash-kpi green clickable" onclick="dashIrAlumnos('Al día')" title="Ver alumnos al día"><div class="dash-kpi-label">Al día</div><div class="dash-kpi-val">${alDia.length}</div><div class="dash-kpi-sub">${activos.length>0?(alDia.length/activos.length*100).toFixed(1):0}% del total activo</div></div>
-      <div class="dash-kpi red clickable" onclick="dashIrAlumnos('Debe')" title="Ver alumnos con deuda"><div class="dash-kpi-label">Con deuda</div><div class="dash-kpi-val">${deben.length}</div><div class="dash-kpi-sub">Deuda: ${fmt(totalDeuda)}</div></div>
-      <div class="dash-kpi orange clickable" onclick="dashIrTab('inactivos')" title="Ver alumnos inactivos"><div class="dash-kpi-label">Inactivos (bajas)</div><div class="dash-kpi-val">${inactivos.length}</div><div class="dash-kpi-sub">${inacDeuda>0?'Deuda: '+fmt(inacDeuda):'Sin deuda pendiente'}</div></div>
-      <div class="dash-kpi purple clickable" onclick="dashIrAlumnos('Vacante')" title="Ver vacantes"><div class="dash-kpi-label">Vacantes</div><div class="dash-kpi-val">${vacantes.length}</div><div class="dash-kpi-sub">${vacFut>0?vacFut+' para el próximo ciclo':'Lugares disponibles'}</div></div>
-      <div class="dash-kpi teal clickable" onclick="dashIrAlumnos('Matrícula')" title="Ver alumnos en condición Matrícula"><div class="dash-kpi-label">Matriculados</div><div class="dash-kpi-val">${matriculados.length}</div><div class="dash-kpi-sub">${matFut>0?matFut+' para el próximo ciclo':'Pendientes de matrícula'}</div></div>
+    <!-- 1) Requiere atención: lo que pide acción va primero -->
+    <div class="dash-section-title"><i class="ti ti-bell"></i>Requiere atención${alertasPend>0?`<span class="dash-count">${alertasPend}</span>`:''}</div>
+    ${alertas.map((a,i)=>`<div class="dash-alert ${a.type}${a.tab?' clickable':''}" ${a.tab?`onclick="window._dashAlertActions[${i}]()"`:''}><i class="ti ${ALERTA_ICONOS[a.type]}" style="margin-right:0"></i><span style="flex:1">${a.msg}</span>${a.tab?'<span class="dash-alert-ver">Ver <i class="ti ti-chevron-right" style="margin:0"></i></span>':''}</div>`).join('')}
+
+    <!-- 2) Resumen: 6 tarjetas, color solo cuando significa algo (rojo = deuda/vencido, verde = bien) -->
+    <div class="dash-section-title"><i class="ti ti-layout-dashboard"></i>Resumen</div>
+    <div class="dash-kpi-grid dash-kpi-grid-6">
+      <div class="dash-kpi clickable" onclick="dashIrAlumnos('')" title="Ver alumnos activos"><div class="dash-kpi-label">Alumnos activos</div><div class="dash-kpi-val">${activos.length}</div><div class="dash-kpi-sub">Ver alumnos ›</div></div>
+      <div class="dash-kpi green clickable" onclick="dashIrAlumnos('Al día')" title="Ver alumnos al día"><div class="dash-kpi-label">Al día</div><div class="dash-kpi-val">${alDia.length}</div><div class="dash-kpi-sub">${pctDia}% del total</div></div>
+      <div class="dash-kpi ${deben.length>0?'red':'green'} clickable" onclick="dashIrAlumnos('Debe')" title="Ver alumnos con deuda"><div class="dash-kpi-label">Con deuda</div><div class="dash-kpi-val">${deben.length}</div><div class="dash-kpi-sub">${pctDeb}% del total</div></div>
+      <div class="dash-kpi ${totalDeuda>0?'red':'green'} clickable" onclick="dashIrAlumnos('Debe')" title="Ver deudores"><div class="dash-kpi-label">Deuda total</div><div class="dash-kpi-val dash-kpi-val-money">${fmt(totalDeuda)}</div><div class="dash-kpi-sub">Ver deudores ›</div></div>
+      <div class="dash-kpi ${saldoCaja>=0?'green':'red'} clickable" onclick="dashIrTab('caja')" title="Ver Control Caja"><div class="dash-kpi-label">Saldo de caja</div><div class="dash-kpi-val dash-kpi-val-money">${fmt(saldoCaja)}</div><div class="dash-kpi-sub">Ver Control Caja ›</div></div>
+      <div class="dash-kpi ${provVencidas>0?'red':'green'} clickable" onclick="dashIrTab('proveedores')" title="Ver Proveedores"><div class="dash-kpi-label">Facturas vencidas</div><div class="dash-kpi-val">${provVencidas}</div><div class="dash-kpi-sub">${provVencidas>0?fmt(provTotalVencido)+' · ':''}Ver Proveedores ›</div></div>
     </div>
 
-    <div class="dash-section-title"><i class="ti ti-cash"></i>Finanzas del período</div>
-    <div class="dash-kpi-grid">
-      ${cobMeses.length===0 ? `
-      <div class="dash-kpi orange clickable" onclick="dashIrTab('cobranza')" title="Ver Facturación"><div class="dash-kpi-label">Cobranza ${anioPeriodo}</div><div class="dash-kpi-val" style="font-size:14px">Sin datos cargados</div><div class="dash-kpi-sub">Cargala en Facturación →</div></div>
-      ` : `
-      <div class="dash-kpi teal clickable" onclick="dashIrTab('cobranza')" title="Ver Facturación"><div class="dash-kpi-label">Cobranza acumulada ${anioPeriodo}</div><div class="dash-kpi-val" style="font-size:18px">${fmt(cobTotal)}</div><div class="dash-kpi-sub">${cobMeses.length} mes${cobMeses.length!==1?'es':''} con datos</div></div>
-      <div class="dash-kpi ${cobUltimo>0?'blue':'orange'} clickable" onclick="dashIrTab('cobranza')" title="Ver Facturación"><div class="dash-kpi-label">Último mes (${ultimoMes?ultimoMes.mes:'—'})</div><div class="dash-kpi-val" style="font-size:18px">${fmt(cobUltimo)}</div><div class="dash-kpi-sub">${varCob!==null?`<span class="dash-trend ${varCob>=0?'up':'down'}">${varCob>=0?'▲':'▼'} ${Math.abs(varCob).toFixed(1)}% vs anterior</span>`:''}</div></div>
-      `}
-      <div class="dash-kpi ${saldoCaja>=0?'green':'red'} clickable" onclick="dashIrTab('caja')" title="Ver Control Caja"><div class="dash-kpi-label">Saldo de caja</div><div class="dash-kpi-val" style="font-size:18px">${fmt(saldoCaja)}</div><div class="dash-kpi-sub">Ing: ${fmt(totalIng)} · Egr: ${fmt(totalEgr)}</div></div>
-      <div class="dash-kpi ${sinConciliar>0?'orange':'green'} clickable" onclick="dashIrTab('conciliacion')" title="Ver Conciliación"><div class="dash-kpi-label">Conciliación bancaria</div><div class="dash-kpi-val" style="font-size:18px">${sinConciliar}</div><div class="dash-kpi-sub">${sinConciliar>0?'movimiento'+(sinConciliar!==1?'s':'')+' sin conciliar':'Todo conciliado'}</div></div>
-    </div>
-
-    <div class="dash-section-title"><i class="ti ti-truck"></i>Proveedores, acuerdos y presupuestos</div>
-    <div class="dash-kpi-grid">
-      <div class="dash-kpi ${provPend.length>0?'red':'green'} clickable" onclick="dashIrTab('proveedores')" title="Ver Proveedores"><div class="dash-kpi-label">Proveedores pendientes</div><div class="dash-kpi-val">${provPend.length}</div><div class="dash-kpi-sub">${provPend.length>0?fmt(provTotalPend):'Sin pendientes'}</div></div>
-      <div class="dash-kpi ${provVencidas>0?'red':'green'} clickable" onclick="dashIrTab('proveedores')" title="Ver Proveedores"><div class="dash-kpi-label">Facturas vencidas</div><div class="dash-kpi-val">${provVencidas}</div><div class="dash-kpi-sub">${provVencidas>0?fmt(provTotalVencido):'Ninguna vencida'}</div></div>
-      <div class="dash-kpi ${provVencidas>0?'red':(provPorVencer7>0?'orange':'green')} clickable" onclick="dashIrTab('proveedores')" title="Ver Proveedores"><div class="dash-kpi-label">Próx. vencimiento proveedor</div><div class="dash-kpi-val" style="font-size:16px">${provProximo?provProximo._fv.toLocaleDateString('es-AR'):'—'}</div><div class="dash-kpi-sub">${provProximo?provProximo.nombre:(provVencidas>0?provVencidas+' vencida'+(provVencidas!==1?'s':''):'Sin facturas pendientes')}${provPorVencer7>0?' · '+provPorVencer7+' en 7 días':''}</div></div>
-      <div class="dash-kpi blue clickable" onclick="dashIrTab('acuerdos')" title="Ver Acuerdos"><div class="dash-kpi-label">Acuerdos activos</div><div class="dash-kpi-val">${acs.length}</div><div class="dash-kpi-sub">${acs.length>0?fmt(acsMonto)+' acordado':'Sin acuerdos activos'}</div></div>
-      <div class="dash-kpi purple clickable" onclick="dashIrTab('acuerdos')" title="Ver Acuerdos"><div class="dash-kpi-label">Próx. vto. acuerdo</div><div class="dash-kpi-val" style="font-size:16px">${acsProximo?acsProximo._fv.toLocaleDateString('es-AR'):'—'}</div><div class="dash-kpi-sub">${acsProximo?acsProximo.nombre:'—'}</div></div>
-      <div class="dash-kpi teal clickable" onclick="dashIrTab('presupuestos')" title="Ver Presupuestos (enviados, aprobados o rechazados)"><div class="dash-kpi-label">Presupuestos</div><div class="dash-kpi-val">${presupContables.length}</div><div class="dash-kpi-sub">${presupUltimo?presupUltimo.titulo+' · '+fmt(presupUltimo.total):'Sin presupuestos enviados'}</div></div>
-    </div>
-
-    <!-- Alertas -->
-    <div class="dash-section-title"><i class="ti ti-bell"></i>Alertas y estado</div>
-    ${alertas.map((a,i)=>`<div class="dash-alert ${a.type}${a.tab?' clickable':''}" ${a.tab?`onclick="window._dashAlertActions[${i}]()"`:''}><i class="ti ${ALERTA_ICONOS[a.type]}" style="margin-right:0"></i>${a.msg}</div>`).join('')}
-
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 0;font-size:11px;color:#bbb">
-      <span>Actualizado: ${new Date().toLocaleString('es-AR')} · Período: ${mes||'—'}</span>
-      <button class="btn sm" onclick="renderDashboard()" style="font-size:11px"><i class="ti ti-refresh"></i>Actualizar</button>
+    <!-- 3) Otros datos: lo secundario en una sola franja -->
+    <div class="stats-row-secondary dash-otros">
+      <span class="stats-secondary-caption">Otros datos</span>
+      <div class="stats-secondary-item" style="cursor:pointer" onclick="dashIrAlumnos('Vacante')" title="Ver vacantes"><span class="lbl">Vacantes</span><span class="val">${vacantes.length}</span></div>
+      <div class="stats-secondary-item" style="cursor:pointer" onclick="dashIrAlumnos('Matrícula')" title="Ver matriculados"><span class="lbl">Matriculados</span><span class="val">${matriculados.length}</span></div>
+      <div class="stats-secondary-item" style="cursor:pointer" onclick="dashIrTab('inactivos')" title="Ver alumnos inactivos"><span class="lbl">Inactivos</span><span class="val">${inactivos.length}</span></div>
+      <div class="stats-secondary-item" style="cursor:pointer" onclick="dashIrTab('acuerdos')" title="Ver Acuerdos"><span class="lbl">Acuerdos activos</span><span class="val">${acs.length}</span></div>
+      <div class="stats-secondary-item" style="cursor:pointer" onclick="dashIrTab('presupuestos')" title="Ver Presupuestos"><span class="lbl">Presupuestos</span><span class="val">${presupContables.length}</span></div>
     </div>
 
     <div class="dash-ver-mas" onclick="dashIrTab('indicadores')">
       <i class="ti ti-chart-bar"></i>
-      <span>Ver indicadores detallados: carreras, cobranza mensual, mayores deudores y más</span>
+      <span>Ver todos los indicadores y gráficos: cobranza, conciliación, carreras, mayores deudores y más</span>
       <i class="ti ti-chevron-right" style="margin-right:0;margin-left:auto"></i>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 0;font-size:12px;color:#999">
+      <span>Actualizado: ${new Date().toLocaleString('es-AR')} · Período: ${mes||'—'}</span>
+      <button class="btn sm" onclick="renderDashboard()"><i class="ti ti-refresh"></i>Actualizar</button>
     </div>
   `;
 
