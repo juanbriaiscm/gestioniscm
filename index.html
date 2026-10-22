@@ -9662,6 +9662,16 @@ function cajaHistRender(){
     + '</div>';
 }
 
+function cajaHistAbrir(){
+  cajaHistRender();
+  document.getElementById('modal-caja-hist').classList.add('open');
+}
+function cajaHistAnio(a){
+  _cajaHistAnio = a;
+  cajaHistRender();
+}
+
+let _cajaMesAbierto = null;
 // ── Detalle / edición de un mes cerrado ──
 function cajaMesObj(){ return cajaHist.meses.find(m=>m.periodo===_cajaMesAbierto); }
 function cajaMesAbrir(p){
