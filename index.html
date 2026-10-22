@@ -1282,6 +1282,24 @@ img, svg{max-width:100%}
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.49.0/dist/tabler-icons.min.css">
 
+<style>/* Las cuatro vistas reutilizan la paleta y los controles existentes. */
+#tab-acuerdos [hidden],#tab-becas [hidden],#tab-resumen [hidden]{display:none!important}
+.mini-head-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.mini-group{background:#1a1a2e;color:#fff;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:8px 14px;margin:8px 0}
+.mini-group-cell{padding:0!important;border:0!important}.mini-group-cell .mini-group{margin:0}
+.mini-group span{opacity:.7}.mini-total,.minimal-total{color:#666;font-size:13px;margin-bottom:12px}
+.mini-date{display:block;font-size:11px;margin-top:3px;color:#777}
+.mini-link{border:0;background:transparent;padding:5px 0;color:#1a1a2e;font:inherit;font-weight:600;text-align:left;cursor:pointer}.mini-link:hover{text-decoration:underline}
+.mini-money{text-align:right!important;white-space:nowrap;font-variant-numeric:tabular-nums}
+.mini-progress{display:inline-block;width:72px;height:6px;border-radius:4px;background:#e8e8e0;margin-right:8px;vertical-align:middle;overflow:hidden}.mini-progress span{display:block;height:100%;background:#27ae60}
+.mini-year-grid{display:flex;flex-wrap:wrap;gap:24px;padding:8px}.mini-year-grid>div{display:grid;gap:5px}.mini-year-grid span{font-size:12px;color:#777}
+#tab-becas .beca-thead-title th,#tab-becas table thead th{background:#f8f8f4;color:#666;border-bottom:1px solid #e8e8e0;letter-spacing:normal;text-transform:none;border-radius:0}
+#tab-becas .beca-thead-filters th{background:#fafaf7}
+#tab-becas .tab-dropdown{left:auto;right:0}
+#asist-selector-grid{gap:12px;align-items:flex-end;margin:0}#asist-selector-grid>div{flex:1;min-width:180px}
+#asist-mes{width:100%;height:36px;border:1px solid #d0d0c8;border-radius:6px;padding:0 10px;font:inherit;background:#fff}
+@media(max-width:600px){#asist-selector-grid>div{flex-basis:100%}.mini-head-actions{width:100%}#tab-resumen table{min-width:650px}}
+</style>
 </head>
 <body data-tab="dashboard">
 
@@ -2052,16 +2070,16 @@ img, svg{max-width:100%}
 
 <!-- TAB ACUERDOS -->
 <div id="tab-acuerdos" style="display:none">
-  <div class="page-head"><h2 class="page-title"><i class="ti ti-heart-handshake"></i>Acuerdos de pago</h2></div>
+  <div class="page-head"><h2 class="page-title"><i class="ti ti-heart-handshake"></i>Acuerdos de pago <span class="page-count" id="acuerdos-count"></span></h2></div>
 
-  <div id="acuerdos-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px"></div>
+  <div id="acuerdos-stats" class="minimal-total"></div>
 
   <div class="controls" style="margin-bottom:12px;gap:6px">
     <input type="text" id="acuerdos-search" placeholder="Buscar alumno..." oninput="renderAcuerdos()" style="flex:1;min-width:180px">
     <select id="acuerdos-fil-carrera" onchange="renderAcuerdos()" style="height:34px;border-radius:6px;border:1px solid #d0d0c8;padding:0 8px;font-size:12px">
       <option value="">Todas las carreras</option>
     </select>
-    <select id="acuerdos-fil-estado" onchange="renderAcuerdos()" style="height:34px;border-radius:6px;border:1px solid #d0d0c8;padding:0 8px;font-size:12px">
+    <select hidden aria-hidden="true" id="acuerdos-fil-estado" onchange="renderAcuerdos()" style="height:34px;border-radius:6px;border:1px solid #d0d0c8;padding:0 8px;font-size:12px">
       <option value="">Todos</option>
       <option value="ok">Al día con el acuerdo</option>
       <option value="riesgo">En riesgo (deuda subió)</option>
@@ -2069,6 +2087,7 @@ img, svg{max-width:100%}
     </select>
   </div>
 
+  <div class="estado-chips" id="acuerdos-chips"></div>
   <div class="table-wrap">
     <table>
       <thead><tr>
@@ -2084,29 +2103,8 @@ img, svg{max-width:100%}
 <!-- TAB BECAS -->
 <div id="tab-becas" style="display:none">
   <div class="page-head">
-    <h2 class="page-title"><i class="ti ti-award"></i>Becas</h2>
-    <button class="btn primary" onclick="abrirModalBeca()"><i class="ti ti-plus"></i>Agregar alumno becado</button>
-  </div>
-  <div class="page-tools">
-      <button onclick="abrirModalBecaReset()" class="btn peligro"><i class="ti ti-refresh"></i>Reiniciar becas socioeconómicas (ciclo nuevo)</button>
-  </div>
-
-  <!-- Resumen por tipo -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px" id="beca-stats"></div>
-
-  <!-- Resumen detallado (antes vivía en General ▸ Dashboard) -->
-  <div class="dash-2col" id="beca-dash-resumen" style="margin-bottom:18px"></div>
-
-  <!-- Filtros becas: fila principal -->
-  <div class="controls" style="margin-bottom:8px;gap:6px">
-    <input type="text" id="beca-search" placeholder="Buscar alumno..." oninput="renderBecas()" style="flex:1;min-width:180px">
-    <select id="beca-fil-tipo" onchange="renderBecas()" style="height:34px;border-radius:6px;border:1px solid #d0d0c8;padding:0 8px;font-size:12px">
-      <option value="">Todos los tipos</option>
-      <option value="Beca">Beca socioeconómica</option>
-      <option value="Hijo prof.">Hijo/a de profesor/a</option>
-    </select>
-    <button class="btn" onclick="becaLimpiarFiltros()" style="height:34px;font-size:12px"><i class="ti ti-x"></i>Limpiar filtros</button>
-      <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-becas-impexp')" onmouseleave="ddHide('dd-becas-impexp')">
+    <h2 class="page-title"><i class="ti ti-award"></i>Becas <span class="page-count" id="beca-count"></span></h2>
+    <div class="mini-head-actions">      <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-becas-impexp')" onmouseleave="ddHide('dd-becas-impexp')">
         <button class="btn" style="height:34px;font-size:12px"><i class="ti ti-arrows-exchange"></i>Importar / Exportar ▾</button>
         <div class="tab-dropdown" id="dd-becas-impexp">
           <div class="dd-sec">Importar</div>
@@ -2116,11 +2114,31 @@ img, svg{max-width:100%}
           <button class="dd-item" onclick="exportarBecasCSV();ddHide('dd-becas-impexp')"><i class="ti ti-file-type-csv"></i>CSV</button>
           <button class="dd-item" onclick="exportarBecasExcel();ddHide('dd-becas-impexp')"><i class="ti ti-file-spreadsheet"></i>Excel</button>
           <button class="dd-item" onclick="exportarBecasJSON();ddHide('dd-becas-impexp')"><i class="ti ti-braces"></i>JSON</button>
+          <div class="dd-sep"></div><div class="dd-sec">Limpieza</div>
+          <button class="dd-item danger" onclick="abrirModalBecaReset();ddHide('dd-becas-impexp')"><i class="ti ti-refresh"></i>Reiniciar becas socioeconómicas</button>
         </div>
       </div>
+<button class="btn primary" onclick="abrirModalBeca()"><i class="ti ti-plus"></i>Agregar alumno becado</button></div>
+  </div>
+  <!-- Resumen por tipo -->
+  <div id="beca-stats" hidden></div>
+
+  <!-- Resumen detallado (antes vivía en General ▸ Dashboard) -->
+  <div class="dash-2col" id="beca-dash-resumen" style="margin-bottom:18px"></div>
+
+  <!-- Filtros becas: fila principal -->
+  <div class="controls" style="margin-bottom:8px;gap:6px">
+    <input type="text" id="beca-search" placeholder="Buscar alumno..." oninput="renderBecas()" style="flex:1;min-width:180px">
+    <select hidden aria-hidden="true" id="beca-fil-tipo" onchange="renderBecas()" style="height:34px;border-radius:6px;border:1px solid #d0d0c8;padding:0 8px;font-size:12px">
+      <option value="">Todos los tipos</option>
+      <option value="Beca">Beca socioeconómica</option>
+      <option value="Hijo prof.">Hijo/a de profesor/a</option>
+    </select>
+    <button class="btn" onclick="becaLimpiarFiltros()" style="height:34px;font-size:12px"><i class="ti ti-x"></i>Limpiar filtros</button>
     <input type="file" id="beca-import-input" accept=".json,.csv,.xlsx,.xls" style="display:none" onchange="becaProcesarImport(this)">
   </div>
 
+  <div class="estado-chips" id="beca-chips"></div>
   <!-- Barra edición masiva becas -->
   <div class="bulk-bar" id="beca-bulk-bar" style="background:#2d7a4f">
     <span id="beca-bulk-count" style="font-size:13px">0 seleccionadas</span>
@@ -4600,77 +4618,93 @@ function renderTable(){
   }).join('');
 
 }
+// Presentación compacta: sin cambios en los modelos de datos.
+function miniEsc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function miniChips(container,select,items,render){
+  const box=document.getElementById(container),sel=document.getElementById(select);
+  box.replaceChildren();
+  items.forEach(([value,label,count])=>{
+    const b=document.createElement('button');b.type='button';b.className='estado-chip'+(sel.value===value?' active':'');
+    b.setAttribute('aria-pressed',sel.value===value);b.innerHTML=miniEsc(label)+' <span class="n">'+count+'</span>';
+    b.onclick=()=>{sel.value=value;render();};box.appendChild(b);
+  });
+}
+function miniFechaLimite(fecha){
+  if(!fecha)return '—';
+  const lim=new Date(fecha+'T00:00:00'),hoy=new Date();hoy.setHours(0,0,0,0);
+  if(!Number.isFinite(+lim))return miniEsc(fecha);
+  const dias=Math.round((lim-hoy)/86400000);
+  const texto=dias===0?'Vence hoy':dias>0?'Vence en '+dias+' día'+(dias===1?'':'s'):'Vencido hace '+(-dias)+' día'+(dias===-1?'':'s');
+  return miniEsc(fmtFecha(fecha))+'<small class="mini-date">'+texto+'</small>';
+}
+function miniGroup(carrera,count){return '<div class="mini-group" style="grid-column:1/-1">'+miniEsc(carrera||'Sin carrera')+' <span>· '+count+'</span></div>';}
+function miniIrCarrera(idx){
+  const {c,inac}=window._miniResumenCarreras[idx];
+  const tab=inac?'inactivos':'alumnos';
+  switchTab(tab,document.getElementById('nav-dd-'+tab));
+  if(inac){clearInactivosFilters();document.getElementById('inac-carrera').value=c;inacPage=1;renderInactivos();}
+  else {verFuturos=false;clearFilters();document.getElementById('fil-carrera').value=c;page=1;renderTable();}
+}
+function miniAcuerdoMenu(id,btn,ev){
+  ev.stopPropagation();document.getElementById('mini-ac-menu')?._close?.();
+  const a=alumnos.find(x=>x.id===id);if(!a)return;
+  const m=document.createElement('div');m.id='mini-ac-menu';m.className='alu-menu';m.setAttribute('role','menu');
+  const close=()=>{m.remove();document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',key);window.removeEventListener('resize',close);window.removeEventListener('scroll',close,true);};
+  m._close=close;
+  const outside=e=>{if(!m.contains(e.target)&&e.target!==btn)close();};
+  const key=e=>{if(e.key==='Escape'){close();btn.focus();}};
+  const add=(label,icon,action)=>{const b=document.createElement('button');b.type='button';b.setAttribute('role','menuitem');b.innerHTML='<i class="ti '+icon+'"></i>'+label;b.onclick=()=>{close();action();};m.appendChild(b);};
+  if(a.acuerdo.link)add('Ver compromiso','ti-file-text',()=>window.open(a.acuerdo.link,'_blank','noopener'));
+  add('Historial de pagos','ti-history',()=>abrirHistorialPagos(id));document.body.appendChild(m);
+  const r=btn.getBoundingClientRect();m.style.left=Math.max(8,Math.min(r.right-m.offsetWidth,innerWidth-m.offsetWidth-8))+'px';m.style.top=Math.max(8,Math.min(r.bottom+4,innerHeight-m.offsetHeight-8))+'px';
+  document.addEventListener('pointerdown',outside);document.addEventListener('keydown',key);window.addEventListener('resize',close);window.addEventListener('scroll',close,true);m.querySelector('button').focus();
+}
+let _miniAsistEditingId=null;
+function miniPeriodoKey(value){
+  const str=String(value||'').trim();
+  if(/^\d{4}-(0[1-9]|1[0-2])$/.test(str))return str;
+  const meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const match=str.toLowerCase().match(/^([a-záéíóú]+)\s+(\d{4})$/);
+  if(match){const i=meses.indexOf(match[1]);if(i>=0)return match[2]+'-'+String(i+1).padStart(2,'0');}
+  return str;
+}
+function miniAsistSetPeriodo(value){
+  document.getElementById('asist-periodo').value=value;
+  const key=miniPeriodoKey(value),valid=/^\d{4}-(0[1-9]|1[0-2])$/.test(key);
+  document.getElementById('asist-mes').value=valid?key:'';
+  const note=document.getElementById('asist-periodo-legacy');note.style.display=valid?'none':'block';
+  note.textContent=valid?'':'Período anterior: '+value+'. Se conserva al guardar; elegí un mes solo si querés cambiarlo.';
+}
+function miniAsistMesChanged(){
+  const value=document.getElementById('asist-mes').value;
+  const meses=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  document.getElementById('asist-periodo').value=value?meses[Number(value.slice(5))-1]+' '+value.slice(0,4):'';
+  document.getElementById('asist-periodo-legacy').style.display='none';
+}
+
 function renderResumen(){
-  // Solo alumnos activos (excluye Baja, Vacante y Matrícula)
-  const alumnosActivos = alumnos.filter(a=>a.estado!=='Baja'&&a.estado!=='Vacante'&&a.estado!=='Matrícula');
-  const carreras = [...new Set(alumnosActivos.map(a=>a.carrera))].sort();
-
-  const todosInactivos = getInactivosReales();
-  const carrerasInac = [...new Set(todosInactivos.map(a=>a.carrera))].sort();
-
-  // Bloque de alumnos activos
-  const htmlActivos = carreras.map(c=>{
-    const grupo = alumnosActivos.filter(a=>a.carrera===c);
-    const deben = grupo.filter(a=>a.estado==='Debe');
-    const alDia = grupo.filter(a=>a.estado==='Al día');
-    const totalDeuda = grupo.reduce((s,a)=>s+a.deuda,0);
-
-    // Deuda por año cursado
-    const anios = [...new Set(grupo.map(a=>a.anio))].sort((a,b)=>{
-      const n = s => parseInt((s||'').replace(/[^0-9]/g,''))||99;
-      return n(a)-n(b);
-    });
-    const deudaPorAnio = anios.map(anio=>{
-      const g = grupo.filter(a=>a.anio===anio);
-      const deuda = g.reduce((s,a)=>s+a.deuda,0);
-      const conDeuda = g.filter(a=>a.deuda>0).length;
-      return {anio, deuda, conDeuda, total: g.length};
-    }).filter(r=>r.deuda>0);
-
-    const rowsAnio = deudaPorAnio.length ? `
-      <div style="margin-top:8px;padding-top:8px;border-top:1px solid #f0f0e8">
-        <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Deuda por año</div>
-        ${deudaPorAnio.map(r=>`
-          <div class="resumen-row" style="padding:2px 0">
-            <span style="color:#666">${r.anio} <span style="color:#aaa;font-size:10px">(${r.conDeuda} alumno${r.conDeuda!==1?'s':''})</span></span>
-            <span class="val red" style="font-size:12px">${fmt(r.deuda)}</span>
-          </div>`).join('')}
-      </div>` : '';
-
-    return `<div class="resumen-card">
-      <h3>${c}</h3>
-      <div class="resumen-row"><span>Total alumnos</span><span class="val">${grupo.length}</span></div>
-      <div class="resumen-row"><span>Al día</span><span class="val green">${alDia.length}</span></div>
-      <div class="resumen-row"><span>Con deuda</span><span class="val red">${deben.length}</span></div>
-      <div class="resumen-row" style="margin-top:6px;padding-top:6px;border-top:1px solid #f0f0e8"><span>Deuda total</span><span class="val red">${fmt(totalDeuda)}</span></div>
-      ${rowsAnio}
-    </div>`;
-  }).join('');
-
-  // Bloque de inactivos por carrera
-  const htmlInactivos = carrerasInac.length ? `
-    <div style="margin-top:20px;margin-bottom:8px;display:flex;align-items:center;gap:8px">
-      <span style="font-size:13px;font-weight:700;color:#721c24;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap"><i class="ti ti-user-off" style="margin-right:5px"></i>Alumnos Inactivos</span>
-      <div style="flex:1;height:1px;background:#e8d7da"></div>
-    </div>
-    <div class="resumen-grid">` +
-    carrerasInac.map(c=>{
-      const grupo = todosInactivos.filter(a=>a.carrera===c);
-      const totalDeuda = grupo.reduce((s,a)=>s+(a.deuda||0),0);
-      return `<div class="resumen-card" style="border-color:#f5c6cb;background:#fff8f8">
-        <h3 style="color:#721c24;border-bottom-color:#f5c6cb">${c}</h3>
-        <div class="resumen-row"><span>Total inactivos</span><span class="val">${grupo.length}</span></div>
-        <div class="resumen-row" style="margin-top:6px;padding-top:6px;border-top:1px solid #f5c6cb"><span>Deuda total</span><span class="val red">${fmt(totalDeuda)}</span></div>
-      </div>`;
-    }).join('') +
-    `</div>` : '';
-
-  document.getElementById('resumen-grid').innerHTML =
-    `<div style="margin-bottom:8px;display:flex;align-items:center;gap:8px">
-      <span style="font-size:13px;font-weight:700;color:#1a1a2e;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap"><i class="ti ti-user-check" style="margin-right:5px"></i>Alumnos Activos</span>
-      <div style="flex:1;height:1px;background:#e8e8e0"></div>
-    </div>
-    <div class="resumen-grid">${htmlActivos}</div>` + htmlInactivos;
+  const activos = alumnos.filter(a=>!['Baja','Vacante','Matrícula'].includes(a.estado));
+  const inactivos = getInactivosReales();
+  window._miniResumenCarreras = [];
+  function bloque(datos, inac){
+    const carreras = [...new Set(datos.map(a=>a.carrera||''))].sort();
+    const rows = carreras.map(c=>{
+      const g=datos.filter(a=>(a.carrera||'')===c);
+      const dia=g.filter(a=>inac ? !(Number(a.deuda)>0) : a.estado==='Al día').length;
+      const deben=g.filter(a=>Number(a.deuda)>0).length;
+      const deuda=g.reduce((v,a)=>v+(Number(a.deuda)||0),0);
+      const pct=Math.round(dia/g.length*100);
+      const idx=window._miniResumenCarreras.push({c,inac})-1;
+      const anios=[...new Set(g.map(a=>a.anio||'Sin año'))].sort();
+      return `<tr><td><button class="mini-link" onclick="miniIrCarrera(${idx})">${miniEsc(c||'Sin carrera')} <i class="ti ti-arrow-right"></i></button></td>
+        <td>${g.length}</td><td>${dia}</td><td>${deben}</td>
+        <td><div class="mini-progress" role="meter" aria-label="${inac?'Sin deuda':'Al día'}" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>${pct}%</td>
+        <td class="mini-money">${fmt(deuda)}</td><td><button class="btn sm" aria-expanded="false" onclick="const r=document.getElementById('mini-anios-${idx}');r.hidden=!r.hidden;this.setAttribute('aria-expanded',!r.hidden)">Por año</button></td></tr>
+        <tr id="mini-anios-${idx}" hidden><td colspan="7"><div class="mini-year-grid">${anios.map(y=>{const ag=g.filter(a=>(a.anio||'Sin año')===y);return `<div><strong>${miniEsc(y)}</strong><span>${ag.length} alumnos · ${ag.filter(a=>Number(a.deuda)>0).length} con deuda</span><b>${fmt(ag.reduce((v,a)=>v+(Number(a.deuda)||0),0))}</b></div>`}).join('')}</div></td></tr>`;
+    }).join('');
+    return `<div class="section-divider"><span>${inac?'Alumnos inactivos':'Alumnos activos'} · ${datos.length}</span></div><div class="table-wrap"><table><thead><tr><th>Carrera</th><th>Total</th><th>${inac?'Sin deuda':'Al día'}</th><th>Con deuda</th><th>% ${inac?'sin deuda':'al día'}</th><th class="mini-money">Deuda total</th><th>Detalle</th></tr></thead><tbody>${rows||'<tr><td colspan="7">No hay alumnos registrados</td></tr>'}</tbody></table></div>`;
+  }
+  document.getElementById('resumen-grid').innerHTML='<div class="page-head"><h2 class="page-title"><i class="ti ti-books"></i>Resumen por carrera <span class="page-count">'+new Set([...activos,...inactivos].map(a=>a.carrera)).size+'</span></h2></div>'+bloque(activos,false)+bloque(inactivos,true);
 }
 let tabActual = 'dashboard';
 
@@ -8650,7 +8684,7 @@ function renderAcuerdos(){
   const filCarrera= document.getElementById('acuerdos-fil-carrera')?.value||'';
 
   function estadoAcuerdo(a){
-    const lim = a.acuerdo.fecha ? new Date(a.acuerdo.fecha) : null;
+    const lim = a.acuerdo.fecha ? new Date(a.acuerdo.fecha+'T00:00:00') : null;
     if(lim && lim < hoy) return 'vencido';
     if(a.deuda > (a.acuerdo.monto||0) * 1.05) return 'riesgo';
     return 'ok';
@@ -8659,25 +8693,18 @@ function renderAcuerdos(){
   let data = acuerdos;
   if(search)    data = data.filter(a=>normalizar(a.nombre).includes(search));
   if(filCarrera)data = data.filter(a=>a.carrera===filCarrera);
+  miniChips('acuerdos-chips','acuerdos-fil-estado',[
+    ['', 'Todos', data.length], ['ok','Al día',data.filter(a=>estadoAcuerdo(a)==='ok').length],
+    ['riesgo','En riesgo',data.filter(a=>estadoAcuerdo(a)==='riesgo').length],
+    ['vencido','Vencidos',data.filter(a=>estadoAcuerdo(a)==='vencido').length]
+  ], renderAcuerdos);
+  document.getElementById('acuerdos-count').textContent = acuerdos.length;
   if(filEstado) data = data.filter(a=>estadoAcuerdo(a)===filEstado);
 
   const statsEl = document.getElementById('acuerdos-stats');
   if(statsEl){
-    const total   = acuerdos.length;
-    const ok      = acuerdos.filter(a=>estadoAcuerdo(a)==='ok').length;
-    const riesgo  = acuerdos.filter(a=>estadoAcuerdo(a)==='riesgo').length;
-    const vencido = acuerdos.filter(a=>estadoAcuerdo(a)==='vencido').length;
     const deudaTotal = acuerdos.reduce((s,a)=>s+a.deuda,0);
-    statsEl.innerHTML = [
-      {label:'Total acuerdos',  val:total,           color:'#1a1a2e'},
-      {label:'Al día',        val:ok,              color:'#27ae60'},
-      {label:'En riesgo',    val:riesgo,          color:'#e67e22'},
-      {label:'Vencidos',     val:vencido,         color:'#c0392b'},
-      {label:'Deuda total',     val:fmt(deudaTotal), color:'#2980b9', sm:true},
-    ].map(c=>'<div class="resumen-card" style="border-left:4px solid '+c.color+'">'
-      +'<div style="font-size:12px;color:#666;margin-bottom:4px">'+c.label+'</div>'
-      +'<div style="font-size:'+(c.sm?'16px':'24px')+';font-weight:700;color:'+c.color+'">'+c.val+'</div>'
-      +'</div>').join('');
+    statsEl.textContent = 'Deuda total de acuerdos: ' + fmt(deudaTotal);
   }
 
   const tbody = document.getElementById('tbody-acuerdos');
@@ -8686,32 +8713,29 @@ function renderAcuerdos(){
     tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">Sin acuerdos de pago activos</td></tr>';
     return;
   }
-  tbody.innerHTML = data.map(a=>{
+  data.sort((a,b)=>(a.carrera||'').localeCompare(b.carrera||'') || a.nombre.localeCompare(b.nombre));
+  tbody.innerHTML = data.map((a,i)=>{
     const est = estadoAcuerdo(a);
-    const [estColor,estLabel] = est==='ok'
-      ? ['#27ae60','Al día']
-      : est==='riesgo'
-      ? ['#e67e22','En riesgo']
-      : ['#c0392b','Vencido'];
+    const estLabel=est==='ok'?'Al día':est==='riesgo'?'En riesgo':'Vencido';
     const diff = a.deuda - (a.acuerdo.monto||0);
     const diffStr = diff>0
       ? '<span style="color:#c0392b;font-size:11px"> (+'+fmt(diff)+')</span>'
       : diff<0
       ? '<span style="color:#27ae60;font-size:11px"> ('+fmt(diff)+')</span>'
       : '';
-    return '<tr>'
+    const grupo = i===0 || data[i-1].carrera!==a.carrera ? '<tr><td colspan="9" class="mini-group-cell"><div class="mini-group">'+miniEsc(a.carrera||'Sin carrera')+' · '+data.filter(x=>x.carrera===a.carrera).length+'</div></td></tr>' : '';
+    return grupo+'<tr>'
       +'<td style="font-weight:600">'+a.nombre+'</td>'
       +'<td>'+a.carrera+'</td>'
       +'<td>'+a.anio+'</td>'
       +'<td>'+fmt(a.acuerdo.monto||0)+'</td>'
       +'<td>'+fmt(a.deuda)+diffStr+'</td>'
-      +'<td style="'+(est==='vencido'?'color:#c0392b;font-weight:600':'')+'">'+( a.acuerdo.fecha||'—')+'</td>'
-      +'<td><span style="background:'+estColor+';color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">'+estLabel+'</span></td>'
+      +'<td style="'+(est==='vencido'?'color:#c0392b;font-weight:600':'')+'">'+miniFechaLimite(a.acuerdo.fecha)+'</td>'
+      +'<td><span class="badge '+(est==='ok'?'pagado':est==='riesgo'?'acuerdo':'debe')+'">'+estLabel+'</span></td>'
       +'<td style="font-size:12px;color:#666;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(a.acuerdo.detalle||'—')+'</td>'
       +'<td style="white-space:nowrap">'
         +'<button class="btn sm" onclick="openEdit('+a.id+')" style="font-size:11px"><i class="ti ti-edit"></i>Editar</button> '
-        +(a.acuerdo.link ? '<button class="btn sm" onclick="window.open(\''+a.acuerdo.link+'\',\'_blank\',\'noopener\')" style="font-size:11px;background:#fff8e1;border-color:#ffc107;color:#856404"><i class="ti ti-file-text" style="margin-right:4px"></i>Compromiso</button> ' : '')
-        +'<button class="btn sm" onclick="abrirHistorialPagos('+a.id+')" style="font-size:11px;background:#f0f0e8"><i class="ti ti-history"></i>Historial</button>'
+        +'<button class="btn sm icon-only" title="Más acciones" aria-label="Más acciones del acuerdo" onclick="miniAcuerdoMenu('+a.id+',this,event)"><i class="ti ti-dots-vertical"></i></button>'
       +'</td>'
       +'</tr>';
   }).join('');
@@ -10742,7 +10766,7 @@ function renderBecas(){
     const [mn,mx]=filPctApl.split('-').map(Number);
     socioData = socioData.filter(b=>(b.pctAplicar||0)>=mn&&(b.pctAplicar||0)<=mx);
   }
-  if(filTipo && filTipo!=='Beca') socioData = [];
+
   if(filEstado){
     socioData = socioData.filter(b=>{
       const ad = alumnos.find(a=>normalizar(a.nombre)===normalizar(b.alumno));
@@ -10750,6 +10774,8 @@ function renderBecas(){
     });
   }
 
+  const _miniSocioCount=socioData.length;
+  if(filTipo && filTipo!=='Beca') socioData=[];
   const tbodySocio = document.getElementById('tbody-becas-socio');
   if(tbodySocio){
     if(!socioData.length){
@@ -10816,6 +10842,10 @@ function renderBecas(){
   // Tabla hijos de prof
   let hijosData = HIJOS_PROF;
   if(search) hijosData = hijosData.filter(h=>normalizar(h.hijo).includes(search)||normalizar(h.profesor).includes(search));
+  miniChips('beca-chips','beca-fil-tipo',[
+    ['', 'Todas', _miniSocioCount+hijosData.length], ['Beca','Socioeconómica',_miniSocioCount], ['Hijo prof.','Hijo/a de profesor',hijosData.length]
+  ],renderBecas);
+  document.getElementById('beca-count').textContent=BECAS_SOCIO.length+HIJOS_PROF.length;
   if(filTipo && filTipo!=='Hijo prof.') hijosData = [];
 
   const tbodyHijos = document.getElementById('tbody-hijos-prof');
@@ -15751,12 +15781,12 @@ function mostrarPPError(msg){
 <!-- ══════════════════════════════════════════════════════════════
      TAB ASISTENCIAS
      ══════════════════════════════════════════════════════════════ -->
-<div id="tab-asistencias" style="display:none;padding:16px;max-width:1200px;margin:0 auto">
+<div id="tab-asistencias" style="display:none">
 
   <!-- Encabezado -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+  <div class="page-head">
     <div>
-      <h2 style="margin:0;font-size:17px;color:#1a1a2e"><i class="ti ti-checklist"></i>Asistencias</h2>
+      <h2 class="page-title"><i class="ti ti-checklist"></i>Asistencias <span id="asist-count" class="page-count"></span></h2>
       <p style="font-size:12px;color:#888;margin:4px 0 0">Registrá la asistencia mensual de cada alumno por materia.</p>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -15779,7 +15809,7 @@ function mostrarPPError(msg){
 
   <!-- Panel selector de alumno -->
   <div style="background:#fff;border:1px solid #e8e8e0;border-radius:10px;padding:16px;margin-bottom:16px">
-    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end;flex-wrap:wrap" id="asist-selector-grid">
+    <div class="controls" id="asist-selector-grid">
       <div>
         <label style="font-size:11px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Alumno</label>
         <input type="text" id="asist-search-alumno" placeholder="Buscar alumno..." oninput="asistFiltrarAlumnos()"
@@ -15789,8 +15819,9 @@ function mostrarPPError(msg){
       </div>
       <div>
         <label style="font-size:11px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Período</label>
-        <input type="text" id="asist-periodo" placeholder="Ej: Mayo 2026"
-          style="width:100%;height:36px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px">
+        <input type="hidden" id="asist-periodo">
+        <input type="month" id="asist-mes" aria-label="Mes y año" onchange="miniAsistMesChanged()">
+        <small id="asist-periodo-legacy" style="display:none"></small>
       </div>
       <button class="btn primary" onclick="asistCargarAlumno()" style="height:36px">Cargar materias</button>
     </div>
@@ -18010,7 +18041,7 @@ async function asistInit(){
     'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const hoy = new Date();
   const periodoActual = meses[hoy.getMonth()] + ' ' + hoy.getFullYear();
-  document.getElementById('asist-periodo').value = periodoActual;
+  miniAsistSetPeriodo(periodoActual);
   asistRenderPreview();
 }
 
@@ -18021,6 +18052,7 @@ function asistRenderPreview(){
   const sel  = document.getElementById('asist-preview-periodo');
   if(!wrap || !grid || !sel) return;
 
+  document.getElementById('asist-count').textContent=_asistData.length;
   if(!_asistData.length){ wrap.style.display='none'; return; }
   wrap.style.display = 'block';
 
@@ -18043,14 +18075,15 @@ function asistRenderPreview(){
   document.getElementById('asist-preview-titulo').textContent = `Registros — ${periodoFil}`;
 
   const registros = _asistData.filter(r=>r.periodo===periodoFil)
-    .sort((a,b)=>a.alumno.localeCompare(b.alumno));
+    .sort((a,b)=>(a.carrera||'').localeCompare(b.carrera||'') || a.alumno.localeCompare(b.alumno));
 
   if(!registros.length){
     grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:24px;color:#aaa;font-size:13px">No hay registros para ${periodoFil}.</div>`;
     return;
   }
 
-  grid.innerHTML = registros.map(r=>{
+  grid.innerHTML = registros.map((r,i)=>{
+    const group=i===0||registros[i-1].carrera!==r.carrera ? miniGroup(r.carrera,registros.filter(x=>x.carrera===r.carrera).length) : '';
     let totalD=0, totalA=0;
     r.materias.forEach(m=>{ totalD+=parseFloat(m.clasesDadas)||0; totalA+=parseFloat(m.clasesAsistidas)||0; });
     const pct = totalD>0?(totalA/totalD*100):null;
@@ -18063,7 +18096,7 @@ function asistRenderPreview(){
     const mesesBadge = todosLosMeses.length > 1
       ? `<span style="font-size:10px;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:8px;font-weight:600">${todosLosMeses.length} meses</span>`
       : '';
-    return `<div style="background:#fff;border:1px solid #e8e8e0;border-radius:10px;padding:12px 14px;cursor:pointer;transition:box-shadow .15s"
+    return group+`<div style="background:#fff;border:1px solid #e8e8e0;border-radius:10px;padding:12px 14px;cursor:pointer;transition:box-shadow .15s"
       onclick="asistCargarRegistro('${r.id}')"
       onmouseenter="this.style.boxShadow='0 2px 10px rgba(0,0,0,.08)'"
       onmouseleave="this.style.boxShadow='none'">
@@ -18146,19 +18179,20 @@ function asistCargarAlumno(){
     if(!_asistAlumno){ showToast('Seleccioná un alumno primero','error'); return; }
   }
   const periodo = document.getElementById('asist-periodo').value.trim();
-  if(!periodo){ showToast('Ingresá un período (ej: Mayo 2026)','error'); return; }
+  if(!periodo){ showToast('Seleccioná un mes y año','error'); return; }
 
   _asistCarrera = _asistAlumno.carrera;
   const anio    = _asistAlumno.anio;
 
   // Buscar registros previos del alumno (excluyendo el período actual)
   const regsPrevios = _asistData
-    .filter(r => r.alumnoId === _asistAlumno.id && r.periodo !== periodo)
+    .filter(r => r.alumnoId === _asistAlumno.id && miniPeriodoKey(r.periodo) !== miniPeriodoKey(periodo))
     .sort((a,b) => b.fecha.localeCompare(a.fecha));
 
   // ¿Existe ya un registro para este período exacto?
-  const regActual = _asistData.find(r => r.alumnoId === _asistAlumno.id && r.periodo === periodo);
+  const regActual = _asistData.find(r => r.alumnoId === _asistAlumno.id && miniPeriodoKey(r.periodo) === miniPeriodoKey(periodo));
 
+  _miniAsistEditingId=regActual?.id||null;
   if(regActual){
     // Cargar el registro existente directamente
     _asistMaterias = regActual.materias.map(m=>({...m}));
@@ -18214,7 +18248,7 @@ function asistCopiarMesAnterior(){
 
   // Registros previos del alumno ordenados por fecha desc, excluir período actual
   const regsPrevios = _asistData
-    .filter(r => r.alumnoId === _asistAlumno.id && r.periodo !== periodo)
+    .filter(r => r.alumnoId === _asistAlumno.id && miniPeriodoKey(r.periodo) !== miniPeriodoKey(periodo))
     .sort((a,b) => b.fecha.localeCompare(a.fecha));
 
   if(!regsPrevios.length){
@@ -18394,13 +18428,17 @@ async function asistGuardar(){
   };
 
   // Reemplazar si ya existe uno del mismo alumno + período
-  const idx = _asistData.findIndex(r=>r.alumnoId===registro.alumnoId && r.periodo===registro.periodo);
+  const samePeriod=r=>r.alumnoId===registro.alumnoId && miniPeriodoKey(r.periodo)===miniPeriodoKey(registro.periodo);
+  let idx=_asistData.findIndex(r=>r.id===_miniAsistEditingId && samePeriod(r));
+  if(idx<0)idx=_asistData.findIndex(samePeriod);
   if(idx >= 0){
     if(!confirm(`Ya existe un registro de ${_asistAlumno.nombre} para ${periodo}. ¿Reemplazarlo?`)) return;
+    registro.id=_asistData[idx].id;
     _asistData[idx] = registro;
   } else {
     _asistData.push(registro);
   }
+  _miniAsistEditingId=registro.id;
   await asistSave();
   showToast('Registro guardado');
   asistRenderPreview();
@@ -18409,6 +18447,8 @@ async function asistGuardar(){
 // ── Ver registros ─────────────────────────────────────────────
 function asistVerRegistros(){
   if(!_asistData.length){
+    document.getElementById('modal-asist-reg-body').replaceChildren();
+    document.getElementById('modal-asist-registros').style.display='none';
     showToast('No hay registros guardados todavía','error'); return;
   }
   const body = document.getElementById('modal-asist-reg-body');
@@ -18428,10 +18468,11 @@ function asistVerRegistros(){
   });
 
   // Ordenar alumnos por nombre, y los meses de cada alumno cronológicamente
-  const alumnosOrdenados = Object.values(grupos).sort((a,b)=>a.alumno.localeCompare(b.alumno));
+  const alumnosOrdenados = Object.values(grupos).sort((a,b)=>(a.carrera||'').localeCompare(b.carrera||'') || a.alumno.localeCompare(b.alumno));
   alumnosOrdenados.forEach(g=>{ g.regs.sort((a,b)=>periodoToNum(a.periodo)-periodoToNum(b.periodo)); });
 
-  body.innerHTML = alumnosOrdenados.map(g=>{
+  body.innerHTML = alumnosOrdenados.map((g,i)=>{
+    const group=i===0||alumnosOrdenados[i-1].carrera!==g.carrera ? miniGroup(g.carrera,alumnosOrdenados.filter(x=>x.carrera===g.carrera).length) : '';
     // Calcular totales combinados de todos los meses
     let totalDGlobal=0, totalAGlobal=0;
     g.regs.forEach(r=>r.materias.forEach(m=>{
@@ -18465,7 +18506,7 @@ function asistVerRegistros(){
 
     const uid = 'det_' + g.alumnoId;
 
-    return `<div style="border:1px solid #e8e8e0;border-radius:10px;padding:12px 14px;margin-bottom:10px">
+    return group+`<div style="border:1px solid #e8e8e0;border-radius:10px;padding:12px 14px;margin-bottom:10px">
       <!-- Fila principal del alumno -->
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div style="flex:1;min-width:0">
@@ -18501,10 +18542,11 @@ function asistCargarRegistro(id){
   const r = _asistData.find(x=>x.id===id);
   if(!r) return;
   _asistAlumno = alumnos.find(a=>a.id===r.alumnoId) || { id:r.alumnoId, nombre:r.alumno, carrera:r.carrera, anio:r.anio };
+  _miniAsistEditingId=r.id;
   _asistCarrera = r.carrera;
   _asistMaterias = r.materias.map(m=>({...m}));
   document.getElementById('asist-search-alumno').value = r.alumno;
-  document.getElementById('asist-periodo').value = r.periodo;
+  miniAsistSetPeriodo(r.periodo);
   document.getElementById('asist-alumno-info').style.display = 'block';
   document.getElementById('asist-alumno-info').innerHTML =
     `<strong>${r.alumno}</strong> · ${r.carrera} ${r.anio} · Período: <strong>${r.periodo}</strong>`;
