@@ -1514,9 +1514,22 @@ img, svg{max-width:100%}
 
   <!-- TAB ALUMNOS INACTIVOS -->
   <div id="tab-inactivos" style="display:none">
-  <div class="page-head"><h2 class="page-title"><i class="ti ti-user-off"></i>Alumnos inactivos</h2></div>
-    <div class="info-box" style="margin-bottom:12px">
-      <strong>Alumnos Inactivos</strong>: alumnos que se dieron de baja. Podés registrar pagos de deuda pendiente, agregar observaciones o reactivarlos si vuelven a inscribirse.
+    <div class="page-head">
+      <h2 class="page-title" title="Alumnos que se dieron de baja. Podés registrar pagos de deuda pendiente, agregar observaciones o reactivarlos si vuelven a inscribirse."><i class="ti ti-user-off"></i>Alumnos inactivos <span class="page-count" id="inac-count"></span></h2>
+      <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-inac-impexp')" onmouseleave="ddHide('dd-inac-impexp')">
+        <button class="btn"><i class="ti ti-arrows-exchange"></i>Importar / Exportar ▾</button>
+        <div class="tab-dropdown" id="dd-inac-impexp" style="left:auto;right:0">
+          <div class="dd-sec">Importar</div>
+          <button class="dd-item" onclick="openImportInactivosModal();ddHide('dd-inac-impexp')"><i class="ti ti-file-spreadsheet"></i>Excel de inactivos</button>
+          <div class="dd-sep"></div>
+          <div class="dd-sec">Exportar</div>
+          <button class="dd-item" onclick="exportarInactivosXLSX();ddHide('dd-inac-impexp')" title="Exportar inactivos para hoja Deuda todos alumnos"><i class="ti ti-file-spreadsheet"></i>Excel (Deuda todos alumnos)</button>
+          <div class="dd-sep"></div>
+          <div class="dd-sec">Limpieza</div>
+          <button class="dd-item" onclick="detectarInactivosDuplicados();ddHide('dd-inac-impexp')" title="Buscar alumnos inactivos cargados más de una vez (por nombre similar)"><i class="ti ti-copy"></i>Detectar duplicados</button>
+          <button class="dd-item danger" onclick="inacBulkEliminarFiltrados();ddHide('dd-inac-impexp')" title="Eliminar todos los inactivos actualmente visibles según filtros"><i class="ti ti-trash"></i>Eliminar filtrados</button>
+        </div>
+      </div>
     </div>
     <div class="controls">
       <input type="text" id="inac-search" placeholder="Buscar alumno..." oninput="renderInactivos()">
@@ -1530,25 +1543,15 @@ img, svg{max-width:100%}
         <option value="3°">3°</option>
         <option value="4°">4°</option>
       </select>
-      <select id="inac-deuda" onchange="renderInactivos()">
+      <select id="inac-deuda" onchange="renderInactivos()" style="display:none" aria-hidden="true" tabindex="-1">
         <option value="">Todos</option>
         <option value="con">Con deuda</option>
         <option value="sin">Sin deuda</option>
       </select>
       <button class="btn" onclick="clearInactivosFilters()"><i class="ti ti-x"></i>Limpiar</button>
-      <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-inac-impexp')" onmouseleave="ddHide('dd-inac-impexp')">
-        <button class="btn"><i class="ti ti-arrows-exchange"></i>Importar / Exportar ▾</button>
-        <div class="tab-dropdown" id="dd-inac-impexp">
-          <div class="dd-sec">Importar</div>
-          <button class="dd-item" onclick="openImportInactivosModal();ddHide('dd-inac-impexp')"><i class="ti ti-file-spreadsheet"></i>Excel de inactivos</button>
-          <div class="dd-sep"></div>
-          <div class="dd-sec">Exportar</div>
-          <button class="dd-item" onclick="exportarInactivosXLSX();ddHide('dd-inac-impexp')" title="Exportar inactivos para hoja Deuda todos alumnos"><i class="ti ti-file-spreadsheet"></i>Excel (Deuda todos alumnos)</button>
-        </div>
-      </div>
-      <button class="btn warn" onclick="inacBulkEliminarFiltrados()" title="Eliminar todos los inactivos actualmente visibles según filtros"><i class="ti ti-trash"></i>Eliminar filtrados</button>
-      <button class="btn" onclick="detectarInactivosDuplicados()" title="Buscar alumnos inactivos cargados más de una vez (por nombre similar)" style="background:#fff4e5;border-color:#f0c98c;color:#8a5a00"><i class="ti ti-copy"></i>Detectar duplicados</button>
     </div>
+
+    <div class="estado-chips" id="inac-chips"></div>
 
     <!-- Bulk action bar para inactivos -->
     <div class="inac-bulk-bar" id="inac-bulk-bar">
@@ -1566,11 +1569,11 @@ img, svg{max-width:100%}
             <th onclick="inacSort('nombre')" style="cursor:pointer;user-select:none">Alumno <span id="inac-sort-nombre"></span></th>
             <th onclick="inacSort('carrera')" style="cursor:pointer;user-select:none">Carrera <span id="inac-sort-carrera"></span></th>
             <th onclick="inacSort('anio')" style="cursor:pointer;user-select:none">Año <span id="inac-sort-anio"></span></th>
-            <th onclick="inacSort('deuda')" style="cursor:pointer;user-select:none">Deuda pendiente <span id="inac-sort-deuda"></span></th>
-            <th>Conceptos</th>
+            <th>Estado</th>
+            <th onclick="inacSort('deuda')" style="cursor:pointer;user-select:none">Deuda <span id="inac-sort-deuda"></span></th>
             <th onclick="inacSort('fechaBaja')" style="cursor:pointer;user-select:none">Fecha de baja <span id="inac-sort-fechaBaja"></span></th>
             <th>Observaciones</th>
-            <th>Acciones</th>
+            <th style="text-align:right">Acciones</th>
           </tr>
         </thead>
         <tbody id="tbody-inactivos"></tbody>
@@ -6080,11 +6083,11 @@ function inacSort(field){
   renderInactivos();
 }
 
-function getInactivosFiltrados(){
+function getInactivosFiltrados(deudaOverride){
   const q = normalizar(document.getElementById('inac-search').value);
   const car = document.getElementById('inac-carrera').value;
   const anio = document.getElementById('inac-anio').value;
-  const deuda = document.getElementById('inac-deuda').value;
+  const deuda = (deudaOverride!==undefined) ? deudaOverride : document.getElementById('inac-deuda').value;
   const carreraOrden = {'Psicopedagogía':1,'Inglés':2,'Trabajo Social':3,'Escena del Crimen':4,'Educación Física':5,'Matemática':6,'Enfermería':7};
   const anioOrden = {'1°':1,'2°':2,'3°':3,'4°':4};
   const lista = alumnos.filter(a=>{
@@ -6204,6 +6207,22 @@ function inacBulkEliminarFiltrados(){
   save(); renderStats(); renderInactivosStats(); renderInactivos();
 }
 
+const INAC_CHIPS = [['','Todos'],['con','Con deuda'],['sin','Sin deuda']];
+function renderInactivosChips(){
+  const box = document.getElementById('inac-chips');
+  if(!box) return;
+  const actual = document.getElementById('inac-deuda').value;
+  box.innerHTML = INAC_CHIPS.map(([val,label])=>{
+    const n = getInactivosFiltrados(val).length;
+    return `<button type="button" class="estado-chip${actual===val?' active':''}" onclick="setInacDeudaFiltro('${val}')">${label}<span class="n">${n}</span></button>`;
+  }).join('');
+}
+function setInacDeudaFiltro(val){
+  document.getElementById('inac-deuda').value = val;
+  inacPage = 1;
+  renderInactivos();
+}
+
 function renderInactivos(){
   inacFiltered = getInactivosFiltrados();
   const total = inacFiltered.length;
@@ -6213,27 +6232,49 @@ function renderInactivos(){
   document.getElementById('inac-pager-info').textContent = `${total} alumnos · Página ${inacPage} de ${pages}`;
   document.getElementById('inac-btn-prev').disabled = inacPage===1;
   document.getElementById('inac-btn-next').disabled = inacPage>=pages;
+  const _ic = document.getElementById('inac-count'); if(_ic) _ic.textContent = total;
+  renderInactivosChips();
 
-  document.getElementById('tbody-inactivos').innerHTML = slice.map(a=>{
+  const agrupar = inacSortField==='carrera'; // separadores por carrera/año solo si el orden es por carrera
+  const esc = t => String(t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+
+  if(!slice.length){
+    document.getElementById('tbody-inactivos').innerHTML = '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">No hay alumnos inactivos que coincidan con los filtros</td></tr>';
+    inacUpdateBulkBar();
+    return;
+  }
+
+  document.getElementById('tbody-inactivos').innerHTML = slice.map((a, i)=>{
+    const globalIdx = (inacPage-1)*PER_PAGE + i;
+    const prev = globalIdx > 0 ? inacFiltered[globalIdx-1] : null;
+    const carreraLbl = a.carrera || 'Sin asignar';
     const pendientes = (a.conceptos||[]).filter(c=>!c.pagado);
-    const tagsHtml = pendientes.length>0
-      ? pendientes.map(c=>`<span class="concepto-tag ${conceptoClass(c.tipo)}">${conceptoLabel(c)}</span>`).join('')
-      : `<span style="color:#aaa;font-size:12px">—</span>`;
+    const tagsHtml = pendientes.map(c=>`<span class="concepto-tag ${conceptoClass(c.tipo)}">${conceptoLabel(c)}</span>`).join('');
+    const deudaHtml = a.deuda>0
+      ? `<div class="monto-deuda">${fmt(a.deuda)}</div><div class="deuda-conceptos">${tagsHtml}</div>`
+      : `<div class="monto-ok">—</div><div class="deuda-conceptos"><span style="color:#27ae60;font-size:12px;font-weight:500"><i class="ti ti-check" style="margin:0 2px 0 0"></i>Sin deuda</span></div>`;
     const isChecked = inacSelected.has(a.id);
-    return `<tr style="${isChecked?'background:#fff0f0':''}" id="inac-row-${a.id}">
-      <td style="text-align:center"><input type="checkbox" class="inac-row-chk" data-id="${a.id}" ${isChecked?'checked':''} onchange="inacToggleRow(${a.id},this.checked)"></td>
+
+    const newCarrera = !prev || prev.carrera !== a.carrera;
+    const newAnio    = !newCarrera && prev && prev.anio !== a.anio;
+    const sepCarrera = (agrupar && newCarrera) ? `<tr><td colspan="9" style="padding:0;border:none"><div style="background:#1a1a2e;color:#fff;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:7px 14px;margin-top:${globalIdx===0?'0':'8px'}">${carreraLbl}</div></td></tr>` : '';
+    const sepAnio    = (agrupar && newAnio)    ? `<tr><td colspan="9" style="padding:0;border:none"><div style="background:#f0f4f8;color:#555;font-size:11px;font-weight:600;padding:4px 16px;border-left:3px solid #1a1a2e">${a.anio||'Sin año'} año</div></td></tr>` : '';
+
+    const row = `<tr style="${isChecked?'background:#fff0f0':''}" id="inac-row-${a.id}">
+      <td><input type="checkbox" class="inac-row-chk" data-id="${a.id}" ${isChecked?'checked':''} onchange="inacToggleRow(${a.id},this.checked)"></td>
       <td style="font-weight:500">${a.nombre}</td>
-      <td style="color:${a.carrera?'#555':'#c0392b'}">${a.carrera||'Sin asignar'}</td>
+      <td style="color:${a.carrera?'#555':'#c0392b'}">${carreraLbl}</td>
       <td style="color:#555">${a.anio||'—'}</td>
-      <td class="${a.deuda>0?'monto-deuda':'monto-ok'}">${a.deuda>0?fmt(a.deuda):'—'}</td>
-      <td style="max-width:220px">${tagsHtml}</td>
-      <td style="color:#888;font-size:12px">${a.fechaBaja||'—'}</td>
-      <td class="obs-txt-cell">${a.observaciones?`<span class="obs-txt" title="${String(a.observaciones).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}" onclick="editarObsInactivo(${a.id})">${String(a.observaciones).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span>`:`<span class="obs-txt" style="color:#bbb" onclick="editarObsInactivo(${a.id})">—</span>`}</td>
+      <td><span class="badge baja">Baja</span></td>
+      <td style="max-width:240px">${deudaHtml}</td>
+      <td style="color:#555">${a.fechaBaja||'—'}</td>
+      <td class="obs-txt-cell">${a.observaciones?`<span class="obs-txt" title="${esc(a.observaciones)}" onclick="editarObsInactivo(${a.id})">${esc(a.observaciones).replace(/&quot;/g,'"')}</span>`:''}</td>
       <td style="white-space:nowrap;text-align:right">
         <button class="btn success sm" onclick="openReactivar(${a.id})"><i class="ti ti-refresh"></i>Reactivar</button>
         <button type="button" class="btn sm icon-only" onclick="abrirMenuInactivo(${a.id},this,event)" title="Más acciones" aria-label="Más acciones"><i class="ti ti-dots-vertical"></i></button>
       </td>
     </tr>`;
+    return sepCarrera + sepAnio + row;
   }).join('');
   inacUpdateBulkBar();
 }
