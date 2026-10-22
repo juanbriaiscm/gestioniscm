@@ -1370,6 +1370,12 @@ img, svg{max-width:100%}
 #sub-bonos-profes .ui-bonos-table .bp-name{white-space:normal;overflow-wrap:anywhere}#sub-bonos-profes .ui-bonos-table .bp-note{overflow-wrap:anywhere}.bp-bonos{min-width:0}
 @media(max-width:700px){.desk-beca-dl{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
+<style>/* Los contadores siguen usando las tarjetas existentes. */
+.flow-stat-link{cursor:pointer;transition:border-color .12s,box-shadow .12s}.flow-stat-link:hover{border-color:#bdbdaf;box-shadow:0 2px 7px #0000000b}.flow-stat-link:focus-visible{outline:2px solid #4b3fb0;outline-offset:2px}
+.flow-fixed-header{position:fixed;z-index:150;overflow:hidden;background:#f8f8f4;border-bottom:1px solid #d8d8d0;box-shadow:0 3px 8px #00000012;contain:layout paint}
+.flow-fixed-header table{background:#fff}.flow-fixed-header th{height:auto}.flow-fixed-header button{font-family:inherit}.flow-fixed-header input[type="checkbox"]{cursor:pointer}
+@media print{.flow-fixed-header{display:none!important}}
+</style>
 </head>
 <body data-tab="dashboard">
 
@@ -4592,6 +4598,8 @@ function renderStats(){
       ${acuerdos.length>0?`<div class="stats-secondary-item"><span class="lbl">Acuerdos activos</span><span class="val" style="color:#856404">${acuerdos.length}</span></div>`:''}
     `;
   }
+  flowMarkStats('stats-row',[{index:0,tab:'alumnos',value:'',label:'Ver todos los alumnos actuales'},{index:1,tab:'alumnos',value:'Al día',label:'Ver alumnos al día'},{index:2,tab:'alumnos',value:'Debe',label:'Ver alumnos con deuda'}]);
+
 }
 function renderTable(){
   filtered = getFiltered();
@@ -4599,9 +4607,9 @@ function renderTable(){
   const pages = Math.ceil(total/PER_PAGE)||1;
   if(page>pages) page=1;
   const slice = filtered.slice((page-1)*PER_PAGE, page*PER_PAGE);
-  document.getElementById('pager-info').textContent = `${total} alumnos · Página ${page} de ${pages}`;
+  document.getElementById('pager-info').textContent = `${total} de ${flowStudentTotal()} alumnos · Página ${page} de ${pages}`;
   renderEstadoChips();
-  const _ac=document.getElementById('alu-count'); if(_ac) _ac.textContent=total;
+  const _ac=document.getElementById('alu-count'); if(_ac) _ac.textContent=total+' de '+flowStudentTotal();
   document.getElementById('btn-prev').disabled = page===1;
   document.getElementById('btn-next').disabled = page>=pages;
   const selCount = selected.size;
@@ -4707,6 +4715,167 @@ function deskBecaDetailRow(b,idx){
   return '<tr class="desk-beca-detail" id="desk-beca-detail-'+idx+'" hidden><td colspan="'+(_deskBecaView==='compacta'?9:18)+'"><div class="desk-beca-detail-head"><strong>'+miniEsc(b.alumno)+'</strong><button type="button" class="btn sm" onclick="editarBecaSocio('+idx+')">Editar beca</button></div><dl class="desk-beca-dl">'+fields.map(([label,value])=>'<div><dt>'+label+'</dt><dd>'+miniEsc(value===0?0:(value||'—'))+'</dd></div>').join('')+'</dl></td></tr>';
 }
 
+// Navegación de consulta: memoria de sesión, sin persistir formularios ni datos.
+const _flowListTabs=new Set(['alumnos','inactivos','becas','proveedores','bonos','debitos','presupuestos','acuerdos','resumen','aranceles','cobranza','caja','archivos','asistencias']);
+let _flowContexts=new Map(),_flowRestoreSerial=0,_flowRestoreCleanup=null,_flowActiveObserver=null,_flowStickyFrame=0,_flowStickyCache=null,_flowStarted=false,_flowModalObserver=null;
+function flowFilterFields(tab){
+  const root=document.getElementById('tab-'+tab);if(!root)return [];
+  const names={alumnos:/^(search|fil-.*)$/,inactivos:/^inac-(search|carrera|anio|deuda)$/,becas:/^beca-(search|fil-.*)$/,proveedores:/^prov-(search|fil-.*)$/,bonos:/^(bonos-(search|fil-rindio)|bp-(q|filter))$/,debitos:/^deb-(search|fil-.*)$/,presupuestos:/^presup-(buscar|filtro-estado)$/,acuerdos:/^acuerdos-(search|fil-.*)$/,aranceles:/^becados-(search|fil-carrera)$/,archivos:/^arch-search$/,asistencias:/^asist-preview-periodo$/};
+  return names[tab]?[...root.querySelectorAll('input[id],select[id]')].filter(e=>names[tab].test(e.id)):[];
+}
+function flowScrollBoxes(tab){
+  const root=document.getElementById('tab-'+tab);if(!root)return [];
+  return [...root.querySelectorAll('.table-wrap, [style*="overflow"]')].filter(e=>e.querySelector('table')&&e.getClientRects().length);
+}
+function flowQueryMeta(tab){
+  if(tab==='alumnos')return {page,verFuturos};
+  if(tab==='inactivos')return {page:inacPage,sort:inacSortField,dir:inacSortDir};
+  if(tab==='proveedores')return {page:provPage,ocultas:provMostrarOcultos};
+  return null;
+}
+function flowApplyMeta(tab,meta){
+  if(!meta)return;
+  if(tab==='alumnos'){page=meta.page;verFuturos=meta.verFuturos;}
+  if(tab==='inactivos'){
+    inacPage=meta.page;inacSortField=meta.sort;inacSortDir=meta.dir;
+    ['nombre','carrera','anio','deuda','fechaBaja'].forEach(field=>{const el=document.getElementById('inac-sort-'+field);if(el)el.textContent=field===meta.sort?(meta.dir===1?' ▲':' ▼'):'';});
+  }
+  if(tab==='proveedores'){provPage=meta.page;provMostrarOcultos=meta.ocultas;}
+}
+function flowBoxKey(e,index){const table=e.querySelector('table');return e.id||table?.id||table?.querySelector('tbody[id]')?.id||'box-'+index;}
+function flowBeforeSwitch(next){
+  if(_flowRestoreCleanup)_flowRestoreCleanup();
+  const old=typeof tabActual==='string'?tabActual:document.body.dataset.tab;
+  const same=old===next;
+  if(_flowListTabs.has(old)&&!same){
+    const values={};flowFilterFields(old).forEach(e=>values[e.id]=e.value);
+    _flowContexts.set(old,{values,meta:flowQueryMeta(old),y:window.scrollY,boxes:flowScrollBoxes(old).map((e,i)=>({key:flowBoxKey(e,i),x:e.scrollLeft,y:e.scrollTop}))});
+  }
+  const state=!same?_flowContexts.get(next):null;
+  if(state)for(const [id,value] of Object.entries(state.values)){
+    const e=document.getElementById(id);if(!e)continue;
+    if(e.tagName!=='SELECT'||[...e.options].some(o=>o.value===value))e.value=value;
+  }
+  if(state)flowApplyMeta(next,state.meta);
+  _flowRestoreSerial++;
+  return {state,same,serial:_flowRestoreSerial};
+}
+function flowAfterSwitch(tab,request){
+  flowWatchTab(tab);
+  if(!request||request.same)return;
+  const serial=request.serial,state=request.state;
+  const restore=()=>{
+    if(serial!==_flowRestoreSerial||document.body.dataset.tab!==tab)return;
+    window.scrollTo(0,state?.y||0);
+    if(state){const boxes=flowScrollBoxes(tab);for(const pos of state.boxes){const e=boxes.find((box,i)=>flowBoxKey(box,i)===pos.key);if(e){e.scrollLeft=pos.x;e.scrollTop=pos.y;}}}
+    flowScheduleSticky();
+  };
+  requestAnimationFrame(()=>requestAnimationFrame(restore));
+  const root=document.getElementById('tab-'+tab);if(!state||!root)return;
+  let frame=0;
+  const observer=new MutationObserver(()=>{if(frame)cancelAnimationFrame(frame);frame=requestAnimationFrame(restore);});
+  observer.observe(root,{childList:true,subtree:true});
+  const stop=event=>{if(event&&serial===_flowRestoreSerial)++_flowRestoreSerial;observer.disconnect();if(frame)cancelAnimationFrame(frame);clearTimeout(timer);['wheel','pointerdown','keydown','touchstart'].forEach(type=>document.removeEventListener(type,stop,true));if(_flowRestoreCleanup===stop)_flowRestoreCleanup=null;};
+  const timer=setTimeout(stop,3500);['wheel','pointerdown','keydown','touchstart'].forEach(type=>document.addEventListener(type,stop,{capture:true,passive:true}));_flowRestoreCleanup=stop;
+}
+function flowFocusResults(tab){
+  ++_flowRestoreSerial;if(_flowRestoreCleanup)_flowRestoreCleanup();
+  requestAnimationFrame(()=>{const root=document.getElementById('tab-'+tab);if(root)(root.querySelector('.controls')||root).scrollIntoView({block:'start',behavior:'auto'});flowScheduleSticky();});
+}
+function flowMarkStats(id,actions){
+  const root=document.getElementById(id);if(!root)return;
+  const cards=root.querySelectorAll(':scope > .stat, :scope > .pp-kpi');
+  actions.forEach(({index,tab,value,label})=>{const card=cards[index];if(!card)return;card.classList.add('flow-stat-link');card.tabIndex=0;card.setAttribute('role','button');card.title=label;card.setAttribute('aria-label',label);card.onclick=()=>flowPending(tab,value);card.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();card.click();}};});
+}
+function flowPending(tab,value){
+  const target=tab==='bonos-profes'?'bonos':tab;switchTab(target,document.getElementById('nav-dd-'+target));
+  if(tab==='alumnos'){
+    verFuturos=false;clearFilters();document.getElementById('fil-estado').value=value;page=1;renderStats();renderTable();
+  }else if(tab==='inactivos'){
+    clearInactivosFilters();document.getElementById('inac-deuda').value=value;inacPage=1;renderInactivos();
+  }else if(tab==='proveedores'){
+    provMostrarOcultos=false;document.getElementById('prov-search').value='';document.getElementById('prov-fil-factura').value='';document.getElementById('prov-fil-pagado').value=value;provPage=1;renderProveedores();
+  }else if(tab==='bonos'){
+    bpSub('alumnos');document.getElementById('bonos-search').value='';document.getElementById('bonos-fil-rindio').value=value;renderBonos();
+  }else if(tab==='bonos-profes'){
+    bpSub('profes');bpFilter(value);
+  }else if(tab==='debitos'){
+    ['deb-search','deb-fil-periodo-mes','deb-fil-periodo-dia','deb-fil-motivo'].forEach(id=>document.getElementById(id).value='');document.getElementById('deb-fil-estado').value=value;debRender();
+  }else if(tab==='presupuestos'){
+    document.getElementById('presup-buscar').value='';document.getElementById('presup-filtro-estado').value=value;presupRenderLista();
+  }
+  flowFocusResults(target);
+}
+function flowStudentTotal(){
+  const state=document.getElementById('fil-estado')?.value;
+  return alumnos.filter(a=>a.estado!=='Baja'&&(verFuturos?esFuturo(a):(!esFuturo(a)||state==='Vacante'||state==='Matrícula'))).length;
+}
+function flowWatchTab(tab){
+  if(_flowActiveObserver)_flowActiveObserver.disconnect();
+  const root=document.getElementById('tab-'+tab);
+  if(root&&_flowListTabs.has(tab)){_flowActiveObserver=new MutationObserver(flowScheduleSticky);_flowActiveObserver.observe(root,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class','style','hidden']});}
+  flowScheduleSticky();
+}
+function flowScheduleSticky(){if(!_flowStickyFrame)_flowStickyFrame=requestAnimationFrame(()=>{_flowStickyFrame=0;flowUpdateSticky();});}
+function flowHideSticky(){document.getElementById('flow-fixed-header')?.remove();_flowStickyCache=null;}
+function flowUpdateSticky(){
+  const login=document.getElementById('login-screen');
+  const tab=document.body.dataset.tab;if((login&&getComputedStyle(login).display!=='none')||!_flowListTabs.has(tab)||document.querySelector('.overlay.open')||document.querySelector('.overlay[style*="display: flex"]')){flowHideSticky();return;}
+  const root=document.getElementById('tab-'+tab);if(!root){flowHideSticky();return;}
+  let chosen=null;
+  for(const table of root.querySelectorAll('table')){
+    if(!table.tHead||!table.getClientRects().length)continue;
+    if(table.tHead.querySelector('select,input:not([type="checkbox"])'))continue;
+    const r=table.getBoundingClientRect(),h=table.tHead.getBoundingClientRect();
+    let vertical=null,parent=table.parentElement;
+    while(parent&&parent!==root.parentElement){
+      const overflow=getComputedStyle(parent).overflowY;
+      if(/auto|scroll/.test(overflow)&&parent.scrollHeight>parent.clientHeight+1){vertical=parent;break;}
+      parent=parent.parentElement;
+    }
+    const vr=vertical?.getBoundingClientRect(),top=Math.max(0,vr?.top||0),bottom=Math.min(r.bottom,vr?.bottom??Infinity);
+    if(h.top<top&&bottom>top+h.height+12&&r.height>h.height+80){chosen={table,r,h,top};break;}
+  }
+  if(!chosen){flowHideSticky();return;}
+  const {table,r,h,top}=chosen,head=table.tHead,clip=table.closest('.table-wrap')||table.parentElement,cr=clip.getBoundingClientRect();
+  const left=Math.max(0,cr.left),right=Math.min(innerWidth,cr.right);if(right<=left){flowHideSticky();return;}
+  const cells=[...head.querySelectorAll('th,td')],widths=cells.map(e=>e.getBoundingClientRect().width),key=head.outerHTML+'|'+widths.join(',');
+  let overlay=document.getElementById('flow-fixed-header');
+  if(!overlay){overlay=document.createElement('div');overlay.id='flow-fixed-header';overlay.className='flow-fixed-header';overlay.setAttribute('aria-hidden','true');overlay.onmousedown=e=>e.preventDefault();document.body.appendChild(overlay);}
+  if(!_flowStickyCache||_flowStickyCache.head!==head||_flowStickyCache.key!==key){
+    const clone=head.cloneNode(true),originalNodes=[head,...head.querySelectorAll('*')],cloneNodes=[clone,...clone.querySelectorAll('*')];
+    cloneNodes.forEach((e,i)=>{
+      const source=originalNodes[i];e._flowSource=source;
+      ['id','onclick','onchange','oninput','onkeydown','name','for'].forEach(attr=>e.removeAttribute(attr));
+      if(e.matches('input,button,a,select,textarea'))e.tabIndex=-1;
+      if(getComputedStyle(source).display==='none')e.style.display='none';
+      if(e.matches('th,td')){
+        const style=getComputedStyle(source);for(const p of ['backgroundColor','color','fontFamily','fontSize','fontWeight','textAlign','verticalAlign','paddingTop','paddingBottom','paddingLeft','paddingRight','borderBottom','borderTop','whiteSpace','letterSpacing','textTransform','display'])e.style[p]=style[p];
+        e.style.boxSizing='border-box';e.style.width=source.getBoundingClientRect().width+'px';e.style.minWidth=e.style.width;e.style.maxWidth=e.style.width;
+      }
+    });
+    const floating=document.createElement('table');floating.style.cssText='border-collapse:collapse;table-layout:fixed;margin:0';floating.appendChild(clone);overlay.replaceChildren(floating);
+    overlay.onclick=e=>{
+      const node=e.target.closest('input,button,a,th,td');if(!node||!node._flowSource)return;e.stopPropagation();
+      if(node.matches('input[type="checkbox"]')){node._flowSource.checked=node.checked;node._flowSource.dispatchEvent(new Event('change',{bubbles:true}));}
+      else {e.preventDefault();node._flowSource.click();}
+      flowScheduleSticky();
+    };
+    _flowStickyCache={head,key,clone};
+  }
+  // Properties such as checked/indeterminate do not appear in outerHTML.
+  const originals=head.querySelectorAll('input[type="checkbox"]'),copies=overlay.querySelectorAll('input[type="checkbox"]');copies.forEach((input,i)=>{input.checked=originals[i].checked;input.indeterminate=originals[i].indeterminate;});
+  const floatTable=overlay.querySelector('table');overlay.style.left=left+'px';overlay.style.top=top+'px';overlay.style.width=(right-left)+'px';overlay.style.height=h.height+'px';floatTable.style.width=r.width+'px';floatTable.style.position='relative';floatTable.style.left=(r.left-left)+'px';
+}
+function flowInit(){
+  if(_flowStarted)return;_flowStarted=true;
+  document.addEventListener('scroll',flowScheduleSticky,{capture:true,passive:true});window.addEventListener('resize',flowScheduleSticky);document.addEventListener('change',flowScheduleSticky);document.addEventListener('input',flowScheduleSticky);document.addEventListener('click',flowScheduleSticky);
+  _flowModalObserver=new MutationObserver(flowScheduleSticky);document.querySelectorAll('.overlay,#login-screen').forEach(el=>_flowModalObserver.observe(el,{attributes:true,attributeFilter:['class','style']}));
+  flowWatchTab(document.body.dataset.tab||'dashboard');
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',flowInit,{once:true});else flowInit();
+function flowClearContext(){_flowContexts.clear();++_flowRestoreSerial;if(_flowRestoreCleanup)_flowRestoreCleanup();if(_flowActiveObserver)_flowActiveObserver.disconnect();flowHideSticky();}
+
 function miniEsc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function miniChips(container,select,items,render){
   const box=document.getElementById(container),sel=document.getElementById(select);
@@ -4802,6 +4971,7 @@ function dashRefrescarSiVisible(){
 }
 
 function switchTab(tab, el){
+  const flowRequest=flowBeforeSwitch(tab);
   tabActual = tab;
   document.body.dataset.tab = tab;
   // Cerrar cualquier dropdown abierto (necesario en móvil / touch)
@@ -4836,6 +5006,7 @@ function switchTab(tab, el){
     const el = document.getElementById('tab-'+t);
     if(el) el.style.display = t===tab?'':'none';
   });
+  if(tab==='alumnos')renderTable();
   if(tab==='dashboard') renderDashboard();
   if(tab==='indicadores'){ dashMesCobranzaSel = null; renderIndicadores(); }
   if(tab==='resumen') renderResumen();
@@ -4861,6 +5032,7 @@ function switchTab(tab, el){
   if(tab==='asistencias') asistInit();
   if(tab==='bonos'){ bonosInit(); if(typeof bpProfesInit==='function') bpProfesInit(); }
   if(tab==='impexp-global'){ ['impexp-export-status','impexp-import-status','impexp-import-preview','impexp-import-error','impexp-import-resultado'].forEach(id=>{const e=document.getElementById(id); if(e){e.style.display='none'; e.textContent='';} }); const bi=document.getElementById('impexp-btn-importar'); if(bi) bi.style.display='none'; const bm=document.getElementById('impexp-btn-mezclar'); if(bm) bm.style.display='none'; const br=document.getElementById('impexp-btn-reintentar-fallidas'); if(br) br.style.display='none'; const nf=document.getElementById('impexp-nombre-archivo'); if(nf) nf.textContent=''; const fi=document.getElementById('impexp-input-file'); if(fi) fi.value=''; window._impExpPendiente = null; window._impExpUltimoResultado = null; }
+  flowAfterSwitch(tab,flowRequest);
 }
 
 const _ddHideTimers = {};
@@ -6265,6 +6437,8 @@ function renderInactivosStats(){
     <div class="stat"><div class="stat-label">Sin deuda</div><div class="stat-value success">${inac.length - conDeuda.length}</div></div>
     <div class="stat"><div class="stat-label">Deuda total bajas</div><div class="stat-value danger">${fmt(totalDeuda)}</div></div>
   `;
+  flowMarkStats('inac-stats-row',[{index:0,tab:'inactivos',value:'',label:'Ver todos los inactivos'},{index:1,tab:'inactivos',value:'con',label:'Ver inactivos con deuda'},{index:2,tab:'inactivos',value:'sin',label:'Ver inactivos sin deuda'},{index:3,tab:'inactivos',value:'con',label:'Ver inactivos con deuda'}]);
+
 }
 
 // ── Selección múltiple inactivos ──────────────────────────────────────────────
@@ -6351,10 +6525,10 @@ function renderInactivos(){
   const pages = Math.ceil(total/PER_PAGE)||1;
   if(inacPage>pages) inacPage=1;
   const slice = inacFiltered.slice((inacPage-1)*PER_PAGE, inacPage*PER_PAGE);
-  document.getElementById('inac-pager-info').textContent = `${total} alumnos · Página ${inacPage} de ${pages}`;
+  document.getElementById('inac-pager-info').textContent = `${total} de ${getInactivosReales().length} alumnos · Página ${inacPage} de ${pages}`;
   document.getElementById('inac-btn-prev').disabled = inacPage===1;
   document.getElementById('inac-btn-next').disabled = inacPage>=pages;
-  const _ic = document.getElementById('inac-count'); if(_ic) _ic.textContent = total;
+  const _ic = document.getElementById('inac-count'); if(_ic) _ic.textContent = total+' de '+getInactivosReales().length;
   renderInactivosChips();
 
   const agrupar = inacSortField==='carrera'; // separadores por carrera/año solo si el orden es por carrera
@@ -8784,8 +8958,8 @@ function renderAcuerdos(){
     ['riesgo','En riesgo',data.filter(a=>estadoAcuerdo(a)==='riesgo').length],
     ['vencido','Vencidos',data.filter(a=>estadoAcuerdo(a)==='vencido').length]
   ], renderAcuerdos);
-  document.getElementById('acuerdos-count').textContent = acuerdos.length;
   if(filEstado) data = data.filter(a=>estadoAcuerdo(a)===filEstado);
+  document.getElementById('acuerdos-count').textContent = data.length+' de '+acuerdos.length;
 
   const statsEl = document.getElementById('acuerdos-stats');
   if(statsEl){
@@ -10932,7 +11106,6 @@ function renderBecas(){
   miniChips('beca-chips','beca-fil-tipo',[
     ['', 'Todas', _miniSocioCount+hijosData.length], ['Beca','Socioeconómica',_miniSocioCount], ['Hijo prof.','Hijo/a de profesor',hijosData.length]
   ],renderBecas);
-  document.getElementById('beca-count').textContent=BECAS_SOCIO.length+HIJOS_PROF.length;
   if(filTipo && filTipo!=='Hijo prof.') hijosData = [];
 
   const tbodyHijos = document.getElementById('tbody-hijos-prof');
@@ -10960,6 +11133,7 @@ function renderBecas(){
       }).join('');
     }
   }
+  document.getElementById('beca-count').textContent=(socioData.length+hijosData.length)+' de '+(BECAS_SOCIO.length+HIJOS_PROF.length);
   becaActualizarBulkBar();
   deskApplyBecaView();
 }
@@ -11688,7 +11862,7 @@ function getProvFiltered(pagoOverride){
 
     // Filtros de pagado / factura
     if(fp==='ESP'){ if(!p.esperando) return false; }
-    else if(fp){ if(p.esperando || p.pagado !== fp) return false; }
+    else if(fp){ if(p.esperando || (fp==='NO' ? p.pagado==='SI' : p.pagado!==fp)) return false; }
     if(ff && p.facturaEnviada !== ff) return false;
 
     // Búsqueda de texto (nombre, N° factura, observaciones, monto)
@@ -11724,6 +11898,8 @@ function renderProvStats(){
     <div class="stat" title="No incluye las filas en Esperando factura"><div class="stat-label">Monto pendiente · sin espera</div><div class="stat-value danger">${provFmt(montoPend)}</div></div>
     ${nOcultos>0 ? `<div class="stat"><div class="stat-label">Filas ocultas</div><div class="stat-value" style="color:#888">${nOcultos}</div></div>` : ''}
   `;
+  flowMarkStats('prov-stats-row',[{index:1,tab:'proveedores',value:'NO',label:'Ver facturas pendientes de pago'}]);
+
 }
 
 function renderProveedores(){
@@ -11732,9 +11908,10 @@ function renderProveedores(){
   const base=getProvFiltered('');
   miniChips('ui-prov-chips','prov-fil-pagado',[
     ['','Todos',base.length], ['SI','Pagados',base.filter(p=>!p.esperando&&p.pagado==='SI').length],
-    ['NO','Pendientes',base.filter(p=>!p.esperando&&p.pagado==='NO').length], ['ESP','Esperando factura',base.filter(p=>p.esperando).length]
+    ['NO','Pendientes',base.filter(p=>!p.esperando&&p.pagado!=='SI').length], ['ESP','Esperando factura',base.filter(p=>p.esperando).length]
   ],()=>{provPage=1;renderProveedores();});
-  document.getElementById('ui-prov-count').textContent=base.length+' facturas';
+  document.getElementById('ui-prov-count').textContent=getProvFiltered().length+' de '+proveedores.length+' facturas';
+  document.getElementById('ui-prov-count').title='Total de registros, incluidas las facturas ocultas';
   renderProvStats();
   const filt = getProvFiltered();
   const total = filt.length;
@@ -11780,7 +11957,7 @@ function renderProveedores(){
   }).join('');
 
   const info = document.getElementById('prov-pager-info');
-  if(info) info.textContent = `${total?start+1:0}–${Math.min(start+PROV_PER_PAGE,total)} de ${total} facturas`;
+  if(info) info.textContent = `${total?start+1:0}–${Math.min(start+PROV_PER_PAGE,total)} · ${total} de ${proveedores.length} facturas`;
   const prev = document.getElementById('prov-btn-prev');
   const next = document.getElementById('prov-btn-next');
   if(prev) prev.disabled = provPage<=1;
@@ -12555,6 +12732,8 @@ function presupRenderKpis(){
     ['Vencidos / por vencer', venc, 'vencidos o con 7 días o menos', venc ? '#d35400' : '#888']
   ];
   el.innerHTML = k.map(x=>`<div class="pp-kpi" style="border-left:4px solid ${x[3]}"><div class="pp-kpi-l">${x[0]}</div><div class="pp-kpi-v">${x[1]}</div><div class="pp-kpi-s">${x[2]}</div></div>`).join('');
+  flowMarkStats('presup-kpis',[{index:0,tab:'presupuestos',value:'Enviado',label:'Ver presupuestos enviados pendientes'},{index:1,tab:'presupuestos',value:'Aprobado',label:'Ver presupuestos aprobados'},{index:2,tab:'presupuestos',value:'Borrador',label:'Ver presupuestos en borrador'}]);
+
 }
 
 function presupRenderLista(){
@@ -12565,7 +12744,7 @@ function presupRenderLista(){
   miniChips('ui-presup-chips','presup-filtro-estado', [['','Todos',base.length],...['Borrador','Enviado','Aprobado','Rechazado'].map(e=>[e,e,base.filter(p=>p.estado===e).length])],presupRenderLista);
   const rows=base.filter(p=>!est||p.estado===est);
   const cnt = document.getElementById('presup-count');
-  if(cnt) cnt.textContent = rows.length+' de '+presupuestos.length;
+  if(cnt) cnt.textContent = rows.length+' de '+presupuestos.length+' presupuestos';
   if(!rows.length){ tb.innerHTML = '<tr><td colspan="8" style="padding:18px;text-align:center;color:#aaa">No hay presupuestos que coincidan.</td></tr>'; return; }
   tb.innerHTML = rows.map(p=>{
     const c = PRESUP_COLORES[p.estado] || PRESUP_COLORES.Borrador;
@@ -13520,6 +13699,8 @@ function debRender(){
     `;
   }
 
+  flowMarkStats('deb-stats',[{index:0,tab:'debitos',value:'',label:'Ver todos los débitos'},{index:1,tab:'debitos',value:'rechazado',label:'Ver débitos rechazados'},{index:2,tab:'debitos',value:'aceptado',label:'Ver débitos aceptados'},{index:3,tab:'debitos',value:'rechazado',label:'Ver rechazos que forman el importe pendiente'}]);
+
   // Poblar filtro de meses (período)
   const filMes = document.getElementById('deb-fil-periodo-mes');
   if(filMes){
@@ -13571,9 +13752,9 @@ function debRender(){
   miniChips('ui-deb-chips','deb-fil-estado',[
     ['','Todos',filtradas.length],['aceptado','Aceptados',filtradas.filter(r=>r.estado==='aceptado').length],['rechazado','Rechazados',filtradas.filter(r=>r.estado==='rechazado').length]
   ],debRender);
-  document.getElementById('ui-deb-count').textContent=rows.length;
   document.getElementById('ui-deb-more-label').innerHTML='<i class="ti ti-filter"></i>Más filtros'+(filMotivoVal?' · 1 aplicado':'');
   if(filEstado)filtradas=filtradas.filter(r=>r.estado===filEstado);
+  document.getElementById('ui-deb-count').textContent=filtradas.length+' de '+rows.length;
   const groupsEl = document.getElementById('deb-groups');
   const empty = document.getElementById('deb-empty');
   if(!groupsEl) return;
@@ -16409,6 +16590,7 @@ function resetearInactividad(){
 }
 
 function cerrarSesionPorInactividad(){
+  flowClearContext();
   sessionStorage.removeItem('iscm_actividad_ts');
   sesionActual = null;
   _loginDone = false;
@@ -16424,6 +16606,7 @@ function cerrarSesionPorInactividad(){
 
 function cerrarSesion(){
   if(!confirm('¿Cerrar sesión?')) return;
+  flowClearContext();
   sessionStorage.removeItem('iscm_actividad_ts');
   sesionActual = null;
   _loginDone = false;
@@ -18148,7 +18331,7 @@ async function asistInit(){
     'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const hoy = new Date();
   const periodoActual = meses[hoy.getMonth()] + ' ' + hoy.getFullYear();
-  miniAsistSetPeriodo(periodoActual);
+  if(!document.getElementById('asist-periodo').value)miniAsistSetPeriodo(periodoActual);
   asistRenderPreview();
 }
 
@@ -19025,6 +19208,8 @@ function renderBonosStats(){
     `<div class="stat"><div class="stat-label">Total bruto de bonos</div><div class="stat-value" style="color:#2980b9">${fmt(totalBruto)}</div></div>`+
     `<div class="stat"><div class="stat-label">Total descuento</div><div class="stat-value" style="color:#8e44ad">${fmt(totalDescuento)}</div></div>`+
     `<div class="stat"><div class="stat-label">Total neto de bonos</div><div class="stat-value" style="color:#27ae60">${fmt(totalNeto)}</div></div>`;
+  flowMarkStats('bonos-stats-row',[{index:0,tab:'bonos',value:'',label:'Ver todos los bonos de alumnos'},{index:1,tab:'bonos',value:'si',label:'Ver bonos rendidos'},{index:2,tab:'bonos',value:'no',label:'Ver bonos no rendidos'},{index:3,tab:'bonos',value:'si',label:'Ver bonos rendidos que forman el total bruto'}]);
+
 }
 
 function renderBonos(){
@@ -19045,10 +19230,10 @@ function renderBonos(){
   miniChips('ui-bonos-al-chips','bonos-fil-rindio',[
     ['','Todos',lista.length], ['si','Rindieron',lista.filter(b=>b.rindio===true).length], ['no','No rindieron',lista.filter(b=>b.rindio===false).length], ['pend','Sin definir',lista.filter(b=>b.rindio!==true&&b.rindio!==false).length]
   ],renderBonos);
-  document.getElementById('ui-bonos-alumnos-count').textContent=bonos.length+' bonos';
   if(fil==='si')   lista = lista.filter(b=>b.rindio===true);
   else if(fil==='no')   lista = lista.filter(b=>b.rindio===false);
   else if(fil==='pend') lista = lista.filter(b=>b.rindio!==true && b.rindio!==false);
+  document.getElementById('ui-bonos-alumnos-count').textContent=lista.length+' de '+bonos.length+' bonos';
 
   if(!lista.length){
     const msg = bonos.length
@@ -19585,6 +19770,8 @@ function bonosPrint(){
       <div class="stat"><div class="stat-label">Recaudado</div><div class="stat-value success">${money(T.pag*cfg.valor)}</div></div>
       <div class="stat"><div class="stat-label">A cobrar</div><div class="stat-value danger">${money(T.pen*cfg.valor)}</div></div>`;
 
+    flowMarkStats('bp-stats',[{index:0,tab:'bonos-profes',value:'todos',label:'Ver todos los docentes'},{index:1,tab:'bonos-profes',value:'todos',label:'Ver todos los bonos de profesores'},{index:2,tab:'bonos-profes',value:'pagado',label:'Ver docentes con bonos pagados'},{index:3,tab:'bonos-profes',value:'devuelto',label:'Ver docentes con bonos devueltos'},{index:4,tab:'bonos-profes',value:'pendiente',label:'Ver docentes con bonos pendientes'},{index:5,tab:'bonos-profes',value:'pagado',label:'Ver docentes con bonos pagados'},{index:6,tab:'bonos-profes',value:'pendiente',label:'Ver docentes con bonos pendientes de cobro'}]);
+
     const usados = [];
     data.forEach(t => t.bonos.forEach(b => usados.push(b.n)));
     const ult = usados.length ? Math.max(...usados) : null;
@@ -19602,8 +19789,8 @@ function bonosPrint(){
       ['todos','Todos',base.length], ['pendiente','Con pendientes',base.filter(t=>t.bonos.some(b=>b.st==='pendiente')).length],
       ['pagado','Con pagados',base.filter(t=>t.bonos.some(b=>b.st==='pagado')).length], ['devuelto','Devolvieron',base.filter(t=>t.bonos.some(b=>b.st==='devuelto')).length]
     ],render);
-    $('ui-bonos-profes-count').textContent=data.length+' docentes';
     const vis=base.filter(t=>f==='todos'||t.bonos.some(b=>b.st===f));
+    $('ui-bonos-profes-count').textContent=vis.length+' de '+data.length+' docentes';
 
     if(!data.length){
       cont.innerHTML = '<div class="bp-empty">Todavía no hay docentes cargados.<br>Arriba: nombre, los bonos que se llevó (<b>1000-1002</b>) y Agregar.<br>O usá <b>Importar Excel</b> / <b>Pegar lista</b>.</div>';
@@ -19680,6 +19867,7 @@ function bonosPrint(){
   }
   window.bpSugerir = n => { $('bp-nums').value = n; $('bp-nums').focus(); };
   window.bpClear = () => { $('bp-q').value=''; $('bp-filter').value='todos'; render(); };
+  window.bpFilter = value => { $('bp-q').value=''; $('bp-filter').value=value; render(); };
   window.bpSort = () => {
     if(data.length < 2) return aviso('Cargá al menos dos docentes','info');
     snapshot('Ordenar A–Z');
