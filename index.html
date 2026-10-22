@@ -1328,30 +1328,16 @@ img, svg{max-width:100%}
     <!-- Separador -->
     <div style="width:1px;height:20px;background:rgba(255,255,255,0.12);margin:0 2px"></div>
 
-    <!-- Icono: Usuarios -->
-    <button id="btn-usuarios" onclick="openUsuarios()" title="Gestión de usuarios"
-      style="display:none;background:none;border:none;color:rgba(255,255,255,0.55);cursor:pointer;padding:6px;border-radius:6px;line-height:1;transition:color .15s,background .15s"
-      onmouseenter="this.style.color='#fff';this.style.background='rgba(255,255,255,0.1)'"
-      onmouseleave="this.style.color='rgba(255,255,255,0.55)';this.style.background='none'">
-      <i class="ti ti-users" style="font-size:17px"></i></button>
-
-    <!-- Icono: Copias de seguridad -->
-    <button id="btn-backups" onclick="openBackups()" title="Copias de seguridad"
+    <!-- Icono: Seguridad (copias de seguridad + auditoría) -->
+    <button id="btn-backups" onclick="openSeguridad()" title="Seguridad: copias y auditoría"
       style="display:none;background:none;border:none;color:rgba(255,255,255,0.55);cursor:pointer;padding:6px;border-radius:6px;line-height:1;transition:color .15s,background .15s"
       onmouseenter="this.style.color='#fff';this.style.background='rgba(255,255,255,0.1)'"
       onmouseleave="this.style.color='rgba(255,255,255,0.55)';this.style.background='none'">
       <i class="ti ti-shield-lock" style="font-size:17px"></i></button>
 
-    <!-- Icono: Auditoría -->
-    <button id="btn-auditoria" onclick="openAuditoria()" title="Auditoría de cambios"
-      style="display:none;background:none;border:none;color:rgba(255,255,255,0.55);cursor:pointer;padding:6px;border-radius:6px;line-height:1;transition:color .15s,background .15s"
-      onmouseenter="this.style.color='#fff';this.style.background='rgba(255,255,255,0.1)'"
-      onmouseleave="this.style.color='rgba(255,255,255,0.55)';this.style.background='none'">
-      <i class="ti ti-list-search" style="font-size:17px"></i></button>
-
-    <!-- Icono: Mi cuenta -->
-    <button onclick="openMiCuenta()" id="btn-mi-cuenta" title="Mi cuenta"
-      style="display:none;background:none;border:none;color:rgba(255,255,255,0.55);cursor:pointer;padding:6px;border-radius:6px;line-height:1;transition:color .15s,background .15s"
+    <!-- Icono: Cuenta (mi cuenta + gestión de usuarios) -->
+    <button id="btn-mi-cuenta" onclick="openMiCuenta()" title="Cuenta y usuarios"
+      style="background:none;border:none;color:rgba(255,255,255,0.55);cursor:pointer;padding:6px;border-radius:6px;line-height:1;transition:color .15s,background .15s"
       onmouseenter="this.style.color='#fff';this.style.background='rgba(255,255,255,0.1)'"
       onmouseleave="this.style.color='rgba(255,255,255,0.55)';this.style.background='none'">
       <i class="ti ti-user-circle" style="font-size:17px"></i></button>
@@ -15950,10 +15936,20 @@ function mostrarPPError(msg){
   </div>
 </div>
 
-<!-- Modal Mi Cuenta -->
+<style>
+.mtabs{display:flex;gap:4px;border-bottom:1px solid #e8e8e0;margin:0 0 14px}
+.mtab{background:none;border:none;border-bottom:2px solid transparent;padding:8px 12px;font-size:13px;font-weight:600;color:#888;cursor:pointer;display:flex;align-items:center;gap:6px;margin-bottom:-1px}
+.mtab:hover{color:#333}
+.mtab.active{color:#0f0f14;border-bottom-color:#0f0f14}
+</style>
+<!-- Modal Cuenta: Mi cuenta + Gestión de usuarios -->
 <div class="overlay" id="modal-mi-cuenta">
-  <div class="modal" style="max-width:580px">
-    <h2>Mi cuenta</h2>
+  <div class="modal" style="max-width:620px">
+    <div class="mtabs">
+      <button class="mtab active" id="ctab-cuenta" onclick="cuentaTab('cuenta')"><i class="ti ti-user-circle"></i>Mi cuenta</button>
+      <button class="mtab" id="ctab-usuarios" onclick="cuentaTab('usuarios')" style="display:none"><i class="ti ti-users"></i>Usuarios</button>
+    </div>
+    <div id="cpane-cuenta">
     <div id="mi-cuenta-info" style="font-size:13px;color:#555;margin-bottom:16px;padding:10px 12px;background:#f8f8f4;border-radius:7px"></div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
@@ -15997,22 +15993,14 @@ function mostrarPPError(msg){
       <button class="btn danger" id="mfa-btn-desactivar" style="display:none" onclick="mfaDesactivar()">Desactivar verificación en dos pasos</button>
     </div>
 
-    <div class="modal-actions">
-      <button class="btn" onclick="closeModal('modal-mi-cuenta')">Cerrar</button>
     </div>
-  </div>
-</div>
-
-<!-- Modal Gestión de Usuarios -->
-<div class="overlay" id="modal-usuarios">
-  <div class="modal" style="max-width:560px">
-    <h2><i class="ti ti-users"></i>Gestión de usuarios</h2>
+    <div id="cpane-usuarios" style="display:none">
     <div id="usuarios-lista" style="margin-bottom:16px"></div>
     <div style="border-top:1px solid #f0f0e8;padding-top:14px">
       <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em">Crear nuevo usuario</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div class="field" style="margin:0"><label>Usuario</label><input id="nu-user" placeholder="ej: maria" autocomplete="off"></div>
-        <div class="field" style="margin:0"><label>Contraseña</label><input id="nu-pass" type="password" placeholder="mínimo 4 caracteres"></div>
+        <div class="field" style="margin:0"><label>Contraseña</label><input id="nu-pass" type="password" placeholder="mínimo 6 caracteres"></div>
       </div>
       <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center">
         <div class="field" style="margin:0;flex:1"><label>Nombre completo</label><input id="nu-nombre" placeholder="ej: María García"></div>
@@ -16027,42 +16015,40 @@ function mostrarPPError(msg){
       </div>
       <button class="btn primary" onclick="usuarioCrear()"><i class="ti ti-plus"></i>Crear usuario</button>
     </div>
+    </div>
     <div class="modal-actions">
-      <button class="btn" onclick="closeModal('modal-usuarios')">Cerrar</button>
+      <button class="btn" onclick="closeModal('modal-mi-cuenta')">Cerrar</button>
     </div>
   </div>
 </div>
 
-<!-- Modal Copias de seguridad -->
-<div class="overlay" id="modal-backups">
-  <div class="modal" style="max-width:640px">
-    <h2><i class="ti ti-shield-lock"></i>Copias de seguridad</h2>
-    <div style="font-size:12px;color:#888;margin-bottom:14px">
-      Se genera sola una vez por día, la primera vez que alguien abre el sistema. Se conservan las últimas
-      <b id="bk-retencion">30</b> copias diarias. Podés restaurar cualquiera de estas fechas si algo se borró
-      por error, o descargarla como archivo si preferís guardarla vos.
-    </div>
-    <div id="bk-lista" style="max-height:360px;overflow:auto"></div>
-    <div class="modal-actions">
-      <button class="btn" style="margin-right:auto" onclick="backupCrearAhoraUI()"><i class="ti ti-device-floppy"></i>Generar backup ahora</button>
-      <button class="btn" onclick="closeModal('modal-backups')">Cerrar</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal Auditoría de cambios -->
-<div class="overlay" id="modal-auditoria">
+<!-- Modal Seguridad: Copias de seguridad + Auditoría de cambios -->
+<div class="overlay" id="modal-seguridad">
   <div class="modal" style="max-width:680px">
-    <h2><i class="ti ti-list-search"></i>Auditoría de cambios</h2>
-    <div style="font-size:12px;color:#888;margin-bottom:10px">
-      Cada guardado en el sistema queda registrado acá: quién, cuándo y qué cambió. No se puede editar ni borrar.
+    <div class="mtabs">
+      <button class="mtab active" id="stab-backups" onclick="seguridadTab('backups')"><i class="ti ti-shield-lock"></i>Copias de seguridad</button>
+      <button class="mtab" id="stab-auditoria" onclick="seguridadTab('auditoria')" style="display:none"><i class="ti ti-list-search"></i>Auditoría de cambios</button>
     </div>
-    <input id="audit-filtro" placeholder="Filtrar por usuario, módulo o texto..." oninput="renderAuditoriaFiltrado()"
-      style="width:100%;height:36px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px;margin-bottom:10px">
-    <div id="audit-lista" style="max-height:400px;overflow:auto"></div>
+    <div id="spane-backups">
+      <div style="font-size:12px;color:#888;margin-bottom:14px">
+        Se genera sola una vez por día, la primera vez que alguien abre el sistema. Se conservan las últimas
+        <b id="bk-retencion">30</b> copias diarias. Podés restaurar cualquiera de estas fechas si algo se borró
+        por error, o descargarla como archivo si preferís guardarla vos.
+      </div>
+      <div id="bk-lista" style="max-height:360px;overflow:auto"></div>
+      <div style="margin-top:12px"><button class="btn" onclick="backupCrearAhoraUI()"><i class="ti ti-device-floppy"></i>Generar backup ahora</button></div>
+    </div>
+    <div id="spane-auditoria" style="display:none">
+      <div style="font-size:12px;color:#888;margin-bottom:10px">
+        Cada guardado en el sistema queda registrado acá: quién, cuándo y qué cambió. No se puede editar ni borrar.
+      </div>
+      <input id="audit-filtro" placeholder="Filtrar por usuario, módulo o texto..." oninput="renderAuditoriaFiltrado()"
+        style="width:100%;height:36px;padding:0 10px;border-radius:6px;border:1px solid #d0d0c8;font-size:13px;margin-bottom:10px">
+      <div id="audit-lista" style="max-height:400px;overflow:auto"></div>
+      <div style="margin-top:12px"><button class="btn" onclick="auditoriaCargarMas()"><i class="ti ti-chevron-down"></i>Cargar más antiguas</button></div>
+    </div>
     <div class="modal-actions">
-      <button class="btn" style="margin-right:auto" onclick="auditoriaCargarMas()"><i class="ti ti-chevron-down"></i>Cargar más antiguas</button>
-      <button class="btn" onclick="closeModal('modal-auditoria')">Cerrar</button>
+      <button class="btn" onclick="closeModal('modal-seguridad')">Cerrar</button>
     </div>
   </div>
 </div>
@@ -16154,12 +16140,12 @@ function loginOk(silent=false){
   ls.style.transition = 'opacity .4s';
   ls.style.opacity = '0';
   setTimeout(()=>{ ls.style.display='none'; document.body.style.overflow=''; }, 420);
-  const btnU = document.getElementById('btn-usuarios');
-  if(btnU) btnU.style.display = (sesionActual.rol==='superadmin') ? '' : 'none';
   const btnBk = document.getElementById('btn-backups');
   if(btnBk) btnBk.style.display = (sesionActual.rol==='superadmin'||sesionActual.rol==='admin') ? '' : 'none';
-  const btnAud = document.getElementById('btn-auditoria');
-  if(btnAud) btnAud.style.display = (sesionActual.rol==='superadmin') ? '' : 'none';
+  // Precalentar la Cloud Function de usuarios para que la pestaña abra rápido
+  if(sesionActual.rol==='superadmin' && window._cf && window._cf.listarUsuarios){
+    window._cf.listarUsuarios().then(r=>{ _usuariosCache = (r&&r.usuarios)||[]; }).catch(()=>{});
+  }
   const btnMC = document.getElementById('btn-mi-cuenta');
   if(btnMC) btnMC.style.display = '';
   const mesLabel = document.getElementById('mes-label');
@@ -16293,10 +16279,19 @@ function aplicarRol(){
 }
 
 // ── Gestión de usuarios (solo superadmin) ──────────────────────
-async function openUsuarios(){
-  if(!sesionActual || sesionActual.rol !== 'superadmin') return;
-  await renderUsuarios();
-  document.getElementById('modal-usuarios').classList.add('open');
+let _usuariosCache = null;
+
+// Compatibilidad: abre el modal de cuenta directamente en la pestaña Usuarios
+function openUsuarios(){ openMiCuenta('usuarios'); }
+
+function cuentaTab(tab){
+  const esSuper = !!(sesionActual && sesionActual.rol === 'superadmin');
+  if(tab === 'usuarios' && !esSuper) tab = 'cuenta';
+  document.getElementById('cpane-cuenta').style.display   = tab==='cuenta'   ? '' : 'none';
+  document.getElementById('cpane-usuarios').style.display = tab==='usuarios' ? '' : 'none';
+  document.getElementById('ctab-cuenta').classList.toggle('active', tab==='cuenta');
+  document.getElementById('ctab-usuarios').classList.toggle('active', tab==='usuarios');
+  if(tab === 'usuarios') renderUsuarios();
 }
 
 // ── Copias de seguridad (admin y superadmin) ─────────────────────────────
@@ -16309,11 +16304,28 @@ function _bkFechaLegible(fecha){
   return `${d}/${m}/${y}`;
 }
 
-async function openBackups(){
-  if(!_bkEsAdmin() || !window._fbBackup) return;
-  await renderBackupsLista();
-  document.getElementById('modal-backups').classList.add('open');
+function openSeguridad(tab){
+  if(!_bkEsAdmin()) return;
+  const esSuper = sesionActual.rol === 'superadmin';
+  document.getElementById('stab-auditoria').style.display = esSuper ? '' : 'none';
+  document.getElementById('modal-seguridad').classList.add('open');
+  seguridadTab(tab==='auditoria' && esSuper ? 'auditoria' : 'backups');
 }
+
+function seguridadTab(tab){
+  const esSuper = !!(sesionActual && sesionActual.rol === 'superadmin');
+  if(tab === 'auditoria' && !esSuper) tab = 'backups';
+  document.getElementById('spane-backups').style.display   = tab==='backups'   ? '' : 'none';
+  document.getElementById('spane-auditoria').style.display = tab==='auditoria' ? '' : 'none';
+  document.getElementById('stab-backups').classList.toggle('active', tab==='backups');
+  document.getElementById('stab-auditoria').classList.toggle('active', tab==='auditoria');
+  if(tab === 'backups'){ if(window._fbBackup) renderBackupsLista(); }
+  else { _auditoriaIniciar(); }
+}
+
+// Compatibilidad con llamadas anteriores
+function openBackups(){ openSeguridad('backups'); }
+function openAuditoria(){ openSeguridad('auditoria'); }
 
 async function renderBackupsLista(){
   const el = document.getElementById('bk-lista');
@@ -16397,11 +16409,10 @@ let _auditEntradas = [];
 let _auditUltimoDoc = null;
 let _auditHayMas = true;
 
-async function openAuditoria(){
-  if(!sesionActual || sesionActual.rol !== 'superadmin' || !window._fbAuditoria) return;
+async function _auditoriaIniciar(){
+  if(!window._fbAuditoria) return;
   _auditEntradas = []; _auditUltimoDoc = null; _auditHayMas = true;
   document.getElementById('audit-filtro').value = '';
-  document.getElementById('modal-auditoria').classList.add('open');
   await auditoriaCargarMas();
 }
 
@@ -16450,15 +16461,25 @@ function renderAuditoriaFiltrado(){
 
 async function renderUsuarios(){
   const el = document.getElementById('usuarios-lista');
-  el.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:12px">Cargando...</div>';
+  // Mostrar al instante la última lista conocida (se refresca en segundo plano)
+  if(_usuariosCache){
+    _pintarUsuarios(el, _usuariosCache);
+  } else {
+    el.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:12px">Cargando...</div>';
+  }
   let lista;
   try{
     const r = await window._cf.listarUsuarios();
     lista = r.usuarios || [];
+    _usuariosCache = lista;
   }catch(e){
-    el.innerHTML = '<div style="color:#c0392b;font-size:13px;text-align:center;padding:12px">No se pudo cargar la lista de usuarios.</div>';
+    if(!_usuariosCache) el.innerHTML = '<div style="color:#c0392b;font-size:13px;text-align:center;padding:12px">No se pudo cargar la lista de usuarios.</div>';
     return;
   }
+  _pintarUsuarios(el, lista);
+}
+
+function _pintarUsuarios(el, lista){
   // No mostrar superadmins en la lista
   const otros = lista.filter(u => u.rol !== 'superadmin');
   if(!otros.length){
@@ -16570,8 +16591,10 @@ async function usuarioEliminar(uid, user){
 // ── FIN SISTEMA DE USUARIOS ────────────────────────────────────
 
 // ── MI CUENTA ──────────────────────────────────────────────────
-function openMiCuenta(){
+function openMiCuenta(tab){
   if(!sesionActual) return;
+  const _esSuper = sesionActual.rol === 'superadmin';
+  document.getElementById('ctab-usuarios').style.display = _esSuper ? '' : 'none';
   const rolLabel = sesionActual.rol==='superadmin'?'Superadministrador':sesionActual.rol==='admin'?'Administrador':'Lector';
   document.getElementById('mi-cuenta-info').innerHTML =
     `<strong>${sesionActual.nombre}</strong> <span style="color:#888">(${sesionActual.user})</span> · <span style="font-size:11px;color:#888">${rolLabel}</span>`;
@@ -16583,6 +16606,7 @@ function openMiCuenta(){
   document.getElementById('mc-nombre-err').textContent='';
   mfaRenderEstado();
   document.getElementById('modal-mi-cuenta').classList.add('open');
+  cuentaTab(tab==='usuarios' ? 'usuarios' : 'cuenta');
 }
 
 async function guardarMiNombre(){
