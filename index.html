@@ -1421,7 +1421,6 @@ img, svg{max-width:100%}
       <div class="tab-group" onmouseenter="ddShow('dd-sistema')" onmouseleave="ddHide('dd-sistema')">
         <button class="tab tab-group-btn" id="nav-sistema-group" onclick="ddToggle('dd-sistema',event)"><i class="ti ti-settings"></i>Sistema</button>
         <div class="tab-dropdown" id="dd-sistema">
-          <button class="dd-item" id="nav-dd-archivos" onclick="switchTab('archivos',this)"><i class="ti ti-folder"></i>Archivos</button>
           <button class="dd-item" id="nav-dd-debitos" onclick="switchTab('debitos',this)"><i class="ti ti-credit-card"></i>Débitos</button>
           <button class="dd-item" id="nav-dd-impexp-global" onclick="switchTab('impexp-global',this)"><i class="ti ti-database-export"></i>Copia completa</button>
         </div>
@@ -3710,7 +3709,7 @@ Apariente, Luciano | 1003-1004 | V"></textarea>
       ondragover="event.preventDefault();this.style.borderColor='#27ae60'"
       ondragleave="this.style.borderColor='#d0d0c8'"
       ondrop="event.preventDefault();this.style.borderColor='#d0d0c8';cajaXlsArchivo(event.dataTransfer.files[0])">
-      <div style="font-size:28px;margin-bottom:6px">📂</div>
+      <div style="font-size:28px;margin-bottom:6px;color:#aaa"><i class="ti ti-upload"></i></div>
       <div style="font-size:13px;color:#888">Arrastrá el archivo acá o hacé clic para seleccionarlo</div>
       <div style="font-size:11px;color:#aaa;margin-top:4px">.xlsx</div>
     </div>
