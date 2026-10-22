@@ -6228,16 +6228,69 @@ function renderInactivos(){
       <td class="${a.deuda>0?'monto-deuda':'monto-ok'}">${a.deuda>0?fmt(a.deuda):'—'}</td>
       <td style="max-width:220px">${tagsHtml}</td>
       <td style="color:#888;font-size:12px">${a.fechaBaja||'—'}</td>
-      <td><input style="border:none;background:transparent;font-size:12px;color:#555;width:100%;max-width:180px" value="${a.observaciones||''}" onchange="saveObs(${a.id},this.value)" placeholder="—"></td>
-      <td style="white-space:nowrap">
-        ${a.deuda>0?`<button class="btn warn sm" onclick="openPago(${a.id})"><i class="ti ti-credit-card"></i>Deuda</button>`:''}
-        <button class="btn sm" onclick="openEdit(${a.id})" title="Editar inactivo" style="padding:3px 8px"><i class="ti ti-edit"></i></button>
+      <td class="obs-txt-cell">${a.observaciones?`<span class="obs-txt" title="${String(a.observaciones).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}" onclick="editarObsInactivo(${a.id})">${String(a.observaciones).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span>`:`<span class="obs-txt" style="color:#bbb" onclick="editarObsInactivo(${a.id})">—</span>`}</td>
+      <td style="white-space:nowrap;text-align:right">
         <button class="btn success sm" onclick="openReactivar(${a.id})"><i class="ti ti-refresh"></i>Reactivar</button>
-        <button class="btn danger sm" onclick="eliminarAlumno(${a.id})" title="Eliminar definitivamente"><i class="ti ti-trash"></i></button>
+        <button type="button" class="btn sm icon-only" onclick="abrirMenuInactivo(${a.id},this,event)" title="Más acciones" aria-label="Más acciones"><i class="ti ti-dots-vertical"></i></button>
       </td>
     </tr>`;
   }).join('');
   inacUpdateBulkBar();
+}
+
+let _inacMenu = null;
+function cerrarMenuInactivo(){
+  if(_inacMenu){ _inacMenu.remove(); _inacMenu = null; }
+  document.removeEventListener('click', cerrarMenuInactivo, true);
+  window.removeEventListener('scroll', cerrarMenuInactivo, true);
+  window.removeEventListener('resize', cerrarMenuInactivo);
+}
+function abrirMenuInactivo(id, btn, ev){
+  if(ev) ev.stopPropagation();
+  const yaAbierto = _inacMenu && _inacMenu._for===btn;
+  cerrarMenuInactivo();
+  if(yaAbierto) return;
+  const a = alumnos.find(x=>x.id===id);
+  if(!a) return;
+  const m = document.createElement('div');
+  m.className = 'alu-menu';
+  m._for = btn;
+  m.innerHTML = `
+    ${a.deuda>0?'<button type="button" data-act="deuda"><i class="ti ti-credit-card"></i>Deuda / Pago</button>':''}
+    <button type="button" data-act="edit"><i class="ti ti-edit"></i>Editar inactivo</button>
+    <button type="button" data-act="obs"><i class="ti ti-note"></i>${a.observaciones?'Editar observación':'Agregar observación'}</button>
+    <div class="alu-menu-sep"></div>
+    <button type="button" data-act="del" class="peligro"><i class="ti ti-trash"></i>Eliminar definitivamente</button>`;
+  document.body.appendChild(m);
+  const r = btn.getBoundingClientRect();
+  const w = m.offsetWidth, h = m.offsetHeight;
+  let left = Math.min(r.right - w, window.innerWidth - w - 8); if(left<8) left=8;
+  let top = r.bottom + 4; if(top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 4);
+  m.style.left = left+'px'; m.style.top = top+'px';
+  m.addEventListener('click', e=>{
+    const b = e.target.closest('button'); if(!b) return;
+    e.stopPropagation();
+    const act = b.dataset.act;
+    cerrarMenuInactivo();
+    if(act==='deuda') openPago(id);
+    else if(act==='edit') openEdit(id);
+    else if(act==='obs') editarObsInactivo(id);
+    else if(act==='del') eliminarAlumno(id);
+  });
+  _inacMenu = m;
+  setTimeout(()=>{
+    document.addEventListener('click', cerrarMenuInactivo, true);
+    window.addEventListener('scroll', cerrarMenuInactivo, true);
+    window.addEventListener('resize', cerrarMenuInactivo);
+  },0);
+}
+function editarObsInactivo(id){
+  const a = alumnos.find(x=>x.id===id);
+  if(!a) return;
+  const v = prompt('Observaciones de '+a.nombre+':', a.observaciones||'');
+  if(v===null) return;
+  saveObs(id, v.trim());
+  renderInactivos();
 }
 
 // ── Detección de inactivos duplicados (mismo alumno cargado más de una vez) ───
