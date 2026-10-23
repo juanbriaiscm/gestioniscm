@@ -320,6 +320,16 @@ body[data-tab="dashboard"] #stats-row,body[data-tab="dashboard"] #stats-row-seco
 #inac-import-status.ok{background:#d4edda;color:#155724;display:block}
 #inac-import-status.err{background:#f8d7da;color:#721c24;display:block}
 #inac-import-status.info{background:#e8f4f8;color:#0c5460;display:block}
+#modal-import-planilla .drop-zone,#modal-import-cob .drop-zone{background:#f8f8f4;border:2px dashed #d0d0c8;border-radius:8px;padding:28px;text-align:center;cursor:pointer;margin-bottom:12px;transition:border-color .2s,background .2s}
+#modal-import-planilla .drop-zone:hover,#modal-import-planilla .drop-zone.drag,#modal-import-cob .drop-zone:hover,#modal-import-cob .drop-zone.drag{border-color:#1a1a2e;background:#f0f0ea}
+#modal-import-planilla .drop-zone svg,#modal-import-cob .drop-zone svg{display:block;margin:0 auto 8px}
+.imp-status{font-size:12px;padding:8px 12px;border-radius:6px;margin-top:8px;display:none}
+.imp-status.ok{background:#d4edda;color:#155724;display:block}
+.imp-status.err{background:#f8d7da;color:#721c24;display:block}
+.imp-status.info{background:#e8f4f8;color:#0c5460;display:block}
+.imp-sum{font-size:12px;color:#444;line-height:1.7}
+.imp-sum .warn{color:#92600a}
+.imp-chg td{background:#fffbe6}
 
 /* Import pagos modal */
 #modal-import-pagos .modal{max-width:680px}
@@ -1527,10 +1537,10 @@ img, svg{max-width:100%}
           <button class="dd-item" onclick="abrirRestaurarDeudas();ddHide('dd-impexp')" title="Restaurar deudas desde el Excel exportado previamente"><i class="ti ti-refresh"></i>Restaurar deudas</button>
           <button class="dd-item" onclick="abrirImportarCaja();ddHide('dd-impexp')" title="Marcar cuotas como pagadas desde el Reporte de Caja"><i class="ti ti-file-import"></i>Caja</button>
           <button class="dd-item" onclick="abrirImportCBUs();ddHide('dd-impexp')" title="Asignar CBUs masivamente desde una lista de alumnos"><i class="ti ti-building-bank"></i>CBUs</button>
+          <button class="dd-item" onclick="abrirImportPlanilla();ddHide('dd-impexp')" title="Cargar alumnos nuevos desde una planilla Excel o CSV"><i class="ti ti-table"></i>Planilla de alumnos</button>
           <div class="dd-sep"></div>
           <div class="dd-sec">Exportar</div>
           <button class="dd-item" onclick="exportarDeudaXLSX();ddHide('dd-impexp')" title="Exportar tabla para pegar en Alumnos con deuda ISCM"><i class="ti ti-file-spreadsheet"></i>Excel de deudas</button>
-          <button class="dd-item" onclick="exportarAlumnosExcel(this);ddHide('dd-impexp')" title="Exportar planilla completa de alumnos (activos/inactivos)"><i class="ti ti-table"></i>Planilla de alumnos</button>
           <button class="dd-item" onclick="exportarContactosWpp(this);ddHide('dd-impexp')" title="Exportar teléfonos de activos e inactivos para WhatsApp"><i class="ti ti-brand-whatsapp"></i>Contactos para WhatsApp</button>
         </div>
       </div>
@@ -1726,6 +1736,66 @@ img, svg{max-width:100%}
     </div>
   </div>
 
+  <div class="overlay" id="modal-import-planilla">
+    <div class="modal" style="max-width:680px">
+      <h2><i class="ti ti-table"></i>Importar planilla de alumnos</h2>
+      <div id="plan-step-upload">
+        <div class="drop-zone" id="plan-drop-zone"
+          onclick="document.getElementById('plan-file-input').click()"
+          ondragover="event.preventDefault();this.classList.add('drag')"
+          ondragleave="this.classList.remove('drag')"
+          ondrop="planHandleDrop(event)">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <div style="font-size:14px;font-weight:600;color:#555;margin-bottom:4px">Arrastrá un archivo o hacé clic para elegir</div>
+          <div style="font-size:11px;color:#888">Soporta .xlsx, .xls y .csv · Columnas: Alumno, Carrera, Año, Estado, Deuda, Cuota, Teléfono, Observaciones</div>
+        </div>
+        <input type="file" id="plan-file-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="planHandleFile(this.files[0])">
+        <div class="imp-status" id="plan-status"></div>
+      </div>
+      <div id="plan-step-preview" style="display:none">
+        <div class="imp-sum" id="plan-resumen"></div>
+        <div style="overflow-x:auto;max-height:230px;overflow-y:auto;border:1px solid #e8e8e0;border-radius:6px;margin-top:8px">
+          <table id="plan-preview-table"></table>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeModal('modal-import-planilla');planReset()">Cancelar</button>
+        <button class="btn" id="plan-btn-volver" style="display:none" onclick="planVolver()">‹ Volver</button>
+        <button class="btn primary" id="plan-btn-importar" style="display:none" onclick="planConfirmar()"><i class="ti ti-circle-check"></i><span id="plan-btn-txt">Importar</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="modal-import-cob">
+    <div class="modal" style="max-width:680px">
+      <h2><i class="ti ti-file-import"></i>Importar facturación desde Excel</h2>
+      <div id="cobimp-step-upload">
+        <div class="drop-zone" id="cobimp-drop-zone"
+          onclick="document.getElementById('cobimp-file-input').click()"
+          ondragover="event.preventDefault();this.classList.add('drag')"
+          ondragleave="this.classList.remove('drag')"
+          ondrop="cobimpHandleDrop(event)">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <div style="font-size:14px;font-weight:600;color:#555;margin-bottom:4px">Arrastrá un archivo o hacé clic para elegir</div>
+          <div style="font-size:11px;color:#888">Soporta .xlsx, .xls y .csv · Mismo formato que el Excel exportado (Mes y los cuatro canales de cobro)</div>
+        </div>
+        <input type="file" id="cobimp-file-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="cobimpHandleFile(this.files[0])">
+        <div class="imp-status" id="cobimp-status"></div>
+      </div>
+      <div id="cobimp-step-preview" style="display:none">
+        <div class="imp-sum" id="cobimp-resumen"></div>
+        <div style="overflow-x:auto;max-height:230px;overflow-y:auto;border:1px solid #e8e8e0;border-radius:6px;margin-top:8px">
+          <table id="cobimp-preview-table"></table>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeModal('modal-import-cob');cobimpReset()">Cancelar</button>
+        <button class="btn" id="cobimp-btn-volver" style="display:none" onclick="cobimpVolver()">‹ Volver</button>
+        <button class="btn primary" id="cobimp-btn-importar" style="display:none" onclick="cobImpConfirmar()"><i class="ti ti-circle-check"></i><span id="cobimp-btn-txt">Importar</span></button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL DUPLICADOS INACTIVOS -->
   <div class="overlay" id="modal-dup-inac">
     <div class="modal" style="max-width:640px">
@@ -1906,7 +1976,20 @@ img, svg{max-width:100%}
 
   <!-- TAB COBRANZA -->
   <div id="tab-cobranza" style="display:none">
-  <div class="page-head"><h2 class="page-title"><i class="ti ti-file-invoice"></i>Facturación</h2></div>
+  <div class="page-head">
+    <h2 class="page-title"><i class="ti ti-file-invoice"></i>Facturación</h2>
+    <div class="tab-group" style="position:relative;display:inline-block" onmouseenter="ddShow('dd-cob-impexp')" onmouseleave="ddHide('dd-cob-impexp')">
+      <button class="btn"><i class="ti ti-arrows-exchange"></i>Importar / Exportar ▾</button>
+      <div class="tab-dropdown" id="dd-cob-impexp">
+        <div class="dd-sec">Importar</div>
+        <button class="dd-item" onclick="abrirImportCob();ddHide('dd-cob-impexp')" title="Cargar la facturación mensual desde un Excel (mismo formato que el exportado)"><i class="ti ti-file-import"></i>Excel de facturación</button>
+        <div class="dd-sep"></div>
+        <div class="dd-sec">Exportar</div>
+        <button class="dd-item" onclick="cobExportarExcel();ddHide('dd-cob-impexp')" title="Facturación mensual en Excel"><i class="ti ti-file-spreadsheet"></i>Excel</button>
+        <button class="dd-item" onclick="cobExportarPDF();ddHide('dd-cob-impexp')" title="Facturación mensual en PDF (se abre la ventana de impresión)"><i class="ti ti-file-type-pdf"></i>PDF</button>
+      </div>
+    </div>
+  </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px" id="cob-stats"></div>
 
     <!-- Tabla mensual resumen -->
@@ -5142,84 +5225,6 @@ function exportarContactosWpp(anchorEl){
 
 // Menú para elegir qué alumnos exportar a Excel (mismo patrón visual que el
 // export de contactos para WhatsApp).
-function exportarAlumnosExcel(anchorEl){
-  const prev = document.getElementById('alu-export-menu');
-  if(prev){ prev.remove(); if(prev._anchor===anchorEl) return; }
-
-  const menu = document.createElement('div');
-  menu.id = 'alu-export-menu';
-  menu._anchor = anchorEl;
-  menu.style.cssText = `
-    position:fixed;z-index:9999;background:#fff;border:1px solid #e0e0d8;
-    border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.15);
-    padding:6px;min-width:210px`;
-
-  const opts = [
-    { label:'<i class="ti ti-users"></i>Activos + Inactivos', val:'todos' },
-    { label:'<i class="ti ti-user-check"></i>Solo activos',         val:'activos' },
-    { label:'<i class="ti ti-user-off"></i>Solo inactivos',       val:'inactivos' },
-  ];
-
-  menu.innerHTML = `
-    <div style="font-size:11px;color:#aaa;padding:4px 10px 6px;border-bottom:1px solid #f0f0e8;margin-bottom:4px;font-weight:600;letter-spacing:.04em">EXPORTAR PLANILLA DE ALUMNOS</div>
-    ${opts.map(o=>`
-      <button onclick="_doExportAlumnosExcel('${o.val}');document.getElementById('alu-export-menu').remove()"
-        style="display:flex;align-items:center;gap:9px;width:100%;padding:8px 12px;background:none;border:none;
-               cursor:pointer;border-radius:7px;font-size:13px;color:#1a1a2e;text-align:left"
-        onmouseenter="this.style.background='#f5f5f0'" onmouseleave="this.style.background=''">
-        ${o.label}
-      </button>`).join('')}`;
-
-  document.body.appendChild(menu);
-  const rect = anchorEl.getBoundingClientRect();
-  let top = rect.bottom + 6, left = rect.left;
-  const mw = menu.offsetWidth;
-  if(left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
-  menu.style.top = top + 'px';
-  menu.style.left = left + 'px';
-
-  setTimeout(()=>{
-    document.addEventListener('click', function _c(e){
-      if(!menu.contains(e.target)){ menu.remove(); document.removeEventListener('click',_c); }
-    });
-  }, 0);
-}
-
-// Exporta la planilla de alumnos con las columnas principales del listado
-// (nombre, carrera, año, estado, deuda, cuota, teléfono, observaciones),
-// filtrando por activos/inactivos/todos según lo elegido en el menú.
-function _doExportAlumnosExcel(filtro){
-  let lista;
-  if(filtro === 'inactivos') lista = getInactivosReales();
-  else if(filtro === 'activos') lista = alumnos.filter(a=>a.estado!=='Baja');
-  else lista = alumnos.slice();
-
-  if(!lista.length){ showToast('No hay alumnos para exportar','error'); return; }
-
-  function doExport(){
-    const headers = ['Alumno','Carrera','Año','Estado','Deuda','Cuota','Teléfono','Observaciones'];
-    const rows = lista.map(a => [
-      a.nombre||'', a.carrera||'', a.anio||'', a.estado||'',
-      a.deuda||0, a.cuota||0, a.tel||'', a.observaciones||''
-    ]);
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-    ws['!cols'] = [{wch:30},{wch:18},{wch:6},{wch:12},{wch:12},{wch:12},{wch:14},{wch:30}];
-    XLSX.utils.book_append_sheet(wb, ws, 'Alumnos');
-    XLSX.writeFile(wb, `alumnos_${filtro}_${new Date().toISOString().slice(0,10)}.xlsx`);
-    showToast(`Excel exportado · ${lista.length} alumnos`);
-  }
-  if(typeof XLSX === 'undefined'){
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-    s.onload = doExport;
-    s.onerror = () => showToast('No se pudo cargar la librería para exportar','error');
-    document.head.appendChild(s);
-  } else {
-    doExport();
-  }
-}
-
 function _normalizarTelArg(raw){
   if(!raw) return null;
   let s = String(raw).replace(/[\s\-().+]/g,'').trim();
@@ -6783,6 +6788,185 @@ function clearInactivosFilters(){
 // ── Importar Inactivos desde Excel (archivo real) ─────────────────────────────
 let inacXLSXData = []; // filas del excel parseado
 let inacHeaders = [];  // columnas detectadas
+
+// ── IMPORTACIÓN DE ARCHIVOS (helpers compartidos) ───────────────
+function impNz(s){ return String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(); }
+function impEsc(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+function impNumero(v){
+  if(typeof v==='number') return isFinite(v)?v:0;
+  let t=String(v==null?'':v).replace(/[$\s]/g,'');
+  if(!t) return 0;
+  if(t.includes(',')) t=t.replace(/\./g,'').replace(',','.');
+  else if((t.match(/\./g)||[]).length>1) t=t.replace(/\./g,'');
+  const n=parseFloat(t);
+  return isNaN(n)?0:n;
+}
+function impCsvAFilas(text){
+  text=String(text).replace(/^\uFEFF/,'');
+  const lineas=text.split(/\r?\n/).filter(l=>l.trim()!=='');
+  const first=lineas[0]||'';
+  const sep=first.split(';').length>first.split(',').length?';':',';
+  return lineas.map(l=>{
+    const out=[]; let cur='', q=false;
+    for(let i=0;i<l.length;i++){
+      const ch=l[i];
+      if(ch==='"'){ if(q&&l[i+1]==='"'){cur+='"';i++;} else q=!q; }
+      else if(ch===sep&&!q){ out.push(cur); cur=''; }
+      else cur+=ch;
+    }
+    out.push(cur);
+    return out.map(c=>c.trim());
+  });
+}
+function impLeerArchivo(file, onRows, onError){
+  if(!file) return;
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(ext==='csv'){
+    const r=new FileReader();
+    r.onload=e=>{ try{ onRows(impCsvAFilas(e.target.result), file.name); }catch(err){ onError('Error al leer el archivo: '+err.message); } };
+    r.readAsText(file,'UTF-8');
+  } else if(ext==='xlsx'||ext==='xls'){
+    const leer=()=>{
+      const r=new FileReader();
+      r.onload=e=>{
+        try{
+          const wb=XLSX.read(e.target.result,{type:'array'});
+          const ws=wb.Sheets[wb.SheetNames[0]];
+          onRows(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}), file.name);
+        }catch(err){ onError('Error al leer el archivo: '+err.message); }
+      };
+      r.readAsArrayBuffer(file);
+    };
+    if(typeof XLSX==='undefined'){
+      const sc=document.createElement('script');
+      sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      sc.onload=leer;
+      sc.onerror=()=>onError('No se pudo cargar la librería XLSX. Guardá el archivo como CSV e intentá de nuevo.');
+      document.head.appendChild(sc);
+    } else leer();
+  } else onError('Formato no soportado. Usá .xlsx, .xls o .csv');
+}
+// Detecta la fila de encabezados y asigna cada campo a una columna
+function impMapearColumnas(rows, reglas, claveObligatoria){
+  let h=-1;
+  for(let i=0;i<Math.min(rows.length,10);i++){
+    if((rows[i]||[]).some(c=>reglas[claveObligatoria].test(impNz(c)))){ h=i; break; }
+  }
+  if(h<0) return null;
+  const heads=rows[h].map(impNz), col={}, usadas=new Set();
+  Object.keys(reglas).forEach(k=>{
+    const j=heads.findIndex((t,idx)=>!usadas.has(idx)&&reglas[k].test(t));
+    if(j>=0){ col[k]=j; usadas.add(j); }
+  });
+  return {h, col, heads:rows[h]};
+}
+
+// ── IMPORTAR PLANILLA DE ALUMNOS ────────────────────────────────
+let planFilas=[];
+function planStatus(msg,tipo){ const e=document.getElementById('plan-status'); if(!e) return; e.textContent=msg; e.className='imp-status '+(tipo||'info'); }
+function abrirImportPlanilla(){ planReset(); document.getElementById('modal-import-planilla').classList.add('open'); }
+function planReset(){
+  planFilas=[];
+  document.getElementById('plan-step-upload').style.display='';
+  document.getElementById('plan-step-preview').style.display='none';
+  document.getElementById('plan-btn-volver').style.display='none';
+  document.getElementById('plan-btn-importar').style.display='none';
+  document.getElementById('plan-status').className='imp-status';
+  document.getElementById('plan-file-input').value='';
+  document.getElementById('plan-drop-zone').classList.remove('drag');
+}
+function planVolver(){ planReset(); }
+function planHandleDrop(e){
+  e.preventDefault();
+  document.getElementById('plan-drop-zone').classList.remove('drag');
+  planHandleFile(e.dataTransfer.files[0]);
+}
+function planHandleFile(file){
+  if(!file) return;
+  planStatus('Leyendo archivo...','info');
+  impLeerArchivo(file, planProcesar, msg=>planStatus(msg,'err'));
+}
+function planProcesar(rows, filename){
+  const reglas={
+    nombre:/alumno|nombre|apellido/, carrera:/carrera|curso/, anio:/^(ano|year|grado)/,
+    estado:/estado|situacion/, deuda:/deuda|saldo/, cuota:/^cuota( mensual)?$|valor( de la)? cuota|arancel/,
+    tel:/tel|cel|whats|movil/, obs:/obs|coment|nota/
+  };
+  const mp=impMapearColumnas(rows,reglas,'nombre');
+  if(!mp){ planStatus("No encontré una columna 'Alumno' o 'Nombre' en las primeras filas del archivo.",'err'); return; }
+  if(mp.col.carrera==null){ planStatus("No encontré la columna 'Carrera'. Es necesaria para cargar los alumnos.",'err'); return; }
+  const col=mp.col;
+  const get=(r,k)=>col[k]==null?'':r[col[k]];
+  const conocidas=[...new Set(alumnos.map(a=>a.carrera).filter(Boolean))];
+  const existentes=new Set(alumnos.map(a=>nombreKey(a.nombre)));
+  const vistos=new Set(), nuevas=new Set();
+  let existen=0, incompletas=0, ajustados=0;
+  const filas=[];
+  rows.slice(mp.h+1).forEach(r=>{
+    if(!r||!r.some(c=>String(c==null?'':c).trim()!=='')) return;
+    const nombre=String(get(r,'nombre')).trim();
+    let carrera=String(get(r,'carrera')).trim();
+    if(!nombre||!carrera){ incompletas++; return; }
+    const k=nombreKey(nombre);
+    if(existentes.has(k)||vistos.has(k)){ existen++; return; }
+    vistos.add(k);
+    const cm=conocidas.find(c=>impNz(c)===impNz(carrera));
+    if(cm) carrera=cm; else nuevas.add(carrera);
+    let anio=String(get(r,'anio')).trim();
+    const n=parseInt(anio);
+    if(!['1°','2°','3°','4°'].includes(anio)) anio=(n>=1&&n<=4)?n+'°':'1°';
+    const deuda=Math.max(0,impNumero(get(r,'deuda')));
+    const cuota=Math.max(0,impNumero(get(r,'cuota')));
+    const est=impNz(get(r,'estado'));
+    let estado;
+    if(est==='baja') estado='Baja';
+    else { estado=deuda>0?'Debe':'Al día'; if(/acuerdo|vacante|matricula/.test(est)) ajustados++; }
+    const a={
+      nombre, carrera, anio, estado, cuota, deuda, cuotasAdeudadas:deuda>0?1:0,
+      tel:normalizarTelParaGuardar(get(r,'tel')), email:'', cbu:'',
+      observaciones:String(get(r,'obs')).trim(),
+      acuerdo:null, cicloIngreso:null, cicloCargado:null,
+      conceptos:deuda>0?[{tipo:'Otro',descripcion:'Deuda importada de planilla',monto:deuda,pagado:false}]:[]
+    };
+    if(estado==='Baja') a.fechaBaja='Importado Excel';
+    filas.push(a);
+  });
+  if(!filas.length){
+    planStatus(`No hay alumnos nuevos para importar${existen?` · ${existen} ya existen`:''}${incompletas?` · ${incompletas} filas sin alumno o carrera`:''}.`,'err');
+    return;
+  }
+  planFilas=filas;
+  const baj=filas.filter(a=>a.estado==='Baja').length;
+  const nombresCol={nombre:'Alumno',carrera:'Carrera',anio:'Año',estado:'Estado',deuda:'Deuda',cuota:'Cuota',tel:'Teléfono',obs:'Observaciones'};
+  const detectadas=Object.keys(nombresCol).map(k=>col[k]!=null?`${nombresCol[k]} ← “${impEsc(mp.heads[col[k]])}”`:`<span class="warn">${nombresCol[k]}: no encontrada</span>`).join(' · ');
+  document.getElementById('plan-resumen').innerHTML=`
+    <div><strong>${impEsc(filename)}</strong> — <b>${filas.length}</b> alumnos nuevos para agregar (${filas.length-baj} activos${baj?`, ${baj} inactivos`:''}).</div>
+    ${existen?`<div>${existen} ya existen (activos o inactivos) y se omiten.</div>`:''}
+    ${incompletas?`<div class="warn">${incompletas} filas sin alumno o sin carrera se omiten.</div>`:''}
+    ${ajustados?`<div class="warn">${ajustados} con estado Acuerdo, Vacante o Matrícula se cargan como Al día / Debe: completá el detalle desde Editar.</div>`:''}
+    ${nuevas.size?`<div class="warn">Carreras que todavía no existen: ${[...nuevas].map(impEsc).join(', ')}. Revisá que no sean errores de tipeo.</div>`:''}
+    <div style="font-size:11px;color:#888">Columnas detectadas: ${detectadas}</div>`;
+  const muestra=filas.slice(0,8);
+  document.getElementById('plan-preview-table').innerHTML=
+    '<thead><tr><th>Alumno</th><th>Carrera</th><th>Año</th><th>Estado</th><th style="text-align:right">Deuda</th><th style="text-align:right">Cuota</th><th>Teléfono</th></tr></thead><tbody>'
+    +muestra.map(a=>`<tr><td>${impEsc(a.nombre)}</td><td>${impEsc(a.carrera)}</td><td>${impEsc(a.anio)}</td><td>${impEsc(a.estado)}</td><td style="text-align:right">${fmt(a.deuda)}</td><td style="text-align:right">${fmt(a.cuota)}</td><td>${impEsc(a.tel)||'—'}</td></tr>`).join('')
+    +(filas.length>muestra.length?`<tr><td colspan="7" style="color:#888;text-align:center">… y ${filas.length-muestra.length} más</td></tr>`:'')+'</tbody>';
+  document.getElementById('plan-btn-txt').textContent=`Importar ${filas.length} alumno${filas.length!==1?'s':''}`;
+  document.getElementById('plan-step-upload').style.display='none';
+  document.getElementById('plan-step-preview').style.display='';
+  document.getElementById('plan-btn-volver').style.display='';
+  document.getElementById('plan-btn-importar').style.display='';
+}
+function planConfirmar(){
+  if(!planFilas.length) return;
+  const base=Date.now(); const n=planFilas.length;
+  planFilas.forEach((f,i)=>{ const a={...f, id: base+i}; a.becaPct=getBecaPctAlumno(a); alumnos.push(a); });
+  sortAlumnos(); save();
+  buildCarreraFilter(); buildInactivosCarreraFilter();
+  renderStats(); renderInactivosStats(); renderAlumnosActual(); renderInactivos();
+  closeModal('modal-import-planilla'); planReset();
+  showToast(`Planilla importada · ${n} alumno${n!==1?'s':''} agregado${n!==1?'s':''}`);
+}
 
 function openImportInactivosModal(){
   resetImportInac();
@@ -9271,7 +9455,6 @@ function renderCobranza(){
   if(tableHeader) tableHeader.innerHTML = `
     <span style="font-size:13px;font-weight:600"><i class="ti ti-calendar-stats"></i>Facturación mensual</span>
     <div style="display:flex;gap:8px">
-      <button class="btn" onclick="cobExportarExcel()"><i class="ti ti-file-spreadsheet"></i>Exportar</button>
       <button id="btn-cob-edit" class="${cobEditMode?'btn success':'btn'}" onclick="toggleCobEdit()">
         ${cobEditMode?'<i class="ti ti-check"></i>Guardar':'<i class="ti ti-edit"></i>Editar datos'}
       </button>
@@ -9384,6 +9567,138 @@ function renderCobranza(){
 }
 // Exporta a Excel exactamente el cuadro de Facturación mensual que se ve en
 // pantalla (mismas columnas y misma fila de totales).
+// ── IMPORTAR FACTURACIÓN DESDE EXCEL ────────────────────────────
+let cobImpFilas=[];
+function cobimpStatus(msg,tipo){ const e=document.getElementById('cobimp-status'); if(!e) return; e.textContent=msg; e.className='imp-status '+(tipo||'info'); }
+function abrirImportCob(){ cobimpReset(); document.getElementById('modal-import-cob').classList.add('open'); }
+function cobimpReset(){
+  cobImpFilas=[];
+  document.getElementById('cobimp-step-upload').style.display='';
+  document.getElementById('cobimp-step-preview').style.display='none';
+  document.getElementById('cobimp-btn-volver').style.display='none';
+  document.getElementById('cobimp-btn-importar').style.display='none';
+  document.getElementById('cobimp-status').className='imp-status';
+  document.getElementById('cobimp-file-input').value='';
+  document.getElementById('cobimp-drop-zone').classList.remove('drag');
+}
+function cobimpVolver(){ cobimpReset(); }
+function cobimpHandleDrop(e){
+  e.preventDefault();
+  document.getElementById('cobimp-drop-zone').classList.remove('drag');
+  cobimpHandleFile(e.dataTransfer.files[0]);
+}
+function cobimpHandleFile(file){
+  if(!file) return;
+  cobimpStatus('Leyendo archivo...','info');
+  impLeerArchivo(file, cobimpProcesar, msg=>cobimpStatus(msg,'err'));
+}
+function cobimpProcesar(rows, filename){
+  const reglas={ mes:/^mes/, pp:/pronto|galicia/, pmc:/mis cuentas|pmc/, ef:/efectivo|instiweb/, da:/debito|automatic/ };
+  const mp=impMapearColumnas(rows,reglas,'mes');
+  if(!mp){ cobimpStatus("No encontré una columna 'Mes' en las primeras filas del archivo.",'err'); return; }
+  const canales=['pp','pmc','ef','da'].filter(k=>mp.col[k]!=null);
+  if(!canales.length){ cobimpStatus('No encontré ninguna columna de canal de cobro (Pronto Pago, Pago Mis Cuentas, Efectivo, Débito Automático).','err'); return; }
+  const porIdx={}; let ignoradas=0;
+  rows.slice(mp.h+1).forEach(r=>{
+    if(!r) return;
+    const m=impNz(r[mp.col.mes]);
+    if(!m) return;
+    const idx=COBRANZA_DATA.findIndex(x=>m.startsWith(impNz(x.mes).slice(0,3)));
+    if(idx<0){ if(m!=='total') ignoradas++; return; }
+    const nuevo={};
+    canales.forEach(k=>{ nuevo[k]=impNumero(r[mp.col[k]]); });
+    porIdx[idx]=nuevo;
+  });
+  const filas=Object.keys(porIdx).map(Number).sort((a,b)=>a-b).map(idx=>{
+    const act=COBRANZA_DATA[idx];
+    const nuevo={pp:act.pp||0,pmc:act.pmc||0,ef:act.ef||0,da:act.da||0,...porIdx[idx]};
+    const cambia=['pp','pmc','ef','da'].some(k=>(nuevo[k]||0)!==(act[k]||0));
+    const teniaDatos=(act.pp||0)+(act.pmc||0)+(act.ef||0)+(act.da||0)>0;
+    return {idx, mes:act.mes, nuevo, cambia, sobrescribe:cambia&&teniaDatos};
+  });
+  if(!filas.length){ cobimpStatus('No reconocí ningún mes (Enero a Diciembre) en el archivo.','err'); return; }
+  const cambian=filas.filter(f=>f.cambia);
+  if(!cambian.length){ cobimpStatus('El archivo coincide con los datos actuales: no hay nada para cambiar.','info'); return; }
+  cobImpFilas=cambian;
+  const sobre=cambian.filter(f=>f.sobrescribe).length;
+  const faltan=['pp','pmc','ef','da'].filter(k=>!canales.includes(k));
+  const nombres={pp:'Pronto Pago',pmc:'Pago Mis Cuentas',ef:'Efectivo',da:'Débito Automático'};
+  document.getElementById('cobimp-resumen').innerHTML=`
+    <div><strong>${impEsc(filename)}</strong> — se actualizan <b>${cambian.length}</b> mes${cambian.length!==1?'es':''}${filas.length>cambian.length?` (${filas.length-cambian.length} sin cambios)`:''}.</div>
+    ${sobre?`<div class="warn">${sobre} mes${sobre!==1?'es ya tienen':' ya tiene'} datos cargados y se van a reemplazar.</div>`:''}
+    ${faltan.length?`<div class="warn">El archivo no trae: ${faltan.map(k=>nombres[k]).join(', ')}. Esos valores se mantienen.</div>`:''}
+    ${ignoradas?`<div class="warn">${ignoradas} fila${ignoradas!==1?'s':''} con un mes que no reconocí se omiten.</div>`:''}`;
+  document.getElementById('cobimp-preview-table').innerHTML=
+    '<thead><tr><th>Mes</th><th style="text-align:right">Pronto Pago</th><th style="text-align:right">Pago Mis Cuentas</th><th style="text-align:right">Efectivo</th><th style="text-align:right">Débito Aut.</th><th style="text-align:right">Total</th></tr></thead><tbody>'
+    +cambian.map(f=>{ const n=f.nuevo; const t=(n.pp||0)+(n.pmc||0)+(n.ef||0)+(n.da||0);
+      return `<tr><td>${f.mes}</td><td style="text-align:right">${fmt$(n.pp||0)}</td><td style="text-align:right">${fmt$(n.pmc||0)}</td><td style="text-align:right">${fmt$(n.ef||0)}</td><td style="text-align:right">${fmt$(n.da||0)}</td><td style="text-align:right;font-weight:600">${fmt$(t)}</td></tr>`; }).join('')+'</tbody>';
+  document.getElementById('cobimp-btn-txt').textContent=`Importar ${cambian.length} mes${cambian.length!==1?'es':''}`;
+  document.getElementById('cobimp-step-upload').style.display='none';
+  document.getElementById('cobimp-step-preview').style.display='';
+  document.getElementById('cobimp-btn-volver').style.display='';
+  document.getElementById('cobimp-btn-importar').style.display='';
+}
+function cobImpConfirmar(){
+  if(!cobImpFilas.length) return;
+  const n=cobImpFilas.length;
+  cobImpFilas.forEach(f=>{ COBRANZA_DATA[f.idx]={...COBRANZA_DATA[f.idx],...f.nuevo}; });
+  cobSave(); renderCobranza();
+  if(typeof dashRefrescarSiVisible==='function') dashRefrescarSiVisible();
+  closeModal('modal-import-cob'); cobimpReset();
+  showToast(`Facturación importada · ${n} mes${n!==1?'es':''} actualizado${n!==1?'s':''}`);
+}
+
+// ── EXPORTAR FACTURACIÓN A PDF (ventana de impresión) ───────────
+function cobExportarPDF(){
+  const tot=r=>(r.pp||0)+(r.pmc||0)+(r.ef||0)+(r.da||0);
+  const activos=COBRANZA_DATA.filter(r=>tot(r)>0);
+  if(!activos.length){ showToast('No hay datos de facturación para exportar','error'); return; }
+  const suma=k=>COBRANZA_DATA.reduce((s,r)=>s+(r[k]||0),0);
+  const totalGlobal=activos.reduce((s,r)=>s+tot(r),0);
+  let prev=0;
+  const filas=COBRANZA_DATA.map(r=>{
+    const t=tot(r);
+    const v=(t>0&&prev>0)?(t-prev)/prev*100:null;
+    if(t>0) prev=t;
+    return `<tr><td>${r.mes}</td><td class="n">${fmt$(r.pp||0)}</td><td class="n">${fmt$(r.pmc||0)}</td><td class="n">${fmt$(r.ef||0)}</td><td class="n">${fmt$(r.da||0)}</td><td class="n"><b>${fmt$(t)}</b></td><td class="n">${v===null?'—':fmtPct(v)}</td></tr>`;
+  }).join('');
+  const hoy=new Date().toLocaleDateString('es-AR');
+  const titulo='facturacion_mensual_'+new Date().toISOString().slice(0,10);
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${titulo}</title>
+    <style>
+      body{font-family:Arial,sans-serif;font-size:10.5pt;color:#1a1a1a;margin:0}
+      @page{margin:1.5cm;size:A4 landscape}
+      h1{font-size:16pt;margin:0 0 2px}
+      .sub{font-size:9.5pt;color:#666;margin:0 0 12px}
+      .res{display:flex;gap:24px;margin:0 0 12px;font-size:10pt}
+      .res div span{display:block;font-size:8.5pt;color:#777;text-transform:uppercase;letter-spacing:.04em}
+      table{width:100%;border-collapse:collapse}
+      th{background:#1a1a2e;color:#fff;font-size:9pt;text-align:right;padding:6px 8px}
+      th:first-child,td:first-child{text-align:left}
+      td{padding:5px 8px;border-bottom:1px solid #e3e3dc}
+      td.n{text-align:right;font-variant-numeric:tabular-nums}
+      tfoot td{font-weight:700;background:#f5f5f0;border-top:2px solid #1a1a2e}
+    </style></head><body>
+    <h1>Facturación mensual</h1>
+    <p class="sub">Generado el ${hoy}</p>
+    <div class="res">
+      <div><span>Facturación acumulada</span><b>${fmt$(totalGlobal)}</b></div>
+      <div><span>Promedio mensual</span><b>${fmt$(totalGlobal/activos.length)}</b></div>
+      <div><span>Meses con datos</span><b>${activos.length} / 12</b></div>
+    </div>
+    <table>
+      <thead><tr><th>Mes</th><th>Pronto Pago (Galicia)</th><th>Pago Mis Cuentas</th><th>Efectivo (InstiWeb)</th><th>Débito Automático</th><th>Total del mes</th><th>Var. %</th></tr></thead>
+      <tbody>${filas}</tbody>
+      <tfoot><tr><td>TOTAL</td><td class="n">${fmt$(suma('pp'))}</td><td class="n">${fmt$(suma('pmc'))}</td><td class="n">${fmt$(suma('ef'))}</td><td class="n">${fmt$(suma('da'))}</td><td class="n">${fmt$(totalGlobal)}</td><td></td></tr></tfoot>
+    </table>
+    <script>window.onload=function(){window.print();setTimeout(function(){window.close();},800);};<\/script>
+  </body></html>`;
+  const win=window.open('','_blank','width=1000,height=700');
+  if(!win){ showToast('Habilitá las ventanas emergentes para generar el PDF','error'); return; }
+  win.document.write(html);
+  win.document.close();
+  showToast('Se abrió la ventana de impresión — guardá como PDF');
+}
 function cobExportarExcel(){
   function doExport(){
     const headers = ['Mes','Pronto Pago (Galicia)','Pago Mis Cuentas','Efectivo (InstiWeb)','Débito Automático','Total del mes','Var. %'];
