@@ -5637,6 +5637,13 @@ function restaurarDeudaFile(file){
       }
       if(headerIdx===-1){ showToast('No encontré la columna "Alumno" en el archivo','error'); return; }
 
+      // Columnas según el encabezado (el Excel nuevo trae "Deuda alumnos <año>" entre el monto y el correo;
+      // también se acepta "Deuda vacantes" de exportaciones anteriores)
+      const hdr = (rows[headerIdx]||[]).map(h=>String(h||'').trim().toLowerCase());
+      const idxVac    = hdr.findIndex(h=>/^deuda alumnos \d{4}$/.test(h) || h==='deuda vacantes');
+      const idxCorreo = idxVac>=0 ? hdr.indexOf('correo electronico') : 8;
+      const colCorreo = idxCorreo>=0 ? idxCorreo : 8;
+
       const parsed = [];
       for(let i=headerIdx+1;i<rows.length;i++){
         const r = rows[i];
@@ -5647,8 +5654,9 @@ function restaurarDeudaFile(file){
         const cuotas  = parseFloat(r[3])||0;
         const tel     = r[4]!=null ? normalizarTelParaGuardar(r[4]) : '';
         const obs     = r[5]!=null ? String(r[5]).trim() : '';
-        const monto   = parseFloat(r[7])||0;
-        const correo  = r[8]!=null ? String(r[8]).trim() : '';
+        // La deuda de vacante/matrícula está en la columna del ciclo siguiente: se suma para no perderla al restaurar
+        const monto   = (parseFloat(r[7])||0) + (idxVac>=0 ? (parseFloat(r[idxVac])||0) : 0);
+        const correo  = r[colCorreo]!=null ? String(r[colCorreo]).trim() : '';
         if(!nombre) continue;
         parsed.push({ nombre, anio, carrera, cuotas, monto, tel, obs, correo });
       }
@@ -5750,7 +5758,7 @@ async function restaurarDeudaAplicar(){
             { tipo:'Cuota', descripcion:'Deuda restaurada', monto: monto, pagado: false }
           ];
         }
-        alumno.estado = (alumno.estado === 'Al día' || alumno.estado === 'Vacante' || alumno.estado === 'Matrícula') ? 'Debe' : alumno.estado;
+        alumno.estado = (alumno.estado === 'Al día') ? 'Debe' : alumno.estado;
       } else {
         // Monto 0 — marcar todas las cuotas como pagadas
         (alumno.conceptos||[]).forEach(c=>{ if(c.tipo==='Cuota' && !c.pagado) c.pagado = true; });
@@ -5792,15 +5800,24 @@ function exportarDeudaXLSX(){
   // Cargar SheetJS si no está disponible
   function doExport(){
     const activos = alumnos.filter(a => a.estado !== 'Baja');
-    const headers = ['Alumno','Cursa','Carrera','Cuotas adeudadas','Teléfono','Observaciones','Estado de pago','Monto de la deuda','Correo electronico'];
+    // Columna del ciclo siguiente: reserva de vacante + matrícula de quienes cursan el año próximo.
+    // El año se toma de la fecha actual (en 2026 → "Deuda alumnos 2027", en 2027 → "Deuda alumnos 2028").
+    const cicloSig = cicloCalendario() + 1;
+    const headers = ['Alumno','Cursa','Carrera','Cuotas adeudadas','Teléfono','Observaciones','Estado de pago','Monto de la deuda','Deuda alumnos '+cicloSig,'Correo electronico'];
 
     const rows = activos.map(a => {
       // Formatear nombre como "APELLIDO, Nombre"
       const partes = a.nombre.trim().split(' ');
       let nombreFormato = a.nombre.trim();
       
-      const estadoPago = a.deuda > 0 ? 'No pagado' : 'Pagado';
-      const monto = a.deuda > 0 ? a.deuda : 0;
+      // Vacante/Matrícula del ciclo siguiente: su deuda va en la columna "Deuda alumnos <año>"
+      // y NO se suma a "Monto de la deuda" (que es la deuda real del ciclo en curso).
+      const esVacante = esFuturo(a);
+      // Si ya pagó se mantiene como "Vacante"/"Matrícula" (no pasa a "Pagado")
+      const estadoPago = esVacante ? a.estado : (a.deuda > 0 ? 'No pagado' : 'Pagado');
+      const deudaTotal = a.deuda > 0 ? a.deuda : 0;
+      const monto = esVacante ? 0 : deudaTotal;
+      const deudaVacante = esVacante ? deudaTotal : 0;
       
       return [
         nombreFormato,
@@ -5811,6 +5828,7 @@ function exportarDeudaXLSX(){
         a.observaciones || '',
         estadoPago,
         monto,
+        deudaVacante,
         a.email || ''
       ];
     });
@@ -5829,10 +5847,11 @@ function exportarDeudaXLSX(){
       {wch:35}, // Observaciones
       {wch:12}, // Estado de pago
       {wch:16}, // Monto
+      {wch:18}, // Deuda alumnos (ciclo siguiente)
       {wch:30}, // Email
     ];
 
-    XLSX.utils.book_append_sheet(wb, ws, 'Deuda alumnos 2026');
+    XLSX.utils.book_append_sheet(wb, ws, 'Deuda alumnos '+cicloCalendario());
     const fecha = new Date().toLocaleDateString('es-AR').replace(/\//g,'-');
     XLSX.writeFile(wb, `Alumnos_deuda_ISCM_${fecha}.xlsx`);
     showToast(`Excel exportado con ${activos.length} alumnos`);
@@ -6431,7 +6450,8 @@ function bulkPagar(){
     const a = alumnos.find(x=>x.id===id);
     if(a){
       (a.conceptos||[]).forEach(c=>c.pagado=true);
-      a.estado='Al día';a.deuda=0;a.cuotasAdeudadas=0;
+      if(a.estado!=='Vacante' && a.estado!=='Matrícula') a.estado='Al día';
+      a.deuda=0;a.cuotasAdeudadas=0;
     }
   });
   selected.clear();save();renderStats();renderAlumnosActual();
