@@ -527,7 +527,8 @@ img, svg{max-width:100%}
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
   import {
     getFirestore, initializeFirestore, doc, getDoc, setDoc, onSnapshot,
-    collection, getDocs, deleteDoc, query, orderBy, limit, startAfter, addDoc, writeBatch
+    collection, getDocs, deleteDoc, query, orderBy, limit, startAfter, addDoc, writeBatch,
+    runTransaction, getDocsFromServer, getCountFromServer
   } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
   import {
     getAuth, onAuthStateChanged, setPersistence, browserSessionPersistence,
@@ -658,81 +659,162 @@ img, svg{max-width:100%}
   // así que cualquier módulo nuevo que use _fb.set/_fb.get queda cubierto
   // automáticamente sin tener que tocar este código.
   // ══════════════════════════════════════════════════════════════════════
-  const BACKUPS_RETENCION = 30; // cuántas copias diarias conservar
-  const BK_LOTE = 400; // escrituras por writeBatch (límite real de Firestore: 500)
+  const BACKUPS_RETENCION = 30;      // días con copia que se conservan
+  const BACKUPS_EXTRA_POR_DIA = 2;   // además de la automática de cada día, las N últimas del mismo día
+  const BK_MAX_DOCS_LOTE = 100;      // documentos por writeBatch
+  const BK_MAX_BYTES_LOTE = 4000000; // Firestore limita cada commit a 10 MiB: nos quedamos bien por debajo
 
   function _bkFechaHoy() {
     const d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
 
+  function _bkHoraId() {
+    const d = new Date();
+    const p = n => String(n).padStart(2, '0');
+    return p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
+  }
+
   // Toast visible si existe (definido en el script principal, no-module).
   // Si no está disponible todavía, no rompe nada: solo queda en consola.
   function _bkAviso(msg, tipo) {
     try {
-      if (typeof window.showToast === 'function') window.showToast(msg, tipo);
+      if (typeof window.showToast === 'function') window.showToast(msg, tipo, 6000);
     } catch (e) { /* no bloquear el backup por un error de UI */ }
   }
 
-  // Lee todos los documentos de la colección "datos" tal cual están guardados
-  // (cadenas JSON crudas), para poder restaurarlos exactamente igual.
+  // Antes de copiar, intenta que lo que todavía no llegó a la nube (cola de reintentos,
+  // proveedores pendientes) llegue. Así la copia refleja lo que se ve en pantalla.
+  async function bkEsperarPendientes(maxMs) {
+    try { if (typeof window.provSyncAhora === 'function') await window.provSyncAhora(); } catch (e) { /* se informa abajo */ }
+    try { if (typeof window._fbReintentarFallidas === 'function') window._fbReintentarFallidas(); } catch (e) {}
+    const t0 = Date.now();
+    while ((window._fbPendientes || 0) > 0 && Date.now() - t0 < maxMs) {
+      await new Promise(r => setTimeout(r, 300));
+    }
+    return window._fbPendientes || 0;
+  }
+
+  // Lee TODA la colección "datos" directamente del servidor (nunca de la caché del
+  // navegador, que puede tener solo una parte), tal cual está guardada (cadenas JSON
+  // crudas), para poder restaurarla exactamente igual.
   async function bkLeerColeccionDatos() {
-    const snap = await getDocs(collection(db, "datos"));
+    const snap = await getDocsFromServer(collection(db, "datos"));
     const mapa = {};
-    snap.forEach(d => { mapa[d.id] = d.data().v; });
+    snap.forEach(d => {
+      const v = d.data().v;
+      mapa[d.id] = (v === undefined) ? null : v;
+    });
     return mapa;
   }
 
-  // Crea (o sobreescribe) el backup del día de hoy. Para no toparse con el
-  // límite de 1 MiB por documento de Firestore, el doc "backups/{fecha}"
-  // sólo guarda metadatos livianos, y cada clave de "datos" se guarda como
-  // un documento aparte en la subcolección "backups/{fecha}/claves".
-  async function bkCrear(motivo) {
+  // Escribe un mapa {clave: valorJSON} en lotes que respetan el límite de tamaño de Firestore.
+  async function _bkEscribirMapa(refDe, datos) {
+    const claves = Object.keys(datos);
+    let lote = writeBatch(db), n = 0, bytes = 0;
+    const cerrarLote = async () => {
+      if (!n) return;
+      await lote.commit();
+      lote = writeBatch(db); n = 0; bytes = 0;
+    };
+    for (const key of claves) {
+      const largo = (datos[key] ? String(datos[key]).length : 0) * 2 + 200; // estimación conservadora en bytes
+      if (n && (n >= BK_MAX_DOCS_LOTE || bytes + largo > BK_MAX_BYTES_LOTE)) await cerrarLote();
+      lote.set(refDe(key), { v: datos[key] });
+      n++; bytes += largo;
+    }
+    await cerrarLote();
+  }
+
+  // Crea una copia. Cada copia tiene su propio ID, así una copia nunca pisa a otra:
+  //  - la automática del día usa como ID la fecha (AAAA-MM-DD) y no se vuelve a escribir;
+  //  - el resto (manual, previa a importar/restaurar) usa AAAA-MM-DD_HHMMSS.
+  // Orden: 1º las claves, 2º se verifica, 3º recién ahí se crea el documento con los
+  // metadatos. Así una copia a medias nunca aparece en la lista como si estuviera bien.
+  async function bkCrear(motivo, opciones) {
+    opciones = opciones || {};
+    const pendientes = await bkEsperarPendientes(15000);
     const datos = await bkLeerColeccionDatos();
     const claves = Object.keys(datos);
     if (!claves.length) throw new Error('La colección "datos" está vacía, no se genera backup.');
     const fecha = _bkFechaHoy();
+    const id = opciones.diaria ? fecha : (fecha + '_' + _bkHoraId());
+
+    let previa = null;
+    try {
+      const s = await getDocs(query(collection(db, "backups"), orderBy("ts", "desc"), limit(1)));
+      if (!s.empty) previa = s.docs[0].data();
+    } catch (e) { /* la comparación es solo informativa */ }
+
     const meta = {
-      fecha,
+      id, fecha,
       ts: Date.now(),
       usuario: (window.sesionActual && window.sesionActual.user) || auth.currentUser?.email || 'desconocido',
       motivo: motivo || 'automático',
-      cantidadClaves: claves.length
+      cantidadClaves: claves.length,
+      pendientes
     };
-    await setDoc(doc(db, "backups", fecha), meta);
-    for (let i = 0; i < claves.length; i += BK_LOTE) {
-      const lote = writeBatch(db);
-      claves.slice(i, i + BK_LOTE).forEach(key => {
-        lote.set(doc(db, "backups", fecha, "claves", key), { v: datos[key] });
-      });
-      await lote.commit();
+    if (previa && previa.cantidadClaves >= 10 && claves.length < previa.cantidadClaves * 0.8) {
+      meta.alerta = 'Tiene bastantes menos claves que la copia anterior (' + previa.cantidadClaves + ' → ' + claves.length + ')';
+      _bkAviso('Atención: la copia tiene menos datos que la anterior (' + previa.cantidadClaves + ' → ' + claves.length + ' claves). Revisá que no falte nada.', 'warn');
     }
+    if (pendientes > 0) {
+      meta.alerta = (meta.alerta ? meta.alerta + ' · ' : '') + 'Había cambios sin subir a la nube al generarla';
+      _bkAviso('La copia se generó, pero había cambios que todavía no llegaron a la nube. Volvé a generarla en un momento.', 'warn');
+    }
+
+    await _bkEscribirMapa(key => doc(db, "backups", id, "claves", key), datos);
+
+    try {
+      const c = await getCountFromServer(collection(db, "backups", id, "claves"));
+      if (c.data().count < claves.length) {
+        throw new Error('Copia incompleta (' + c.data().count + ' de ' + claves.length + ' claves)');
+      }
+    } catch (e) {
+      if (e && /incompleta/.test(e.message || '')) throw e;
+      console.warn("bkCrear: no se pudo verificar el conteo", e);
+    }
+
+    await setDoc(doc(db, "backups", id), meta);
     await bkAplicarRetencion();
     return meta;
   }
 
-  // Borra backups más viejos que los últimos N (por fecha, ordenado ascendente),
-  // incluyendo los documentos de su subcolección "claves" (borrar el doc de
-  // arriba NO borra solo la subcolección en Firestore, hay que hacerlo aparte).
+  // Conserva, de los últimos N días: la automática de cada día + las últimas copias extra
+  // del mismo día. Siempre se respetan las 3 copias más nuevas. Borrar el documento de
+  // arriba NO borra solo la subcolección en Firestore, hay que hacerlo aparte.
   async function bkAplicarRetencion() {
     try {
-      const snap = await getDocs(query(collection(db, "backups"), orderBy("fecha", "asc")));
-      const ids = snap.docs.map(d => d.id);
-      const sobran = ids.length - BACKUPS_RETENCION;
-      if (sobran <= 0) return;
-      const aBorrar = ids.slice(0, sobran);
-      for (const id of aBorrar) {
+      const snap = await getDocs(query(collection(db, "backups"), orderBy("ts", "desc")));
+      const items = snap.docs.map(d => {
+        const v = d.data() || {};
+        return { id: d.id, fecha: v.fecha || d.id.slice(0, 10), ts: v.ts || 0 };
+      });
+      const porDia = new Map();
+      items.forEach(it => {
+        if (!porDia.has(it.fecha)) porDia.set(it.fecha, []);
+        porDia.get(it.fecha).push(it);
+      });
+      const conservar = new Set(items.slice(0, 3).map(it => it.id));
+      Array.from(porDia.keys()).sort().reverse().slice(0, BACKUPS_RETENCION).forEach(f => {
+        const arr = porDia.get(f); // más nueva primero
+        const diaria = arr.find(x => x.id === f) || arr[arr.length - 1];
+        conservar.add(diaria.id);
+        arr.filter(x => x.id !== diaria.id).slice(0, BACKUPS_EXTRA_POR_DIA).forEach(x => conservar.add(x.id));
+      });
+      for (const it of items) {
+        if (conservar.has(it.id)) continue;
         try {
-          const clavesSnap = await getDocs(collection(db, "backups", id, "claves"));
+          const clavesSnap = await getDocs(collection(db, "backups", it.id, "claves"));
           const idsClaves = clavesSnap.docs.map(d => d.id);
-          for (let i = 0; i < idsClaves.length; i += BK_LOTE) {
+          for (let i = 0; i < idsClaves.length; i += BK_MAX_DOCS_LOTE) {
             const lote = writeBatch(db);
-            idsClaves.slice(i, i + BK_LOTE).forEach(k => lote.delete(doc(db, "backups", id, "claves", k)));
+            idsClaves.slice(i, i + BK_MAX_DOCS_LOTE).forEach(k => lote.delete(doc(db, "backups", it.id, "claves", k)));
             await lote.commit();
           }
-          await deleteDoc(doc(db, "backups", id));
+          await deleteDoc(doc(db, "backups", it.id));
         } catch (e) {
-          console.warn("bkAplicarRetencion: no se pudo borrar", id, e);
+          console.warn("bkAplicarRetencion: no se pudo borrar", it.id, e);
         }
       }
     } catch (e) {
@@ -740,15 +822,15 @@ img, svg{max-width:100%}
     }
   }
 
-  // Se llama una vez por sesión, después del login. Si hoy todavía no hay
-  // backup, lo crea. Pensado para que "el que primero abre la app en el día"
+  // Se llama una vez por sesión, después del login. Si hoy todavía no hay copia
+  // automática, la crea. Pensado para que "el que primero abre la app en el día"
   // dispare el respaldo, sin que nadie tenga que acordarse de nada.
   async function bkEjecutarSiCorresponde() {
     const fecha = _bkFechaHoy();
     try {
       const existente = await getDoc(doc(db, "backups", fecha));
-      if (existente.exists()) return; // ya se hizo hoy
-      await bkCrear('automático (diario)');
+      if (existente.exists()) return; // la automática de hoy ya está
+      await bkCrear('automático (diario)', { diaria: true });
       console.info("Backup automático creado:", fecha);
     } catch (e) {
       // "permission-denied" es esperable si el rol conectado no tiene permiso
@@ -765,10 +847,10 @@ img, svg{max-width:100%}
 
   // Lista los backups existentes, más nuevo primero.
   async function bkListar() {
-    const snap = await getDocs(query(collection(db, "backups"), orderBy("fecha", "desc")));
+    const snap = await getDocs(query(collection(db, "backups"), orderBy("ts", "desc")));
     return snap.docs.map(d => {
       const v = d.data();
-      return { fecha: v.fecha, ts: v.ts, usuario: v.usuario, motivo: v.motivo, cantidadClaves: v.cantidadClaves };
+      return { id: d.id, fecha: v.fecha || d.id.slice(0, 10), ts: v.ts, usuario: v.usuario, motivo: v.motivo, cantidadClaves: v.cantidadClaves, alerta: v.alerta || '' };
     });
   }
 
@@ -776,44 +858,42 @@ img, svg{max-width:100%}
   // por clave en la subcolección "claves") y, por compatibilidad, el
   // formato viejo (todo embebido en el propio doc "backups/{fecha}"), para
   // que los backups generados antes de este cambio se sigan pudiendo usar.
-  async function bkLeerClaves(fecha) {
-    const clavesSnap = await getDocs(collection(db, "backups", fecha, "claves"));
+  async function bkLeerClaves(id) {
+    const clavesSnap = await getDocsFromServer(collection(db, "backups", id, "claves"));
     if (!clavesSnap.empty) {
       const mapa = {};
       clavesSnap.forEach(d => { mapa[d.id] = d.data().v; });
       return mapa;
     }
-    const snap = await getDoc(doc(db, "backups", fecha));
-    if (!snap.exists()) throw new Error('No existe un backup con esa fecha.');
+    const snap = await getDoc(doc(db, "backups", id));
+    if (!snap.exists()) throw new Error('No existe un backup con ese ID.');
     return (snap.data() || {}).datos || {};
   }
 
   // Restaura un backup puntual: sobreescribe cada clave en "datos" con el
   // valor guardado en ese backup. No borra claves nuevas creadas después
   // del backup (evita perder datos de módulos agregados con posterioridad).
-  async function bkRestaurar(fecha) {
-    const datos = await bkLeerClaves(fecha);
+  async function bkRestaurar(id) {
+    const datos = await bkLeerClaves(id);
     const claves = Object.keys(datos);
-    if (!claves.length) throw new Error('No existe un backup con esa fecha.');
-    for (const key of claves) {
-      await setDoc(doc(db, "datos", key), { v: datos[key] });
-    }
-    // Backup de seguridad ANTES de que el usuario siga trabajando, por si
-    // la restauración fue un error y hay que volver al estado previo.
-    await bkCrear('automático (previo a restauración de ' + fecha + ')').catch(e => console.warn(e));
+    if (!claves.length) throw new Error('El backup está vacío o no existe.');
+    // 1º copia del estado ACTUAL. Si no se puede generar, no se restaura nada.
+    await bkCrear('automático (previo a restauración de ' + id + ')');
+    // 2º restaurar
+    await _bkEscribirMapa(key => doc(db, "datos", key), datos);
     return claves.length;
   }
 
   // Descarga un backup puntual como archivo .json, igual que "Descargar copia".
-  async function bkDescargar(fecha) {
-    const datos = await bkLeerClaves(fecha);
-    const metaSnap = await getDoc(doc(db, "backups", fecha));
+  async function bkDescargar(id) {
+    const datos = await bkLeerClaves(id);
+    const metaSnap = await getDoc(doc(db, "backups", id));
     const raw = metaSnap.exists() ? metaSnap.data() : {};
-    const legible = { fecha, usuario: raw.usuario, motivo: raw.motivo, datos: {} };
+    const legible = { id, fecha: raw.fecha || id.slice(0, 10), usuario: raw.usuario, motivo: raw.motivo, datos: {} };
     Object.keys(datos).forEach(k => {
       try { legible.datos[k] = JSON.parse(datos[k]); } catch (e) { legible.datos[k] = datos[k]; }
     });
-    descargarArchivo('backup-iscm-' + fecha + '.json', JSON.stringify(legible, null, 2), 'application/json');
+    descargarArchivo('backup-iscm-' + id + '.json', JSON.stringify(legible, null, 2), 'application/json');
   }
 
   window._fbBackup = {
@@ -822,6 +902,147 @@ img, svg{max-width:100%}
     listar: bkListar,
     restaurar: bkRestaurar,
     descargar: bkDescargar
+  };
+
+  // ══════════════════════════════════════════════════════════════════════
+  // ── LISTAS COMPARTIDAS SIN PISARSE (proveedores) ─────────────────────────
+  // Antes, cada guardado reemplazaba la lista COMPLETA: si una PC tenía datos viejos,
+  // al guardar borraba lo que había cargado otra persona. Ahora cada guardado manda
+  // solo lo que ESE usuario cambió (altas, ediciones, bajas) y se aplica sobre la
+  // lista actual de la nube dentro de una transacción. Nada de lo ajeno se pierde.
+  // ══════════════════════════════════════════════════════════════════════
+  const _lsStr = x => JSON.stringify(x);
+
+  function _lsBase(arr) {
+    const m = new Map();
+    (Array.isArray(arr) ? arr : []).forEach(x => { if (x && x.id != null) m.set(x.id, _lsStr(x)); });
+    return m;
+  }
+
+  function _lsDiff(base, actual) {
+    const act = new Map();
+    (Array.isArray(actual) ? actual : []).forEach(x => { if (x && x.id != null) act.set(x.id, x); });
+    const altas = [], cambios = [], bajas = [];
+    act.forEach((x, id) => {
+      if (!base.has(id)) altas.push(x);
+      else if (base.get(id) !== _lsStr(x)) cambios.push(x);
+    });
+    base.forEach((_, id) => { if (!act.has(id)) bajas.push(id); });
+    return { altas, cambios, bajas };
+  }
+
+  function _lsHayCambios(base, actual) {
+    const d = _lsDiff(base, actual);
+    return !!(d.altas.length || d.cambios.length || d.bajas.length);
+  }
+
+  // Aplica los cambios propios sobre la lista remota.
+  //  - bajas: se quitan por id
+  //  - cambios: reemplazan por id (si la otra persona la había borrado, se vuelve a crear:
+  //    prefiero no perder lo que alguien acaba de editar)
+  //  - altas: se agregan; si el ID ya lo usó otra persona para OTRA fila, se le da un ID nuevo
+  function _lsAplicar(remoto, d) {
+    const quitar = new Set(d.bajas);
+    const res = (Array.isArray(remoto) ? remoto : []).filter(x => !(x && quitar.has(x.id)));
+    const pos = new Map();
+    res.forEach((x, i) => { if (x && x.id != null) pos.set(x.id, i); });
+    d.cambios.forEach(x => {
+      if (pos.has(x.id)) res[pos.get(x.id)] = x;
+      else { res.push(x); pos.set(x.id, res.length - 1); }
+    });
+    let maxId = res.reduce((m, x) => Math.max(m, Number(x && x.id) || 0), 0);
+    const remap = [];
+    d.altas.forEach(x => {
+      let fila = x;
+      if (pos.has(x.id)) {
+        if (_lsStr(res[pos.get(x.id)]) === _lsStr(x)) return; // misma alta reintentada: no duplicar
+        const nuevo = ++maxId;
+        remap.push({ obj: x, viejo: x.id, nuevo });
+        fila = Object.assign({}, x, { id: nuevo });
+      }
+      res.push(fila);
+      pos.set(fila.id, res.length - 1);
+      maxId = Math.max(maxId, Number(fila.id) || 0);
+    });
+    return { lista: res, remap };
+  }
+
+  async function lsSync(key, base, actual) {
+    const d = _lsDiff(base, actual);
+    if (!d.altas.length && !d.cambios.length && !d.bajas.length) return { sinCambios: true, lista: null, remap: [] };
+    const ref = doc(db, "datos", key);
+    let anteriorStr = null, nuevoStr = null, out = null;
+    const trabajo = runTransaction(db, async tx => {
+      const snap = await tx.get(ref);
+      anteriorStr = snap.exists() ? snap.data().v : null;
+      let remoto = [];
+      if (anteriorStr) {
+        // Si lo que hay en la nube no se puede leer, NO se escribe encima.
+        const p = JSON.parse(anteriorStr);
+        if (Array.isArray(p)) remoto = p;
+      }
+      out = _lsAplicar(remoto, d);
+      nuevoStr = JSON.stringify(out.lista);
+      tx.set(ref, { v: nuevoStr });
+    });
+    trabajo.catch(() => {});
+    await Promise.race([
+      trabajo,
+      new Promise((_, rej) => setTimeout(() => rej(new Error("timeout de escritura")), 25000))
+    ]);
+    auditRegistrar(key, anteriorStr, nuevoStr);
+    return { sinCambios: false, lista: out.lista, remap: out.remap };
+  }
+
+  // Lo mismo para un conjunto de IDs (filas ocultas de proveedores).
+  function _lsIdsDiff(base, actual) {
+    return {
+      altas: Array.from(actual).filter(id => !base.has(id)),
+      bajas: Array.from(base).filter(id => !actual.has(id))
+    };
+  }
+
+  function _lsIdsAplicar(remotoArr, d) {
+    const s = new Set(Array.isArray(remotoArr) ? remotoArr : []);
+    d.altas.forEach(id => s.add(id));
+    d.bajas.forEach(id => s.delete(id));
+    return s;
+  }
+
+  async function lsSyncIds(key, base, actual) {
+    const d = _lsIdsDiff(base, actual);
+    if (!d.altas.length && !d.bajas.length) return { sinCambios: true, ids: null };
+    const ref = doc(db, "datos", key);
+    let anteriorStr = null, nuevoStr = null, out = null;
+    const trabajo = runTransaction(db, async tx => {
+      const snap = await tx.get(ref);
+      anteriorStr = snap.exists() ? snap.data().v : null;
+      let remoto = [];
+      if (anteriorStr) {
+        const p = JSON.parse(anteriorStr);
+        if (Array.isArray(p)) remoto = p;
+      }
+      out = Array.from(_lsIdsAplicar(remoto, d));
+      nuevoStr = JSON.stringify(out);
+      tx.set(ref, { v: nuevoStr });
+    });
+    trabajo.catch(() => {});
+    await Promise.race([
+      trabajo,
+      new Promise((_, rej) => setTimeout(() => rej(new Error("timeout de escritura")), 25000))
+    ]);
+    auditRegistrar(key, anteriorStr, nuevoStr);
+    return { sinCambios: false, ids: out };
+  }
+
+  window._fbLista = {
+    base: _lsBase,
+    hayCambios: _lsHayCambios,
+    rebase: (remoto, base, actual) => _lsAplicar(remoto, _lsDiff(base, actual)),
+    sync: lsSync,
+    hayCambiosIds: (base, actual) => { const d = _lsIdsDiff(base, actual); return !!(d.altas.length || d.bajas.length); },
+    idsRebase: (remotoArr, base, actual) => _lsIdsAplicar(remotoArr, _lsIdsDiff(base, actual)),
+    syncIds: lsSyncIds
   };
 
   const DOMINIO_EMAIL_USUARIOS = "iscm-gestion.local";
@@ -933,7 +1154,7 @@ img, svg{max-width:100%}
     const _sleep = ms => new Promise(r => setTimeout(r, ms));
 
     function _fbPendientes() {
-      let n = _fbFallidas.size;
+      let n = _fbFallidas.size + (window._fbExtFail || 0) + (window._fbExtPend || 0);
       _fbCola.forEach(q => { n += 1; });
       return n;
     }
@@ -942,7 +1163,8 @@ img, svg{max-width:100%}
       window._fbPendientes = n;
       const ind = window._fbSyncIndicator;
       if (typeof ind !== 'function') return;
-      if (_fbFallidas.size > 0) ind('err', _fbFallidas.size);
+      const fallo = _fbFallidas.size + (window._fbExtFail || 0);
+      if (fallo > 0) ind('err', fallo);
       else if (n > 0) ind('saving', n);
       else ind('ok');
     }
@@ -1175,30 +1397,56 @@ img, svg{max-width:100%}
       return () => { unIdx(); if (unLegacy) unLegacy(); unShards.forEach(un => un()); };
     }
 
+    // Lee un valor de Firestore. Ante un error de red reintenta unas veces antes de rendirse;
+    // si igual falla, lanza el error (quien llama tiene que saber que no pudo leer,
+    // no asumir "no hay datos").
     async function fbGet(key) {
       if (key === _SH_KEY) return _shGet();
-      try {
-        const snap = await getDoc(doc(db, "datos", key));
-        if (snap.exists()) return JSON.parse(snap.data().v);
-      } catch(e) {
-        console.error("fbGet error", key, e);
-        throw e; // re-lanzar: quien llama tiene que saber que no pudo leer, no asumir "no hay datos"
+      let ultimo;
+      for (const espera of [0, 1500, 4000]) {
+        if (espera) await _sleep(espera);
+        try {
+          const snap = await getDoc(doc(db, "datos", key));
+          if (snap.exists()) return JSON.parse(snap.data().v);
+          return null;
+        } catch (e) {
+          ultimo = e;
+          console.warn("fbGet: intento fallido", key, e && (e.code || e.message));
+          if (e && e.code === 'permission-denied') break; // reintentar no sirve
+        }
       }
-      return null;
+      console.error("fbGet error", key, ultimo);
+      throw ultimo;
     }
 
-    // Escucha cambios en tiempo real de un documento
+    // Escucha cambios en tiempo real de un documento. Si la conexión de escucha se corta
+    // (red de oficina, proxy), se vuelve a abrir sola: antes quedaba muerta y esa pestaña
+    // dejaba de recibir lo que cargaban los demás.
     function fbListen(key, callback) {
       if (key === _SH_KEY) return _shListen(callback);
-      return onSnapshot(doc(db, "datos", key), snap => {
-        if (snap.exists()) {
-          try { callback(JSON.parse(snap.data().v)); } catch(e) {}
-        }
-      }, err => console.error("fbListen error", key, err));
+      let un = null, cancelado = false, intentos = 0, timer = null;
+      const suscribir = () => {
+        if (cancelado) return;
+        un = onSnapshot(doc(db, "datos", key), snap => {
+          intentos = 0;
+          if (snap.exists()) {
+            try { callback(JSON.parse(snap.data().v)); } catch (e) { console.error("fbListen callback", key, e); }
+          }
+        }, err => {
+          console.error("fbListen error", key, err);
+          if (cancelado || (err && err.code === 'permission-denied')) return;
+          intentos++;
+          timer = setTimeout(suscribir, Math.min(30000, 2000 * intentos));
+        });
+      };
+      suscribir();
+      return () => { cancelado = true; clearTimeout(timer); if (un) un(); };
     }
 
     // Exponer al scope global para que el resto del script (no-module) lo use
     window._fb = { set: fbSet, get: fbGet, listen: fbListen };
+    window._fbActualizarEstado = _fbActualizarEstado;
+    window._fbReintentarFallidas = _fbReintentarFallidas;
     window._fbReady = true;
     window.dispatchEvent(new Event('fbReady'));
 
@@ -8445,6 +8693,7 @@ function guardarArancelVigente(tipo, vals){
   let d = {}; try{ if(saved) d=JSON.parse(saved); }catch(e){}
   d[tipo] = vals;
   localStorage.setItem(ARANCEL_VIGENTE_KEY, JSON.stringify(d));
+  iscmNubeGuardar(ARANCEL_VIGENTE_KEY, d);
 }
 
 function guardarBorrador(tipo){
@@ -8736,6 +8985,7 @@ function guardarMatricula(){
   const general = parseFloat(document.getElementById('mat-general').value)||0;
   const ef123   = parseFloat(document.getElementById('mat-ef123').value)||0;
   localStorage.setItem(MATRICULA_KEY, JSON.stringify({reserva, general, ef123}));
+  iscmNubeGuardar(MATRICULA_KEY, {reserva, general, ef123});
   previewMatricula();
   showToast('Reserva y Matrícula guardadas');
 }
@@ -8826,6 +9076,7 @@ function registrarCambioArancel(tipo, viejos, nuevos, totalViejo, totalNuevo){
   });
   // Max 100 entradas
   localStorage.setItem(ARANCEL_HIST_KEY, JSON.stringify(hist.slice(0,100)));
+  iscmNubeGuardar(ARANCEL_HIST_KEY, hist.slice(0,100));
 }
 
 function renderArancelHistorial(){
@@ -11943,34 +12194,190 @@ let mostrarOcultos = false;
 let provOcultos = new Set();
 let provMostrarOcultos = false;
 
+// ── Sincronización de proveedores ───────────────────────────────────────────
+// La lista de la nube es compartida por todas las PCs y usuarios. Cada guardado manda
+// solo lo que ESTE usuario cambió (altas, ediciones, bajas) y se aplica sobre la lista
+// actual de la nube (ver window._fbLista en el módulo de Firebase). "provBase" es lo
+// último que se sabe que está en la nube: la diferencia contra la lista en pantalla
+// son los cambios propios que faltan subir.
+const PROV_BASE_KEY = 'iscm_proveedores_v1__base';
+const PROV_HIDDEN_BASE_KEY = 'iscm_prov_hidden_v1__base';
+let provBase = new Map();
+let provBaseOcultos = new Set();
+let provSyncPromesa = null, provSyncOtra = false, provSyncFallas = 0, provSyncTimer = null;
+let provSyncBloqueoHasta = 0;
+let provRemotoDiferido = null, provOcultosRemotoDiferido = null;
+
+function provLeerLS(key, def){
+  try{ const s = localStorage.getItem(key); return s ? JSON.parse(s) : def; }catch(e){ return def; }
+}
+function provMapaBase(arr){
+  const m = new Map();
+  (Array.isArray(arr) ? arr : []).forEach(x=>{ if(x && x.id!=null) m.set(x.id, JSON.stringify(x)); });
+  return m;
+}
+function provGuardarLocal(){
+  try{
+    localStorage.setItem(PROV_KEY, JSON.stringify(proveedores));
+    localStorage.setItem(PROV_HIDDEN_KEY, JSON.stringify([...provOcultos]));
+  }catch(e){}
+}
+function provGuardarBase(lista, ids){
+  try{
+    if(lista) localStorage.setItem(PROV_BASE_KEY, JSON.stringify(lista));
+    if(ids) localStorage.setItem(PROV_HIDDEN_BASE_KEY, JSON.stringify([...ids]));
+  }catch(e){}
+}
+function provHayPendiente(){
+  const L = window._fbLista;
+  if(!L) return false;
+  return L.hayCambios(provBase, proveedores) || L.hayCambiosIds(provBaseOcultos, provOcultos);
+}
+function provActualizarIndicador(){
+  if(typeof window._fbActualizarEstado === 'function') window._fbActualizarEstado();
+}
+
 function loadProv(){
-  const saved = localStorage.getItem(PROV_KEY);
-  proveedores = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(PROV_INITIAL));
-  const savedH = localStorage.getItem(PROV_HIDDEN_KEY);
-  provOcultos = savedH ? new Set(JSON.parse(savedH)) : new Set();
+  const saved = provLeerLS(PROV_KEY, null);
+  proveedores = Array.isArray(saved) ? saved : JSON.parse(JSON.stringify(PROV_INITIAL));
+  provOcultos = new Set(provLeerLS(PROV_HIDDEN_KEY, []));
   try{ const sb = localStorage.getItem(PROV_BENEF_KEY); provBenef = sb ? JSON.parse(sb) : []; }catch(e){ provBenef = []; }
+  // Lo que ya estaba en la nube la última vez. Si esta PC se cerró con cambios sin subir,
+  // la diferencia contra "base" son justamente esos cambios, y se suben al volver.
+  const baseGuardada = provLeerLS(PROV_BASE_KEY, null);
+  provBase = provMapaBase(Array.isArray(baseGuardada) ? baseGuardada : proveedores);
+  const baseOcGuardada = provLeerLS(PROV_HIDDEN_BASE_KEY, null);
+  provBaseOcultos = new Set(Array.isArray(baseOcGuardada) ? baseOcGuardada : [...provOcultos]);
   // Sincronizar con Firebase
   (async ()=>{
-    await new Promise(r=>{ if(window._fbReady)return r(); window.addEventListener('fbReady',r,{once:true}); setTimeout(r,3000); });
-    if(!window._fb) return;
-    const remote = await window._fb.get(PROV_KEY);
-    if(remote){ proveedores = remote; renderProveedores(); }
-    const remoteH = await window._fb.get(PROV_HIDDEN_KEY);
-    if(remoteH){ provOcultos = new Set(remoteH); renderProveedores(); }
-    const remoteB = await window._fb.get(PROV_BENEF_KEY);
-    if(Array.isArray(remoteB)){ provBenef = remoteB; localStorage.setItem(PROV_BENEF_KEY, JSON.stringify(provBenef)); }
-    window._fb.listen(PROV_BENEF_KEY, data=>{ if(Array.isArray(data)) provBenef = data; });
-    window._fb.listen(PROV_KEY, data=>{ proveedores=data; renderProveedores(); });
-    window._fb.listen(PROV_HIDDEN_KEY, data=>{ provOcultos=new Set(data); renderProveedores(); });
+    await new Promise(r=>{ if(window._fbReady) return r(); window.addEventListener('fbReady', r, {once:true}); });
+    provIniciarNube();
   })();
 }
-function saveProv(){
-  localStorage.setItem(PROV_KEY, JSON.stringify(proveedores));
-  localStorage.setItem(PROV_HIDDEN_KEY, JSON.stringify([...provOcultos]));
-  if(window._fb){
-    window._fb.set(PROV_KEY, proveedores).catch(()=>{});
-    window._fb.set(PROV_HIDDEN_KEY, [...provOcultos]).catch(()=>{});
+
+function provIniciarNube(){
+  if(!window._fb || !window._fbLista) return;
+  // Primera vez (todavía no existe en la nube): subir todo lo local.
+  window._fb.get(PROV_KEY).then(r=>{
+    if(r === null){ provBase = new Map(); provSyncSoon(0); }
+  }).catch(e=>console.warn('proveedores: no se pudo leer la nube', e));
+  window._fb.get(PROV_HIDDEN_KEY).then(r=>{
+    if(r === null){ provBaseOcultos = new Set(); provSyncSoon(0); }
+  }).catch(()=>{});
+  window._fb.get(PROV_BENEF_KEY).then(remoteB=>{
+    if(Array.isArray(remoteB)){ provBenef = remoteB; try{ localStorage.setItem(PROV_BENEF_KEY, JSON.stringify(provBenef)); }catch(e){} }
+  }).catch(()=>{});
+  window._fb.listen(PROV_BENEF_KEY, data=>{ if(Array.isArray(data)) provBenef = data; });
+  window._fb.listen(PROV_KEY, provAlLlegarLista);
+  window._fb.listen(PROV_HIDDEN_KEY, provAlLlegarOcultos);
+  // Reintentos: cada 20 s, al volver la conexión y al volver a la pestaña.
+  setInterval(()=>{ if(provHayPendiente()) provSyncSoon(0); }, 20000);
+  window.addEventListener('online', ()=>provSyncSoon(0));
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') provSyncSoon(0); });
+}
+
+// Llegó la lista de la nube (la primera vez y cada vez que alguien la cambia).
+// Se muestra la lista de la nube MÁS los cambios propios que todavía no se subieron.
+function provAlLlegarLista(data){
+  if(!Array.isArray(data)) return;
+  if(provSyncPromesa){ provRemotoDiferido = data; return; } // se aplica al terminar de subir
+  const r = window._fbLista.rebase(data, provBase, proveedores);
+  proveedores = r.lista;
+  provBase = provMapaBase(data);
+  provGuardarBase(data, null);
+  provGuardarLocal();
+  renderProveedores();
+  if(provHayPendiente()) provSyncSoon(500);
+}
+function provAlLlegarOcultos(data){
+  if(!Array.isArray(data)) return;
+  if(provSyncPromesa){ provOcultosRemotoDiferido = data; return; }
+  provOcultos = window._fbLista.idsRebase(data, provBaseOcultos, provOcultos);
+  provBaseOcultos = new Set(data);
+  provGuardarBase(null, provBaseOcultos);
+  provGuardarLocal();
+  renderProveedores();
+  if(provHayPendiente()) provSyncSoon(500);
+}
+
+function provSyncSoon(ms){
+  if(Date.now() < provSyncBloqueoHasta) return;
+  clearTimeout(provSyncTimer);
+  provSyncTimer = setTimeout(()=>{ provSyncRun(); }, ms||0);
+}
+
+// Sube lo pendiente. Si ya hay una subida en curso, espera a esa y vuelve a revisar.
+function provSyncRun(){
+  if(!window._fbLista) return Promise.resolve();
+  if(provSyncPromesa){ provSyncOtra = true; return provSyncPromesa; }
+  provSyncPromesa = (async ()=>{
+    try{
+      let vueltas = 0;
+      do{
+        provSyncOtra = false; vueltas++;
+        if(!provHayPendiente()) break;
+        await provSyncUnaVez();
+      } while((provSyncOtra || provHayPendiente()) && vueltas < 5);
+      provSyncFallas = 0;
+      window._fbExtFail = 0;
+    }catch(e){
+      provSyncFallas++;
+      window._fbExtFail = 1;
+      console.error('proveedores: no se pudo subir', e);
+      if(e && e.code === 'permission-denied'){
+        provSyncBloqueoHasta = Date.now() + 300000; // sin permiso de escritura: no insistir
+      } else {
+        provSyncSoon(Math.min(30000, 2000 * Math.pow(2, provSyncFallas - 1)));
+        if(provSyncFallas === 3 && typeof showToast === 'function')
+          showToast('⚠ No se pudieron subir los cambios de Proveedores. Quedan guardados en esta PC y se reintenta solo: no cierres la pestaña.', 'warn', 7000);
+      }
+    }finally{
+      window._fbExtPend = 0;
+      provSyncPromesa = null;
+      provActualizarIndicador();
+      if(provRemotoDiferido !== null){ const d = provRemotoDiferido; provRemotoDiferido = null; provAlLlegarLista(d); }
+      if(provOcultosRemotoDiferido !== null){ const d = provOcultosRemotoDiferido; provOcultosRemotoDiferido = null; provAlLlegarOcultos(d); }
+    }
+  })();
+  return provSyncPromesa;
+}
+
+async function provSyncUnaVez(){
+  const L = window._fbLista;
+  window._fbExtPend = 1; provActualizarIndicador();
+  // 1) facturas
+  const baseAntes = provBase;
+  const r = await L.sync(PROV_KEY, baseAntes, proveedores);
+  let huboRemap = false;
+  if(!r.sinCambios){
+    r.remap.forEach(m=>{ m.obj.id = m.nuevo; huboRemap = true; });
+    // Lo que se editó mientras subía se vuelve a aplicar (lo ya subido no cambia nada)
+    proveedores = L.rebase(r.lista, baseAntes, proveedores).lista;
+    provBase = provMapaBase(r.lista);
+    provGuardarBase(r.lista, null);
   }
+  // 2) filas ocultas
+  const baseOcAntes = provBaseOcultos;
+  const ro = await L.syncIds(PROV_HIDDEN_KEY, baseOcAntes, provOcultos);
+  if(!ro.sinCambios){
+    provOcultos = L.idsRebase(ro.ids, baseOcAntes, provOcultos);
+    provBaseOcultos = new Set(ro.ids);
+    provGuardarBase(null, provBaseOcultos);
+  }
+  provGuardarLocal();
+  if(huboRemap) renderProveedores();
+}
+
+// La usa el backup para asegurarse de que lo que se ve en pantalla ya esté en la nube.
+async function provSyncAhora(){
+  if(!window._fbLista) return;
+  if(!provHayPendiente() && !provSyncPromesa) return;
+  await provSyncRun();
+}
+
+function saveProv(){
+  provGuardarLocal();
+  provSyncSoon(0);
 }
 function provFmt(n){ const p=(parseFloat(n)||0).toFixed(2).split('.'); p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.'); return '$'+p[0]+','+p[1]; }
 function fmtFecha(s){ if(!s) return '—'; const d=s.split('-'); return d[2]+'/'+d[1]+'/'+d[0]; }
@@ -12725,16 +13132,19 @@ function guardarProveedor(){
   if(original && original.pagoExtracto) entry.pagoExtracto = original.pagoExtracto;
   // "Esperando factura" se mantiene hasta que se cargue el N° de factura, se marque la factura recibida o se pague
   if(original && original.esperando && !entry.nFactura && entry.facturaEnviada!=='SI' && entry.pagado!=='SI') entry.esperando = true;
+  let recreada = false;
   if(editingProvId !== null){
     const idx = proveedores.findIndex(p=>p.id===editingProvId);
     if(idx>=0) proveedores[idx]=entry;
+    else { proveedores.push(entry); recreada = true; } // otra persona la había eliminado mientras se editaba
   } else {
     proveedores.push(entry);
   }
   saveProv();
   document.getElementById('modal-prov').classList.remove('open');
   renderProveedores();
-  showToast('Proveedor guardado correctamente');
+  if(recreada) showToast('⚠ Esa factura había sido eliminada por otra persona: se volvió a crear con tus cambios.', 'warn', 6000);
+  else showToast('Proveedor guardado correctamente');
 }
 
 function eliminarProv(id){
@@ -17074,9 +17484,11 @@ function mostrarPPError(msg){
     </div>
     <div id="spane-backups">
       <div style="font-size:12px;color:#888;margin-bottom:14px">
-        Se genera sola una vez por día, la primera vez que alguien abre el sistema. Se conservan las últimas
-        <b id="bk-retencion">30</b> copias diarias. Podés restaurar cualquiera de estas fechas si algo se borró
-        por error, o descargarla como archivo si preferís guardarla vos.
+        Se genera sola la primera vez que alguien abre el sistema cada día, y además antes de cada importación o
+        restauración. También podés generarla a mano: cada copia se guarda aparte y no pisa a las anteriores.
+        Se conservan <b id="bk-retencion">30</b> días: la automática de cada día más las 2 últimas del mismo día.
+        Podés restaurar cualquiera si algo se borró por error (antes de restaurar se guarda una copia del estado actual),
+        o descargarla como archivo si preferís guardarla vos.
       </div>
       <div id="bk-lista" style="max-height:360px;overflow:auto"></div>
       <div style="margin-top:12px"><button class="btn" onclick="backupCrearAhoraUI()"><i class="ti ti-device-floppy"></i>Generar backup ahora</button></div>
@@ -17398,9 +17810,10 @@ async function renderBackupsLista(){
           ${new Date(b.ts).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})} ·
           ${b.usuario||'—'} · ${b.motivo||'automático'} · ${b.cantidadClaves} claves
         </div>
+        ${b.alerta ? `<div style="font-size:11px;color:#b45309;margin-top:2px">⚠ ${b.alerta}</div>` : ''}
       </div>
-      <button class="btn sm" onclick="backupDescargarUI('${b.fecha}')" title="Descargar como .json"><i class="ti ti-download"></i></button>
-      <button class="btn sm" style="color:#c0392b" onclick="backupRestaurarUI('${b.fecha}')" title="Restaurar este backup"><i class="ti ti-history"></i>Restaurar</button>
+      <button class="btn sm" onclick="backupDescargarUI('${b.id}')" title="Descargar como .json"><i class="ti ti-download"></i></button>
+      <button class="btn sm" style="color:#c0392b" onclick="backupRestaurarUI('${b.id}')" title="Restaurar este backup"><i class="ti ti-history"></i>Restaurar</button>
     </div>
   `).join('');
 }
@@ -17408,8 +17821,9 @@ async function renderBackupsLista(){
 async function backupCrearAhoraUI(){
   if(!_bkEsAdmin() || !window._fbBackup) return;
   try{
-    await window._fbBackup.crearAhora();
-    showToast('Backup generado');
+    showToast('Generando backup… puede tardar unos segundos', 'info');
+    const m = await window._fbBackup.crearAhora();
+    showToast('Backup generado (' + m.cantidadClaves + ' claves)');
     await renderBackupsLista();
   }catch(e){
     console.error('backupCrearAhoraUI', e);
@@ -17417,9 +17831,9 @@ async function backupCrearAhoraUI(){
   }
 }
 
-async function backupDescargarUI(fecha){
+async function backupDescargarUI(id){
   try{
-    await window._fbBackup.descargar(fecha);
+    await window._fbBackup.descargar(id);
   }catch(e){
     console.error('backupDescargarUI', e);
     showToast('No se pudo descargar ese backup', 'error');
@@ -17429,13 +17843,15 @@ async function backupDescargarUI(fecha){
 // Restaurar pisa TODOS los datos actuales del sistema. Es irreversible para
 // lo cargado desde el backup hasta hoy, así que pedimos escribir una palabra
 // en vez de un simple Aceptar/Cancelar (fácil de clickear sin leer).
-async function backupRestaurarUI(fecha){
+async function backupRestaurarUI(id){
   if(!_bkEsAdmin()) return;
-  const fechaLegible = _bkFechaLegible(fecha);
+  const partesId = String(id).split('_');
+  const horaId = partesId[1] && partesId[1].length>=4 ? (' ' + partesId[1].slice(0,2) + ':' + partesId[1].slice(2,4)) : '';
+  const fechaLegible = _bkFechaLegible(String(id).slice(0,10)) + horaId;
   const escrito = prompt(
     `Vas a RESTAURAR el backup del ${fechaLegible}.\n\n` +
     `Esto reemplaza los datos actuales del sistema (aranceles, becas, bonos, caja, etc.) por los que estaban guardados ese día.\n` +
-    `Se genera automáticamente un backup del estado actual antes de restaurar, por las dudas.\n\n` +
+    `Antes de restaurar se genera un backup del estado actual (si no se puede generar, no se restaura nada).\n\n` +
     `Para confirmar, escribí la palabra RESTAURAR (en mayúsculas):`
   );
   if(escrito !== 'RESTAURAR'){
@@ -17443,7 +17859,7 @@ async function backupRestaurarUI(fecha){
     return;
   }
   try{
-    const cantidad = await window._fbBackup.restaurar(fecha);
+    const cantidad = await window._fbBackup.restaurar(id);
     showToast(`Restaurado: ${cantidad} claves del ${fechaLegible}. Recargá la página para ver los datos.`, 'success', 6000);
     await renderBackupsLista();
   }catch(e){
@@ -19820,6 +20236,7 @@ function bonoSetValorUnitario(val){
   const v = parseFloat(val);
   const final = (!isNaN(v) && v>=0) ? v : 10000;
   localStorage.setItem(BONO_VALOR_KEY, String(final));
+  iscmNubeGuardar(BONO_VALOR_KEY, final);
   const inp = document.getElementById('bono-valor-unitario');
   if(inp) inp.value = final;
   renderBonos();
@@ -21589,6 +22006,69 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('SW no registrado:', e); });
   });
 }
+</script>
+<script>
+// ── Datos que antes vivían SOLO en cada navegador ────────────────────────────
+// Aranceles vigentes, historial de aranceles, matrícula/reserva y valor del bono se
+// guardaban nada más que en el localStorage de cada PC: no se sincronizaban entre
+// computadoras y tampoco entraban en las copias de seguridad. Ahora se guardan también
+// en la nube (colección "datos"), así quedan en el backup y se ven iguales en todas las PCs.
+// La primera PC que abre esta versión sube sus valores; las demás adoptan los de la nube.
+const ISCM_CLAVES_NUBE = {
+  'iscm_arancel_vigente': { tipo:'json', refrescar:function(){
+    if(typeof cargarValoresAranceles==='function') cargarValoresAranceles();
+    if(typeof previewAranceles==='function') previewAranceles();
+  }},
+  'iscm_arancel_hist_v1': { tipo:'json', refrescar:function(){
+    if(typeof renderArancelHistorial==='function') renderArancelHistorial();
+  }},
+  'iscm_matricula_vigente': { tipo:'json', refrescar:function(){
+    if(typeof cargarMatriculaForm==='function' && document.getElementById('mat-reserva')) cargarMatriculaForm();
+  }},
+  'iscm_bono_valor_unitario': { tipo:'num', refrescar:function(){
+    const inp = document.getElementById('bono-valor-unitario');
+    if(inp && typeof getBonoValorUnitario==='function') inp.value = getBonoValorUnitario();
+    if(typeof renderBonos==='function') renderBonos();
+  }}
+};
+
+// Se llama después de guardar en localStorage, desde cada lugar que modifica estos valores.
+function iscmNubeGuardar(key, valor){
+  try{
+    if(window._fb && window._fbReady) window._fb.set(key, valor).catch(function(){});
+  }catch(e){}
+}
+
+function iscmNubeInit(){
+  if(!window._fb) return;
+  Object.keys(ISCM_CLAVES_NUBE).forEach(function(key){
+    const cfg = ISCM_CLAVES_NUBE[key];
+    const aplicar = function(remoto){
+      if(remoto===null || remoto===undefined) return;
+      const nuevoStr = cfg.tipo==='num' ? String(remoto) : JSON.stringify(remoto);
+      if(localStorage.getItem(key)===nuevoStr) return; // ya está igual (por ejemplo, el eco de lo que acabo de guardar)
+      try{ localStorage.setItem(key, nuevoStr); }catch(e){}
+      try{ cfg.refrescar(); }catch(e){ console.warn('iscmNube refrescar', key, e); }
+    };
+    (async function(){
+      try{
+        const remoto = await window._fb.get(key);
+        if(remoto===null){
+          // Todavía no está en la nube: subir lo que tenga esta PC
+          const local = localStorage.getItem(key);
+          if(local!==null){
+            try{ await window._fb.set(key, cfg.tipo==='num' ? parseFloat(local) : JSON.parse(local)); }catch(e){}
+          }
+        } else {
+          aplicar(remoto);
+        }
+      }catch(e){ console.warn('iscmNube: no se pudo leer', key, e); }
+      window._fb.listen(key, aplicar);
+    })();
+  });
+}
+if(window._fbReady) iscmNubeInit();
+else window.addEventListener('fbReady', iscmNubeInit, {once:true});
 </script>
 </body>
 </html>
